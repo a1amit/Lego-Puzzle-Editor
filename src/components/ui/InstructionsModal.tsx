@@ -17,6 +17,39 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
 function OverviewTab() {
   return (
     <div className="space-y-4">
+      {/* Getting Started - Try Sample Puzzles */}
+      <div className="bg-gradient-to-r from-editor-accent/20 to-lego-purple/20 border border-editor-accent/40 rounded-xl p-5">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-editor-accent/30 flex items-center justify-center flex-shrink-0">
+            <span className="text-2xl">🎮</span>
+          </div>
+          <div className="flex-1">
+            <h4 className="text-white font-display font-bold text-lg mb-2">Try Sample Puzzles First!</h4>
+            <p className="text-gray-300 text-sm mb-3">
+              Before creating your own puzzle, try the built-in samples to understand how puzzles work.
+            </p>
+            <div className="bg-black/30 rounded-lg p-3 flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-editor-border/50 rounded-lg border border-editor-border">
+                <span className="text-gray-400 text-sm">Puzzle:</span>
+                <span className="text-white font-display font-medium">T-Time</span>
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              <span className="text-gray-400 text-sm">← Click this dropdown in the header to switch puzzles</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-lg">
+                🧩 T-Time — Coverage puzzle (cover all squares)
+              </span>
+              <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-lg">
+                🧩 Tetris Pack — Fit all pieces puzzle
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <p className="text-gray-300">
         The Virtual Lego Puzzle Editor lets you create custom puzzles using a JSON-based format. 
         Each puzzle defines a board, inventory of bricks, and validation rules.
@@ -226,6 +259,17 @@ function ExamplesTab() {
         </pre>
       </div>
 
+      {/* Quick Start */}
+      <div className="bg-gradient-to-r from-lego-green/20 to-editor-success/20 border border-lego-green/40 rounded-lg p-4">
+        <h4 className="text-lego-green font-display font-semibold mb-2">🚀 Quick Start</h4>
+        <ol className="text-gray-300 text-sm space-y-2 list-decimal list-inside">
+          <li>Click <strong>"Puzzle: T-Time"</strong> in the header to see sample puzzles</li>
+          <li>Select a sample to load it into the editor</li>
+          <li>Play with the puzzle to understand how it works</li>
+          <li>Modify the JSON in the editor to create your own variation</li>
+        </ol>
+      </div>
+
       <div className="bg-editor-accent/10 border border-editor-accent/30 rounded-lg p-4">
         <h4 className="text-editor-accent font-display font-semibold mb-2">💡 Tips</h4>
         <ul className="text-gray-300 text-sm space-y-1 list-disc list-inside">
@@ -234,6 +278,7 @@ function ExamplesTab() {
           <li>Each brick ID must be unique in the inventory</li>
           <li>Colors can be any valid CSS hex color</li>
           <li>Bricks can be rotated 90° by pressing <kbd className="px-1 bg-editor-border rounded">R</kbd></li>
+          <li>All panels are resizable — drag the borders to adjust!</li>
         </ul>
       </div>
     </div>
