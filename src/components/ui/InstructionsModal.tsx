@@ -304,7 +304,7 @@ function ExamplesTab() {
       <div>
         <h4 className="text-white font-display font-semibold mb-2">Coverage Puzzle</h4>
         <p className="text-gray-400 text-sm mb-3">
-          Player must cover every cell on an 8×4 board using 4 T-tetrominoes.
+          Player must cover every cell on an 8×4 board (32 cells) using 8 T-tetrominoes (4 cells each).
         </p>
         <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
 {`{
@@ -319,7 +319,11 @@ function ExamplesTab() {
     { "id": "t1", "shape": "T-tetromino", "color": "#D01012", "quantity": 1 },
     { "id": "t2", "shape": "T-tetromino", "color": "#0055BF", "quantity": 1 },
     { "id": "t3", "shape": "T-tetromino", "color": "#287F46", "quantity": 1 },
-    { "id": "t4", "shape": "T-tetromino", "color": "#F5CD2F", "quantity": 1 }
+    { "id": "t4", "shape": "T-tetromino", "color": "#F5CD2F", "quantity": 1 },
+    { "id": "t5", "shape": "T-tetromino", "color": "#FE8A18", "quantity": 1 },
+    { "id": "t6", "shape": "T-tetromino", "color": "#9B5FC0", "quantity": 1 },
+    { "id": "t7", "shape": "T-tetromino", "color": "#00BCD4", "quantity": 1 },
+    { "id": "t8", "shape": "T-tetromino", "color": "#E91E63", "quantity": 1 }
   ],
   "validation_rules": [
     { "type": "COVERAGE", "rule": "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
