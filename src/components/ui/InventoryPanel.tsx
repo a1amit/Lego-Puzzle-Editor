@@ -87,7 +87,8 @@ interface BrickItemProps {
   onSelect: () => void;
 }
 
-function BrickItem({ id, shape, color, remaining, isSelected, rotation, onSelect }: BrickItemProps) {
+function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onSelect }: BrickItemProps) {
+  void _id; // Available for future use (e.g., accessibility)
   const isAvailable = remaining > 0;
   
   return (

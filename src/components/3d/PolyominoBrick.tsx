@@ -103,9 +103,11 @@ export function PolyominoBrick({
   onDeselect,
   onRotate,
   onRemove,
-  onDragEnd,
+  onDragEnd: _onDragEnd,
   boardOffset = { x: 0, y: 0 },
 }: PolyominoBrickProps) {
+  // Note: _onDragEnd is available for future drag-and-drop functionality
+  void _onDragEnd;
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
   const [currentHeight, setCurrentHeight] = useState(0);
