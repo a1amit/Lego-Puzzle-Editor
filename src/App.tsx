@@ -6,7 +6,7 @@ import { InventoryPanel } from './components/ui/InventoryPanel';
 import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
 import { usePuzzleStore } from './store/puzzleStore';
-import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE } from './types/puzzle';
+import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
@@ -111,6 +111,42 @@ function Header() {
           {/* Dropdown menu */}
           {showPuzzleMenu && (
             <div className="absolute top-full left-4 mt-1 w-72 bg-editor-sidebar border border-editor-border rounded-lg shadow-xl z-50 overflow-hidden">
+              {/* New Puzzle section */}
+              <div className="p-2 border-b border-editor-border bg-editor-accent/10">
+                <span className="text-xs text-editor-accent uppercase tracking-wide font-semibold">Create New</span>
+              </div>
+              <button
+                onClick={() => handlePuzzleSelect(BLANK_PUZZLE)}
+                className="w-full px-4 py-3 text-left hover:bg-editor-border/30 transition-colors flex items-start gap-3 border-b border-editor-border"
+              >
+                {/* Plus icon in a brick */}
+                <div className="flex-shrink-0 mt-0.5 relative">
+                  <LegoBrickIcon className="w-5 h-5" color="#8b5cf6" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-editor-accent rounded-full flex items-center justify-center">
+                    <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="font-display font-medium text-white text-sm">
+                    Blank Puzzle
+                  </div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    Start with a minimal template and build your own puzzle
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="px-1.5 py-0.5 text-xs rounded bg-purple-500/20 text-purple-300">
+                      Template
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      6×4 board • 1 piece
+                    </span>
+                  </div>
+                </div>
+              </button>
+              
+              {/* Sample Puzzles section */}
               <div className="p-2 border-b border-editor-border bg-editor-border/20">
                 <span className="text-xs text-gray-400 uppercase tracking-wide">Sample Puzzles</span>
               </div>

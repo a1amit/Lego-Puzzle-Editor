@@ -216,6 +216,32 @@ export const DEFAULT_PUZZLE: PuzzleDefinition = {
 };
 
 // ============================================
+// BLANK PUZZLE TEMPLATE (For creating from scratch)
+// ============================================
+
+export const BLANK_PUZZLE: PuzzleDefinition = {
+  puzzle_id: "new-puzzle",
+  title: "My New Puzzle",
+  description: "Describe your puzzle here",
+  board: {
+    dimensions: { width: 6, height: 4, depth: 1 },
+    initial_state: []
+  },
+  inventory: [
+    { shape: "T-tetromino", color: "#D01012", quantity: 1, id: "piece1" }
+  ],
+  validation_rules: [
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+  metadata: {
+    author: "Your Name",
+    difficulty: "easy",
+    tags: ["custom"]
+  }
+};
+
+// ============================================
 // FIT ALL BRICKS PUZZLE (No coverage requirement)
 // ============================================
 
