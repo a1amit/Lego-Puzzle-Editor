@@ -8,6 +8,31 @@ import { InstructionsModal } from './components/ui/InstructionsModal';
 import { usePuzzleStore } from './store/puzzleStore';
 import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE } from './types/puzzle';
 
+// Lego Brick Icon for header
+function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="8" width="16" height="12" rx="1" fill={color} stroke={color} strokeWidth="1"/>
+      <rect x="8" y="4" width="8" height="6" rx="1" fill={color} stroke={color} strokeWidth="1"/>
+      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+    </svg>
+  );
+}
+
+function LegoStackIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      {/* Bottom brick - blue */}
+      <rect x="2" y="14" width="20" height="8" rx="1" fill="#0055BF"/>
+      {/* Top brick - red */}
+      <rect x="5" y="6" width="14" height="8" rx="1" fill="#D01012"/>
+      {/* Studs */}
+      <ellipse cx="8" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      <ellipse cx="16" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+    </svg>
+  );
+}
+
 const SAMPLE_PUZZLES = [
   { id: 'coverage', label: 'T-Time (Coverage)', puzzle: DEFAULT_PUZZLE },
   { id: 'fit-all', label: 'Tetris Pack (Fit All)', puzzle: FIT_ALL_PUZZLE },
@@ -47,6 +72,7 @@ function Header() {
             onClick={() => setShowPuzzleMenu(!showPuzzleMenu)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-editor-border/30 hover:bg-editor-border/50 transition-colors"
           >
+            <LegoBrickIcon className="w-4 h-4" color="#D01012" />
             <span className="text-gray-400 text-sm">Puzzle:</span>
             <span className="font-display font-medium text-white">{puzzle?.title || 'Select'}</span>
             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,6 +99,13 @@ function Header() {
                     puzzle?.puzzle_id === item.puzzle.puzzle_id ? 'bg-editor-accent/10' : ''
                   }`}
                 >
+                  {/* Lego brick icon */}
+                  <div className="flex-shrink-0 mt-0.5">
+                    <LegoBrickIcon 
+                      className="w-5 h-5" 
+                      color={item.puzzle.inventory[0]?.color || '#D01012'} 
+                    />
+                  </div>
                   <div className="flex-1">
                     <div className="font-display font-medium text-white text-sm">
                       {item.puzzle.title}
@@ -114,9 +147,7 @@ function Header() {
           onClick={() => setShowInstructions(true)}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-editor-accent/20 hover:bg-editor-accent/30 text-editor-accent transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
+          <LegoStackIcon className="w-5 h-5" />
           <span className="text-sm font-display">Guide</span>
         </button>
         
