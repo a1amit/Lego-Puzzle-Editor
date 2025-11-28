@@ -73,13 +73,14 @@ function DragDropManager() {
   // Handle keyboard events for rotation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Use event.code for physical key position (works with any keyboard layout)
       // Rotate placed brick that is selected
       if (selectedPlacedBrick) {
-        if (event.key === 'r' || event.key === 'R') {
+        if (event.code === 'KeyR') {
           rotateBrick(selectedPlacedBrick.instanceId);
-        } else if (event.key === 'Escape') {
+        } else if (event.code === 'Escape' || event.key === 'Escape') {
           selectBrick(null);
-        } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        } else if (event.code === 'Delete' || event.code === 'Backspace') {
           removeBrick(selectedPlacedBrick.instanceId);
           selectBrick(null);
         }
@@ -88,9 +89,9 @@ function DragDropManager() {
       
       // Rotate inventory brick preview
       if (selectedInventoryBrick) {
-        if (event.key === 'r' || event.key === 'R') {
+        if (event.code === 'KeyR') {
           rotatePreview();
-        } else if (event.key === 'Escape') {
+        } else if (event.code === 'Escape' || event.key === 'Escape') {
           selectBrick(null);
         }
       }
