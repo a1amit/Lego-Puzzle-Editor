@@ -33,6 +33,33 @@ function LegoStackIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
+// 2x2 Lego brick grid logo
+function LegoLogo({ className = "w-8 h-8" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 32 32" fill="none">
+      {/* Background rounded square */}
+      <rect x="1" y="1" width="30" height="30" rx="4" fill="#1a1a2e"/>
+      
+      {/* 2x2 Grid of colored bricks */}
+      {/* Top-left - Red */}
+      <rect x="3" y="3" width="12" height="12" rx="2" fill="#D01012"/>
+      <ellipse cx="9" cy="7" rx="3" ry="1.5" fill="#D01012" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
+      
+      {/* Top-right - Yellow */}
+      <rect x="17" y="3" width="12" height="12" rx="2" fill="#F5CD2F"/>
+      <ellipse cx="23" cy="7" rx="3" ry="1.5" fill="#F5CD2F" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
+      
+      {/* Bottom-left - Green */}
+      <rect x="3" y="17" width="12" height="12" rx="2" fill="#287F46"/>
+      <ellipse cx="9" cy="21" rx="3" ry="1.5" fill="#287F46" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
+      
+      {/* Bottom-right - Blue */}
+      <rect x="17" y="17" width="12" height="12" rx="2" fill="#0055BF"/>
+      <ellipse cx="23" cy="21" rx="3" ry="1.5" fill="#0055BF" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
+    </svg>
+  );
+}
+
 const SAMPLE_PUZZLES = [
   { id: 'coverage', label: 'T-Time (Coverage)', puzzle: DEFAULT_PUZZLE },
   { id: 'fit-all', label: 'Tetris Pack (Fit All)', puzzle: FIT_ALL_PUZZLE },
@@ -56,11 +83,7 @@ function Header() {
       <div className="flex items-center gap-4">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-lego-red via-lego-yellow to-lego-blue flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
-            </svg>
-          </div>
+          <LegoLogo className="w-8 h-8" />
           <span className="font-display font-bold text-lg text-white tracking-tight">
             Virtual Lego
           </span>
