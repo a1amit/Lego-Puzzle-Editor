@@ -1,26 +1,217 @@
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 
 interface InstructionsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// Lego Brick Icon Components
+function LegoBrick1x1({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="8" width="16" height="12" rx="1" fill={color} stroke={color} strokeWidth="1"/>
+      <rect x="8" y="4" width="8" height="6" rx="1" fill={color} stroke={color} strokeWidth="1"/>
+      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+    </svg>
+  );
+}
+
+function LegoBrick2x1({ className = "w-5 h-4", color = "currentColor" }: { className?: string; color?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 32 24" fill="none">
+      <rect x="2" y="8" width="28" height="14" rx="1" fill={color} stroke={color} strokeWidth="1"/>
+      <ellipse cx="10" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+      <ellipse cx="22" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+      <rect x="6" y="2" width="8" height="8" rx="1" fill={color}/>
+      <rect x="18" y="2" width="8" height="8" rx="1" fill={color}/>
+    </svg>
+  );
+}
+
+function LegoTBrick({ className = "w-5 h-5", color = "currentColor" }: { className?: string; color?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      {/* T-shape body */}
+      <rect x="2" y="4" width="20" height="8" rx="1" fill={color}/>
+      <rect x="8" y="10" width="8" height="10" rx="1" fill={color}/>
+      {/* Studs */}
+      <ellipse cx="6" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      <ellipse cx="12" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      <ellipse cx="18" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      <ellipse cx="12" cy="16" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+    </svg>
+  );
+}
+
+function LegoStackIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      {/* Bottom brick - blue */}
+      <rect x="2" y="14" width="20" height="8" rx="1" fill="#0055BF"/>
+      {/* Top brick - red */}
+      <rect x="5" y="6" width="14" height="8" rx="1" fill="#D01012"/>
+      {/* Studs */}
+      <ellipse cx="8" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      <ellipse cx="16" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+    </svg>
+  );
+}
+
+function LegoCheckIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="8" width="16" height="12" rx="1" fill="#287F46"/>
+      <rect x="7" y="4" width="10" height="6" rx="1" fill="#287F46"/>
+      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill="#287F46" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+      {/* Checkmark */}
+      <path d="M8 14l3 3 5-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function LegoLightbulbIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="10" width="16" height="10" rx="1" fill="#F5CD2F"/>
+      <rect x="8" y="6" width="8" height="6" rx="1" fill="#F5CD2F"/>
+      <ellipse cx="12" cy="7" rx="3" ry="1.5" fill="#F5CD2F" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      {/* Light rays */}
+      <path d="M12 2v2M18 4l-1.5 1.5M6 4l1.5 1.5" stroke="#F5CD2F" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function LegoRocketIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      {/* Rocket body - brick style */}
+      <rect x="8" y="6" width="8" height="14" rx="1" fill="#D01012"/>
+      {/* Nose cone */}
+      <path d="M8 6L12 2L16 6" fill="#D01012"/>
+      {/* Fins */}
+      <path d="M8 16L4 20V16" fill="#0055BF"/>
+      <path d="M16 16L20 20V16" fill="#0055BF"/>
+      {/* Window/stud */}
+      <ellipse cx="12" cy="10" rx="2" ry="1.5" fill="#D01012" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
+      {/* Flame */}
+      <path d="M10 20L12 24L14 20" fill="#F5CD2F"/>
+    </svg>
+  );
+}
+
 type TabId = 'overview' | 'shapes' | 'validation' | 'examples';
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: 'overview', label: 'Overview', icon: '📖' },
-  { id: 'shapes', label: 'Shapes', icon: '🧱' },
-  { id: 'validation', label: 'Validation', icon: '✅' },
-  { id: 'examples', label: 'Examples', icon: '💡' },
+interface TabDef {
+  id: TabId;
+  label: string;
+  icon: ReactNode;
+}
+
+const TABS: TabDef[] = [
+  { id: 'overview', label: 'Overview', icon: <LegoStackIcon className="w-4 h-4" /> },
+  { id: 'shapes', label: 'Shapes', icon: <LegoTBrick className="w-4 h-4" color="#D01012" /> },
+  { id: 'validation', label: 'Validation', icon: <LegoCheckIcon className="w-4 h-4" /> },
+  { id: 'examples', label: 'Examples', icon: <LegoLightbulbIcon className="w-4 h-4" /> },
 ];
 
 function OverviewTab() {
   return (
     <div className="space-y-4">
+      {/* Getting Started - Try Sample Puzzles */}
+      <div className="bg-gradient-to-r from-editor-accent/20 to-lego-purple/20 border border-editor-accent/40 rounded-xl p-5">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-editor-accent/30 flex items-center justify-center flex-shrink-0">
+            <LegoStackIcon className="w-8 h-8" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-white font-display font-bold text-lg mb-2">Try Sample Puzzles First!</h4>
+            <p className="text-gray-300 text-sm mb-3">
+              Before creating your own puzzle, try the built-in samples to understand how puzzles work.
+            </p>
+            <div className="bg-black/30 rounded-lg p-3 flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-editor-border/50 rounded-lg border border-editor-border">
+                <LegoBrick1x1 className="w-4 h-4" color="#D01012" />
+                <span className="text-gray-400 text-sm">Puzzle:</span>
+                <span className="text-white font-display font-medium">T-Time</span>
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              <span className="text-gray-400 text-sm">← Click this dropdown in the header to switch puzzles</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-lg flex items-center gap-1.5">
+                <LegoBrick1x1 className="w-3 h-3" color="#60A5FA" />
+                T-Time — Coverage puzzle
+              </span>
+              <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-lg flex items-center gap-1.5">
+                <LegoBrick2x1 className="w-4 h-3" color="#4ADE80" />
+                Tetris Pack — Fit all pieces
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <p className="text-gray-300">
         The Virtual Lego Puzzle Editor lets you create custom puzzles using a JSON-based format. 
         Each puzzle defines a board, inventory of bricks, and validation rules.
       </p>
+
+      {/* Controls Section */}
+      <h4 className="text-white font-display font-semibold mt-6 flex items-center gap-2">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+        </svg>
+        3D View Controls
+      </h4>
+      <div className="bg-black/30 rounded-lg p-4 space-y-2">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Left-click + Drag</span>
+          <span className="text-gray-400">Rotate the camera view</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Right-click + Drag</span>
+          <span className="text-gray-400">Pan the camera view</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Scroll Wheel</span>
+          <span className="text-gray-400">Zoom in/out</span>
+        </div>
+      </div>
+
+      <h4 className="text-white font-display font-semibold mt-6 flex items-center gap-2">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+        </svg>
+        Brick Controls
+      </h4>
+      <div className="bg-black/30 rounded-lg p-4 space-y-2">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Click inventory brick</span>
+          <span className="text-gray-400">Select a brick to place</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">R / Right-click</span>
+          <span className="text-gray-400">Rotate selected brick 90°</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Click on board</span>
+          <span className="text-gray-400">Place the selected brick</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Click placed brick</span>
+          <span className="text-gray-400">Lift and reposition</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Double-click / Del</span>
+          <span className="text-gray-400">Remove brick from board</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Esc</span>
+          <span className="text-gray-400">Deselect current brick</span>
+        </div>
+      </div>
       
       <h4 className="text-white font-display font-semibold mt-6">JSON Structure</h4>
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
@@ -168,7 +359,7 @@ function ExamplesTab() {
       <div>
         <h4 className="text-white font-display font-semibold mb-2">Coverage Puzzle</h4>
         <p className="text-gray-400 text-sm mb-3">
-          Player must cover every cell on an 8×4 board using 4 T-tetrominoes.
+          Player must cover every cell on an 8×4 board (32 cells) using 8 T-tetrominoes (4 cells each).
         </p>
         <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
 {`{
@@ -183,7 +374,11 @@ function ExamplesTab() {
     { "id": "t1", "shape": "T-tetromino", "color": "#D01012", "quantity": 1 },
     { "id": "t2", "shape": "T-tetromino", "color": "#0055BF", "quantity": 1 },
     { "id": "t3", "shape": "T-tetromino", "color": "#287F46", "quantity": 1 },
-    { "id": "t4", "shape": "T-tetromino", "color": "#F5CD2F", "quantity": 1 }
+    { "id": "t4", "shape": "T-tetromino", "color": "#F5CD2F", "quantity": 1 },
+    { "id": "t5", "shape": "T-tetromino", "color": "#FE8A18", "quantity": 1 },
+    { "id": "t6", "shape": "T-tetromino", "color": "#9B5FC0", "quantity": 1 },
+    { "id": "t7", "shape": "T-tetromino", "color": "#00BCD4", "quantity": 1 },
+    { "id": "t8", "shape": "T-tetromino", "color": "#E91E63", "quantity": 1 }
   ],
   "validation_rules": [
     { "type": "COVERAGE", "rule": "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
@@ -226,14 +421,32 @@ function ExamplesTab() {
         </pre>
       </div>
 
+      {/* Quick Start */}
+      <div className="bg-gradient-to-r from-lego-green/20 to-editor-success/20 border border-lego-green/40 rounded-lg p-4">
+        <h4 className="text-lego-green font-display font-semibold mb-2 flex items-center gap-2">
+          <LegoRocketIcon className="w-5 h-5" />
+          Quick Start
+        </h4>
+        <ol className="text-gray-300 text-sm space-y-2 list-decimal list-inside">
+          <li>Click <strong>"Puzzle: T-Time"</strong> in the header to see sample puzzles</li>
+          <li>Select a sample to load it into the editor</li>
+          <li>Play with the puzzle to understand how it works</li>
+          <li>Modify the JSON in the editor to create your own variation</li>
+        </ol>
+      </div>
+
       <div className="bg-editor-accent/10 border border-editor-accent/30 rounded-lg p-4">
-        <h4 className="text-editor-accent font-display font-semibold mb-2">💡 Tips</h4>
+        <h4 className="text-editor-accent font-display font-semibold mb-2 flex items-center gap-2">
+          <LegoLightbulbIcon className="w-5 h-5" />
+          Tips
+        </h4>
         <ul className="text-gray-300 text-sm space-y-1 list-disc list-inside">
           <li>Use the <strong>Format</strong> button to auto-format your JSON</li>
           <li>Changes are applied live when JSON is valid</li>
           <li>Each brick ID must be unique in the inventory</li>
           <li>Colors can be any valid CSS hex color</li>
           <li>Bricks can be rotated 90° by pressing <kbd className="px-1 bg-editor-border rounded">R</kbd></li>
+          <li>All panels are resizable — drag the borders to adjust!</li>
         </ul>
       </div>
     </div>
@@ -259,9 +472,7 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-editor-border bg-editor-bg/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-editor-accent to-lego-purple flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+              <LegoStackIcon className="w-7 h-7" />
             </div>
             <div>
               <h2 className="text-xl font-display font-bold text-white">Puzzle Creator Guide</h2>
@@ -284,13 +495,13 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-display transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-display transition-all flex items-center gap-2 ${
                 activeTab === tab.id
                   ? 'bg-editor-accent text-white'
                   : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
               }`}
             >
-              <span className="mr-2">{tab.icon}</span>
+              {tab.icon}
               {tab.label}
             </button>
           ))}

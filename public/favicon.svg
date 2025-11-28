@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Background -->
+  <rect x="0" y="0" width="32" height="32" rx="4" fill="#1a1a2e"/>
+  
+  <!-- 2x2 Grid of colored bricks -->
+  <!-- Top-left - Red -->
+  <rect x="2" y="2" width="13" height="13" rx="2" fill="#D01012"/>
+  <ellipse cx="8.5" cy="6" rx="3.5" ry="2" fill="#D01012" stroke="rgba(255,255,255,0.6)" stroke-width="0.8"/>
+  
+  <!-- Top-right - Yellow -->
+  <rect x="17" y="2" width="13" height="13" rx="2" fill="#F5CD2F"/>
+  <ellipse cx="23.5" cy="6" rx="3.5" ry="2" fill="#F5CD2F" stroke="rgba(255,255,255,0.6)" stroke-width="0.8"/>
+  
+  <!-- Bottom-left - Green -->
+  <rect x="2" y="17" width="13" height="13" rx="2" fill="#287F46"/>
+  <ellipse cx="8.5" cy="21" rx="3.5" ry="2" fill="#287F46" stroke="rgba(255,255,255,0.6)" stroke-width="0.8"/>
+  
+  <!-- Bottom-right - Blue -->
+  <rect x="17" y="17" width="13" height="13" rx="2" fill="#0055BF"/>
+  <ellipse cx="23.5" cy="21" rx="3.5" ry="2" fill="#0055BF" stroke="rgba(255,255,255,0.6)" stroke-width="0.8"/>
+</svg>
+
