@@ -55,10 +55,54 @@ Puzzles are defined in JSON format:
     "blocked_cells": []
   },
   "inventory": [
-    { "shape": "T-tetromino", "color": "#D01012", "quantity": 1, "id": "t1" },
-    { "shape": "T-tetromino", "color": "#0055BF", "quantity": 1, "id": "t2" },
-    { "shape": "T-tetromino", "color": "#287F46", "quantity": 1, "id": "t3" },
-    { "shape": "T-tetromino", "color": "#F5CD2F", "quantity": 1, "id": "t4" }
+{
+      "shape": "T-tetromino",
+      "color": "#D01012",
+      "quantity": 1,
+      "id": "t1"
+    },
+    {
+      "shape": "T-tetromino",
+      "color": "#0055BF",
+      "quantity": 1,
+      "id": "t2"
+    },
+    {
+      "shape": "T-tetromino",
+      "color": "#287F46",
+      "quantity": 1,
+      "id": "t3"
+    },
+    {
+      "shape": "T-tetromino",
+      "color": "#F5CD2F",
+      "quantity": 1,
+      "id": "t4"
+    },
+    {
+      "shape": "T-tetromino",
+      "color": "#FE8A18",
+      "quantity": 1,
+      "id": "t5"
+    },
+    {
+      "shape": "T-tetromino",
+      "color": "#9B5FC0",
+      "quantity": 1,
+      "id": "t6"
+    },
+    {
+      "shape": "T-tetromino",
+      "color": "#00BCD4",
+      "quantity": 1,
+      "id": "t7"
+    },
+    {
+      "shape": "T-tetromino",
+      "color": "#E91E63",
+      "quantity": 1,
+      "id": "t8"
+    }
   ],
   "validation_rules": [
     { "type": "COVERAGE", "rule": "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
