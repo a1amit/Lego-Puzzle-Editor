@@ -122,7 +122,7 @@ function Header() {
         
         {/* GitHub link */}
         <a 
-          href="https://github.com"
+          href="https://github.com/a1amit/Lego-Puzzle-Editor"
           target="_blank"
           rel="noopener noreferrer"
           className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-editor-border/30"
