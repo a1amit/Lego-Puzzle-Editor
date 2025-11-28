@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SplitLayout } from './components/layout/SplitLayout';
+import { ResizablePanels } from './components/layout/ResizablePanels';
 import { PuzzleEditor } from './components/editor/PuzzleEditor';
 import { PuzzleScene } from './components/3d/PuzzleScene';
 import { InventoryPanel } from './components/ui/InventoryPanel';
@@ -152,18 +152,30 @@ function EditorPanel() {
 
 function PreviewPanel() {
   return (
-    <div className="h-full flex">
+    <ResizablePanels
+      direction="horizontal"
+      defaultSize={75}
+      minSize={40}
+      maxSize={90}
+    >
       {/* 3D Scene */}
-      <div className="flex-1 bg-editor-bg">
+      <div className="h-full bg-editor-bg">
         <PuzzleScene />
       </div>
       
-      {/* Side panels */}
-      <div className="w-64 flex flex-col bg-editor-sidebar border-l border-editor-border">
-        <InventoryPanel className="flex-1 border-b border-editor-border" />
-        <ValidationPanel className="h-72" />
+      {/* Side panels - Inventory & Validation */}
+      <div className="h-full bg-editor-sidebar border-l border-editor-border">
+        <ResizablePanels
+          direction="vertical"
+          defaultSize={60}
+          minSize={20}
+          maxSize={85}
+        >
+          <InventoryPanel className="h-full" />
+          <ValidationPanel className="h-full" />
+        </ResizablePanels>
       </div>
-    </div>
+    </ResizablePanels>
   );
 }
 
@@ -219,11 +231,15 @@ function App() {
       {/* Main content */}
       <main className="flex-1 overflow-hidden">
         {viewMode === 'split' && (
-          <SplitLayout
-            left={<EditorPanel />}
-            right={<PreviewPanel />}
-            defaultSplit={40}
-          />
+          <ResizablePanels
+            direction="horizontal"
+            defaultSize={40}
+            minSize={20}
+            maxSize={70}
+          >
+            <EditorPanel />
+            <PreviewPanel />
+          </ResizablePanels>
         )}
         {viewMode === 'editor' && <EditorPanel />}
         {viewMode === 'preview' && <PreviewPanel />}
