@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { ThreeEvent } from '@react-three/fiber';
+import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import * as THREE from 'three';
 import { usePuzzleStore } from '../../store/puzzleStore';
 
@@ -190,7 +191,7 @@ export function LegoBoard({
       {cells}
       
       {/* Invisible interaction plane - rotated to face up for proper raycasting */}
-      <mesh 
+      <mesh
         position={[width / 2, 0.1, height / 2]}
         rotation={[-Math.PI / 2, 0, 0]}
         visible={false}
@@ -198,6 +199,14 @@ export function LegoBoard({
         <planeGeometry args={[width, height]} />
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
+
+      {/* Physics ground collider - static rigid body for bricks to land on */}
+      <RigidBody type="fixed" colliders={false}>
+        <CuboidCollider
+          args={[width / 2 + 1, 0.1, height / 2 + 1]}
+          position={[width / 2, -0.1, height / 2]}
+        />
+      </RigidBody>
     </group>
   );
 }

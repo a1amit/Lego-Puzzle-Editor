@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { ThreeEvent, useFrame } from '@react-three/fiber';
+import { RigidBody, CuboidCollider } from '@react-three/rapier';
+import type { RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
 import { SHAPE_LIBRARY, PlacedBrick, ShapeDefinition } from '../../types/puzzle';
 import { rotateShape } from '../../validation/ValidationRegistry';
@@ -109,68 +111,61 @@ export function PolyominoBrick({
 }: PolyominoBrickProps) {
   // Note: _onDragEnd is available for future drag-and-drop functionality
   void _onDragEnd;
+  const rigidBodyRef = useRef<RapierRigidBody>(null);
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
-  const [currentHeight, setCurrentHeight] = useState(0);
-  const [rotationAngle, setRotationAngle] = useState(0);
-  const targetHeight = useRef(0);
-  const targetRotation = useRef(0);
-  
+
   // Get shape definition
   const shape: ShapeDefinition | undefined = SHAPE_LIBRARY[brick.shape];
-  
-  // Calculate base height from z-level (stacking)
-  const baseHeight = (brick.z || 0) * BRICK_STACK_HEIGHT;
-  
-  // Update target height based on selection
-  useEffect(() => {
-    targetHeight.current = isSelected ? baseHeight + HOVER_HEIGHT : baseHeight;
-  }, [isSelected, baseHeight]);
-  
-  // Update rotation when brick.rotation changes
-  useEffect(() => {
-    targetRotation.current = (brick.rotation * Math.PI) / 180;
-  }, [brick.rotation]);
-  
+
   // Clear hover state when not interactive
   useEffect(() => {
     if (!interactive) {
       setHovered(false);
     }
   }, [interactive]);
-  
-  // Smooth animation for height and rotation
-  useFrame((_, delta) => {
-    // Animate height
-    const heightDiff = targetHeight.current - currentHeight;
-    if (Math.abs(heightDiff) > 0.01) {
-      setCurrentHeight(prev => prev + heightDiff * Math.min(delta * 8, 1));
+
+  // Update rigid body position when brick moves or is selected
+  useEffect(() => {
+    if (rigidBodyRef.current) {
+      const posX = brick.position.x - boardOffset.x;
+      const posZ = brick.position.y - boardOffset.y;
+
+      if (isSelected) {
+        // When selected, lift the brick up and make it kinematic
+        rigidBodyRef.current.setBodyType(2, true); // 2 = kinematic
+        rigidBodyRef.current.setTranslation({ x: posX, y: HOVER_HEIGHT + 1, z: posZ }, true);
+        rigidBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        rigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      } else {
+        // When not selected, make it dynamic so it falls
+        rigidBodyRef.current.setBodyType(0, true); // 0 = dynamic
+        // Wake up the body to make sure physics applies
+        rigidBodyRef.current.wakeUp();
+      }
     }
-    
-    // Animate rotation
-    const rotDiff = targetRotation.current - rotationAngle;
-    if (Math.abs(rotDiff) > 0.01) {
-      setRotationAngle(prev => prev + rotDiff * Math.min(delta * 10, 1));
-    }
-    
-    // Gentle floating animation when selected
-    if (groupRef.current && isSelected) {
-      groupRef.current.position.y = currentHeight + Math.sin(Date.now() * 0.003) * 0.05;
-    } else if (groupRef.current) {
-      groupRef.current.position.y = currentHeight;
+  }, [isSelected, brick.position.x, brick.position.y, boardOffset.x, boardOffset.y]);
+
+  // Floating animation when selected
+  useFrame(() => {
+    if (rigidBodyRef.current && isSelected) {
+      const posX = brick.position.x - boardOffset.x;
+      const posZ = brick.position.y - boardOffset.y;
+      const floatY = HOVER_HEIGHT + 1 + Math.sin(Date.now() * 0.003) * 0.1;
+      rigidBodyRef.current.setTranslation({ x: posX, y: floatY, z: posZ }, true);
     }
   });
-  
+
   if (!shape) {
     console.warn(`Unknown shape: ${brick.shape}`);
     return null;
   }
-  
+
   // Apply rotation to shape cells for rendering
   const rotatedCells = useMemo(() => {
     return rotateShape(shape.cells, brick.rotation);
   }, [shape.cells, brick.rotation]);
-  
+
   // Render cells
   const cells = useMemo(() => {
     return rotatedCells.map(([dx, dy], index) => (
@@ -185,13 +180,24 @@ export function PolyominoBrick({
       />
     ));
   }, [rotatedCells, brick.color, isGhost, isSelected, isValid, hovered, interactive]);
-  
+
+  // Generate colliders for each cell
+  const colliders = useMemo(() => {
+    return rotatedCells.map(([dx, dy], index) => (
+      <CuboidCollider
+        key={`collider-${dx}-${dy}-${index}`}
+        args={[CELL_SIZE / 2 - 0.02, BRICK_HEIGHT / 2, CELL_SIZE / 2 - 0.02]}
+        position={[dx * CELL_SIZE + 0.5, BRICK_HEIGHT / 2, dy * CELL_SIZE + 0.5]}
+      />
+    ));
+  }, [rotatedCells]);
+
   // Handle click - toggle selection (only if interactive)
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     if (!interactive) return; // Let click pass through to board
-    
+
     event.stopPropagation();
-    
+
     if (isSelected) {
       // If already selected, clicking again places it back down
       onDeselect?.();
@@ -199,116 +205,130 @@ export function PolyominoBrick({
       onSelect?.();
     }
   };
-  
+
   // Handle right-click to rotate (only if interactive)
   const handleContextMenu = (event: ThreeEvent<MouseEvent>) => {
     if (!interactive) return;
-    
+
     event.stopPropagation();
     // Prevent browser context menu
     event.nativeEvent.preventDefault();
     onRotate?.();
   };
-  
+
   // Handle double-click to remove (only if interactive)
   const handleDoubleClick = (event: ThreeEvent<MouseEvent>) => {
     if (!interactive) return;
-    
+
     event.stopPropagation();
     onRemove?.();
   };
-  
+
   const handlePointerEnter = () => {
     if (interactive) setHovered(true);
   };
-  
+
   const handlePointerLeave = () => setHovered(false);
-  
+
   // Calculate actual position
   const posX = brick.position.x - boardOffset.x;
   const posZ = brick.position.y - boardOffset.y;
-  
+
   // Calculate center offset for rotation pivot
-  const centerX = rotatedCells.length > 0 
-    ? (Math.max(...rotatedCells.map(c => c[0])) + 1) / 2 
+  const centerX = rotatedCells.length > 0
+    ? (Math.max(...rotatedCells.map(c => c[0])) + 1) / 2
     : 0.5;
-  const centerZ = rotatedCells.length > 0 
-    ? (Math.max(...rotatedCells.map(c => c[1])) + 1) / 2 
+  const centerZ = rotatedCells.length > 0
+    ? (Math.max(...rotatedCells.map(c => c[1])) + 1) / 2
     : 0.5;
-  
+
   return (
-    <group
-      ref={groupRef}
-      position={[posX, 0, posZ]}
-      onClick={handleClick}
-      onContextMenu={handleContextMenu}
-      onDoubleClick={handleDoubleClick}
-      onPointerEnter={handlePointerEnter}
-      onPointerLeave={handlePointerLeave}
+    <RigidBody
+      ref={rigidBodyRef}
+      position={[posX, isSelected ? HOVER_HEIGHT + 1 : 2, posZ]}
+      type={isSelected ? 'kinematicPosition' : 'dynamic'}
+      colliders={false}
+      friction={0.8}
+      restitution={0.1}
+      linearDamping={0.5}
+      angularDamping={0.99}
+      lockRotations={true} // Prevent tipping over
     >
-      {/* Brick cells */}
-      <group>
-        {cells}
-      </group>
-      
-      {/* Selection/hover glow effect - only show when interactive */}
-      {(isSelected || (hovered && interactive)) && !isGhost && (
-        <>
-          {/* Ground shadow when hovering */}
-          {isSelected && (
-            <mesh 
-              position={[centerX, 0.01, centerZ]} 
-              rotation={[-Math.PI / 2, 0, 0]}
-            >
-              <planeGeometry args={[
-                Math.max(...rotatedCells.map(c => c[0])) + 1.5,
-                Math.max(...rotatedCells.map(c => c[1])) + 1.5
+      <group
+        ref={groupRef}
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        onDoubleClick={handleDoubleClick}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+      >
+        {/* Brick cells */}
+        <group>
+          {cells}
+        </group>
+
+        {/* Physics colliders for each cell */}
+        {colliders}
+
+        {/* Selection/hover glow effect - only show when interactive */}
+        {(isSelected || (hovered && interactive)) && !isGhost && (
+          <>
+            {/* Ground shadow when hovering */}
+            {isSelected && (
+              <mesh
+                position={[centerX, 0.01, centerZ]}
+                rotation={[-Math.PI / 2, 0, 0]}
+              >
+                <planeGeometry args={[
+                  Math.max(...rotatedCells.map(c => c[0])) + 1.5,
+                  Math.max(...rotatedCells.map(c => c[1])) + 1.5
+                ]} />
+                <meshBasicMaterial
+                  color="#000000"
+                  transparent
+                  opacity={0.3}
+                />
+              </mesh>
+            )}
+
+            {/* Selection ring */}
+            <mesh position={[centerX, 0.02, centerZ]} rotation={[-Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[
+                Math.max(
+                  Math.max(...rotatedCells.map(c => c[0])) + 1,
+                  Math.max(...rotatedCells.map(c => c[1])) + 1
+                ) * 0.6,
+                Math.max(
+                  Math.max(...rotatedCells.map(c => c[0])) + 1,
+                  Math.max(...rotatedCells.map(c => c[1])) + 1
+                ) * 0.7,
+                32
               ]} />
-              <meshBasicMaterial 
-                color="#000000"
+              <meshBasicMaterial
+                color={isSelected ? '#58A6FF' : '#ffffff'}
                 transparent
-                opacity={0.3}
+                opacity={isSelected ? 0.6 : 0.3}
               />
             </mesh>
-          )}
-          
-          {/* Selection ring */}
-          <mesh position={[centerX, 0.02, centerZ]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[
-              Math.max(
-                Math.max(...rotatedCells.map(c => c[0])) + 1,
-                Math.max(...rotatedCells.map(c => c[1])) + 1
-              ) * 0.6,
-              Math.max(
-                Math.max(...rotatedCells.map(c => c[0])) + 1,
-                Math.max(...rotatedCells.map(c => c[1])) + 1
-              ) * 0.7,
-              32
-            ]} />
-            <meshBasicMaterial 
-              color={isSelected ? '#58A6FF' : '#ffffff'}
-              transparent
-              opacity={isSelected ? 0.6 : 0.3}
-            />
-          </mesh>
-        </>
-      )}
-      
-      {/* Rotation indicator when selected */}
-      {isSelected && (
-        <group position={[centerX, BRICK_HEIGHT + 0.8, centerZ]}>
-          <mesh rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.4, 0.05, 8, 32, Math.PI * 1.5]} />
-            <meshBasicMaterial color="#58A6FF" transparent opacity={0.8} />
-          </mesh>
-          {/* Arrow head */}
-          <mesh position={[0.4, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-            <coneGeometry args={[0.1, 0.2, 8]} />
-            <meshBasicMaterial color="#58A6FF" />
-          </mesh>
-        </group>
-      )}
-    </group>
+          </>
+        )}
+
+        {/* Rotation indicator when selected */}
+        {isSelected && (
+          <group position={[centerX, BRICK_HEIGHT + 0.8, centerZ]}>
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.4, 0.05, 8, 32, Math.PI * 1.5]} />
+              <meshBasicMaterial color="#58A6FF" transparent opacity={0.8} />
+            </mesh>
+            {/* Arrow head */}
+            <mesh position={[0.4, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+              <coneGeometry args={[0.1, 0.2, 8]} />
+              <meshBasicMaterial color="#58A6FF" />
+            </mesh>
+          </group>
+        )}
+      </group>
+    </RigidBody>
   );
 }
 

@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, ContactShadows } from '@react-three/drei';
+import { Physics } from '@react-three/rapier';
 import { LegoBoard } from './LegoBoard';
 import { PolyominoBrick, GhostBrick } from './PolyominoBrick';
 import { usePuzzleStore } from '../../store/puzzleStore';
@@ -416,8 +417,10 @@ export function PuzzleScene() {
         <SceneLighting />
         
         <Suspense fallback={null}>
-          <DragDropManager />
-          <BackgroundGrid />
+          <Physics gravity={[0, -9.81, 0]} colliders={false}>
+            <DragDropManager />
+            <BackgroundGrid />
+          </Physics>
           <ContactShadows
             position={[0, -0.49, 0]}
             opacity={0.4}
