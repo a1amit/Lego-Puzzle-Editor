@@ -51,11 +51,34 @@ export function getBrickCells(brick: PlacedBrick, shapeLibrary: Record<string, S
 
 /**
  * Get all cells occupied by all placed bricks
+ * Returns a map of "x,y" -> bricks at that position (across all z-levels)
  */
 export function getAllOccupiedCells(boardState: BoardState): Map<string, PlacedBrick[]> {
   const cellMap = new Map<string, PlacedBrick[]>();
   
   for (const brick of boardState.placedBricks) {
+    const cells = getBrickCells(brick);
+    for (const [x, y] of cells) {
+      const key = `${x},${y}`;
+      if (!cellMap.has(key)) {
+        cellMap.set(key, []);
+      }
+      cellMap.get(key)!.push(brick);
+    }
+  }
+  
+  return cellMap;
+}
+
+/**
+ * Get all cells occupied by bricks at a specific z-level
+ * Returns a map of "x,y" -> bricks at that position and z-level
+ */
+export function getOccupiedCellsAtZ(boardState: BoardState, z: number): Map<string, PlacedBrick[]> {
+  const cellMap = new Map<string, PlacedBrick[]>();
+  
+  for (const brick of boardState.placedBricks) {
+    if (brick.z !== z) continue;
     const cells = getBrickCells(brick);
     for (const [x, y] of cells) {
       const key = `${x},${y}`;
@@ -109,16 +132,21 @@ const validateAllBoardSquaresCovered: ValidationFunction = (boardState) => {
 };
 
 /**
- * Check if any bricks overlap
+ * Check if any bricks overlap at the same z-level
+ * Bricks can stack vertically (different z-levels) but cannot overlap at the same level
  */
 const validateNoBrickOverlap: ValidationFunction = (boardState) => {
-  const cellMap = getAllOccupiedCells(boardState);
+  // Group bricks by z-level and check for overlaps at each level
+  const zLevels = new Set(boardState.placedBricks.map(b => b.z));
   const overlappingCells: [number, number][] = [];
   
-  for (const [key, bricks] of cellMap.entries()) {
-    if (bricks.length > 1) {
-      const [x, y] = key.split(',').map(Number);
-      overlappingCells.push([x, y]);
+  for (const z of zLevels) {
+    const cellMap = getOccupiedCellsAtZ(boardState, z);
+    for (const [key, bricks] of cellMap.entries()) {
+      if (bricks.length > 1) {
+        const [x, y] = key.split(',').map(Number);
+        overlappingCells.push([x, y]);
+      }
     }
   }
   
@@ -126,7 +154,7 @@ const validateNoBrickOverlap: ValidationFunction = (boardState) => {
     return {
       isValid: false,
       rule: 'NO_BRICK_OVERLAP',
-      message: `${overlappingCells.length} cell(s) have overlapping bricks`,
+      message: `${overlappingCells.length} cell(s) have overlapping bricks at the same level`,
       affectedCells: overlappingCells,
     };
   }
@@ -204,6 +232,42 @@ const validateNoBlockedCells: ValidationFunction = (boardState) => {
 };
 
 /**
+ * Check if any bricks exceed the board depth limit
+ * Depth: 1 = no stacking (only z=0), depth: 2 = one layer (z=0,1), etc.
+ */
+const validateNoBricksExceedDepth: ValidationFunction = (boardState) => {
+  const maxAllowedZ = boardState.dimensions.depth - 1;
+  const exceedingBricks: PlacedBrick[] = [];
+  
+  for (const brick of boardState.placedBricks) {
+    if ((brick.z || 0) > maxAllowedZ) {
+      exceedingBricks.push(brick);
+    }
+  }
+  
+  if (exceedingBricks.length > 0) {
+    const affectedCells: [number, number][] = [];
+    for (const brick of exceedingBricks) {
+      const cells = getBrickCells(brick);
+      affectedCells.push(...cells);
+    }
+    
+    return {
+      isValid: false,
+      rule: 'NO_BRICKS_EXCEED_DEPTH',
+      message: `${exceedingBricks.length} brick(s) exceed the board depth limit (max z-level: ${maxAllowedZ})`,
+      affectedCells,
+    };
+  }
+  
+  return {
+    isValid: true,
+    rule: 'NO_BRICKS_EXCEED_DEPTH',
+    message: 'All bricks are within depth limits',
+  };
+};
+
+/**
  * Check if all bricks from inventory have been placed on the board
  * Params should contain: { inventory: Array<{ id: string, quantity: number }> }
  */
@@ -270,6 +334,7 @@ class ValidationRegistryClass {
     this.register('NO_BRICK_OVERLAP', validateNoBrickOverlap);
     this.register('NO_BRICKS_OUT_OF_BOUNDS', validateNoBricksOutOfBounds);
     this.register('NO_BLOCKED_CELLS', validateNoBlockedCells);
+    this.register('NO_BRICKS_EXCEED_DEPTH', validateNoBricksExceedDepth);
   }
   
   /**

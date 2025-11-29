@@ -23,6 +23,7 @@ const BRICK_HEIGHT = 0.4;
 const STUD_RADIUS = 0.25;
 const STUD_HEIGHT = 0.15;
 const HOVER_HEIGHT = 1.5; // Height when brick is lifted
+const BRICK_STACK_HEIGHT = BRICK_HEIGHT + STUD_HEIGHT; // Total height of one brick layer
 
 // Individual brick cell with stud
 function BrickCell({ 
@@ -118,10 +119,13 @@ export function PolyominoBrick({
   // Get shape definition
   const shape: ShapeDefinition | undefined = SHAPE_LIBRARY[brick.shape];
   
+  // Calculate base height from z-level (stacking)
+  const baseHeight = (brick.z || 0) * BRICK_STACK_HEIGHT;
+  
   // Update target height based on selection
   useEffect(() => {
-    targetHeight.current = isSelected ? HOVER_HEIGHT : 0;
-  }, [isSelected]);
+    targetHeight.current = isSelected ? baseHeight + HOVER_HEIGHT : baseHeight;
+  }, [isSelected, baseHeight]);
   
   // Update rotation when brick.rotation changes
   useEffect(() => {
@@ -314,21 +318,24 @@ export function GhostBrick({
   color,
   rotation,
   position,
+  z = 0,
   isValid,
 }: {
   shape: string;
   color: string;
   rotation: number;
   position: { x: number; y: number };
+  z?: number;
   isValid: boolean;
 }) {
   const shapeDefinition = SHAPE_LIBRARY[shape];
   if (!shapeDefinition) return null;
   
   const rotatedCells = rotateShape(shapeDefinition.cells, rotation);
+  const baseHeight = z * BRICK_STACK_HEIGHT;
   
   return (
-    <group position={[position.x, 0.05, position.y]}>
+    <group position={[position.x, baseHeight + 0.05, position.y]}>
       {rotatedCells.map(([dx, dy], index) => (
         <mesh
           key={index}

@@ -154,6 +154,7 @@ export interface PlacedBrick {
   color: string;
   position: { x: number; y: number };
   rotation: number; // 0, 90, 180, 270 degrees
+  z: number; // Vertical layer/height (0 = ground level, 1 = one brick high, etc.)
 }
 
 /** Current state of the board */
