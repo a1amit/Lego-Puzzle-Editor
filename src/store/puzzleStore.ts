@@ -71,12 +71,59 @@ function calculateZLevel(
     // Check if any of the new cells overlap with this brick's cells
     for (const [x, y] of cells) {
       if (brickCellSet.has(`${x},${y}`)) {
-        maxZ = Math.max(maxZ, brick.z);
+        maxZ = Math.max(maxZ, brick.z || 0);
       }
     }
   }
   
   return maxZ + 1; // Stack on top of the highest brick
+}
+
+/**
+ * Find all bricks that are stacked on top of a given brick
+ * Returns a set of instanceIds of bricks that should be removed
+ */
+function findBricksStackedOnTop(
+  boardState: BoardState,
+  targetBrick: PlacedBrick,
+  excludeInstanceIds: Set<string> = new Set()
+): Set<string> {
+  const stackedBrickIds = new Set<string>();
+  const targetCells = getBrickCells(targetBrick);
+  const targetCellSet = new Set(targetCells.map(([x, y]) => `${x},${y}`));
+  const targetZ = targetBrick.z || 0;
+  
+  // Find all bricks with higher z-level that overlap with target brick's cells
+  for (const brick of boardState.placedBricks) {
+    // Skip if already excluded or if it's the target brick itself
+    if (excludeInstanceIds.has(brick.instanceId) || brick.instanceId === targetBrick.instanceId) {
+      continue;
+    }
+    
+    // Only check bricks at higher z-levels
+    const brickZ = brick.z || 0;
+    if (brickZ <= targetZ) {
+      continue;
+    }
+    
+    // Check if this brick overlaps with the target brick's cells
+    const brickCells = getBrickCells(brick);
+    const hasOverlap = brickCells.some(([x, y]) => targetCellSet.has(`${x},${y}`));
+    
+    if (hasOverlap) {
+      stackedBrickIds.add(brick.instanceId);
+      
+      // Recursively find bricks stacked on top of this one
+      const nestedStacked = findBricksStackedOnTop(
+        boardState,
+        brick,
+        new Set([...excludeInstanceIds, ...stackedBrickIds])
+      );
+      nestedStacked.forEach(id => stackedBrickIds.add(id));
+    }
+  }
+  
+  return stackedBrickIds;
 }
 
 const createInitialBoardState = (puzzle: PuzzleDefinition | null): BoardState => {
@@ -230,15 +277,27 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     const brick = boardState.placedBricks.find(b => b.instanceId === instanceId);
     if (!brick) return;
     
-    // Return brick to inventory
-    const newInventory = new Map(inventoryState);
-    const current = newInventory.get(brick.id) ?? 0;
-    newInventory.set(brick.id, current + 1);
+    // Find all bricks stacked on top of this brick
+    const stackedBrickIds = findBricksStackedOnTop(boardState, brick);
     
+    // Collect all bricks to remove (the target brick + all stacked on top)
+    const bricksToRemove = boardState.placedBricks.filter(
+      b => b.instanceId === instanceId || stackedBrickIds.has(b.instanceId)
+    );
+    
+    // Return all removed bricks to inventory
+    const newInventory = new Map(inventoryState);
+    for (const brickToRemove of bricksToRemove) {
+      const current = newInventory.get(brickToRemove.id) ?? 0;
+      newInventory.set(brickToRemove.id, current + 1);
+    }
+    
+    // Remove all bricks (target + stacked on top)
+    const instanceIdsToRemove = new Set([instanceId, ...stackedBrickIds]);
     set({
       boardState: {
         ...boardState,
-        placedBricks: boardState.placedBricks.filter(b => b.instanceId !== instanceId),
+        placedBricks: boardState.placedBricks.filter(b => !instanceIdsToRemove.has(b.instanceId)),
       },
       inventoryState: newInventory,
     });
@@ -247,7 +306,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   },
   
   moveBrick: (instanceId, newPosition) => {
-    const { boardState } = get();
+    const { boardState, inventoryState } = get();
     
     const brick = boardState.placedBricks.find(b => b.instanceId === instanceId);
     if (!brick) return;
@@ -257,6 +316,25 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       // Position is the same, no need to move
       return;
     }
+    
+    // Find all bricks stacked on top of the original position
+    const stackedBrickIds = findBricksStackedOnTop(boardState, brick);
+    
+    // Remove stacked bricks and return them to inventory
+    const newInventory = new Map(inventoryState);
+    const bricksToRemove = boardState.placedBricks.filter(
+      b => stackedBrickIds.has(b.instanceId)
+    );
+    
+    for (const brickToRemove of bricksToRemove) {
+      const current = newInventory.get(brickToRemove.id) ?? 0;
+      newInventory.set(brickToRemove.id, current + 1);
+    }
+    
+    // Remove stacked bricks from board state before calculating new z-level
+    const bricksWithoutStacked = boardState.placedBricks.filter(
+      b => !stackedBrickIds.has(b.instanceId)
+    );
     
     // Calculate new z-level for the new position
     const shape = SHAPE_LIBRARY[brick.shape];
@@ -269,7 +347,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     ]);
     
     // Exclude the current brick from z-level calculation (it's being moved)
-    const otherBricks = boardState.placedBricks.filter(b => b.instanceId !== instanceId);
+    const otherBricks = bricksWithoutStacked.filter(b => b.instanceId !== instanceId);
     const tempBoardState: BoardState = {
       ...boardState,
       placedBricks: otherBricks,
@@ -284,15 +362,17 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       return;
     }
     
+    // Update board state: remove stacked bricks and move the target brick
     set({
       boardState: {
         ...boardState,
-        placedBricks: boardState.placedBricks.map(b =>
+        placedBricks: bricksWithoutStacked.map(b =>
           b.instanceId === instanceId
             ? { ...b, position: newPosition, z: zLevel }
             : b
         ),
       },
+      inventoryState: newInventory,
     });
     
     get().validate();
