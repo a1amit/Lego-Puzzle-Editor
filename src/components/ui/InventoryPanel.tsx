@@ -244,7 +244,7 @@ export function InventoryPanel({ className = '' }: InventoryPanelProps) {
           <p>• Click inventory brick → <kbd className="px-1 bg-editor-border rounded">R</kbd> to rotate → click board</p>
           <p>• Click placed brick to lift & hover</p>
           <p>• While hovering: right-click or <kbd className="px-1 bg-editor-border rounded">R</kbd> to rotate</p>
-          <p>• Double-click or <kbd className="px-1 bg-editor-border rounded">Del</kbd> to remove</p>
+          <p>• <kbd className="px-1 bg-editor-border rounded">Del</kbd> to remove</p>
           <p className="font-semibold text-gray-300 mt-2 mb-1.5">Camera Controls:</p>
           <p>• Left-click drag: Rotate view</p>
           <p>• Right-click drag: Pan view</p>

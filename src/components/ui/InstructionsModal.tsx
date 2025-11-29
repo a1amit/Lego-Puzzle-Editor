@@ -204,7 +204,7 @@ function OverviewTab() {
           <span className="text-gray-400">Lift and reposition</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Double-click / Del</span>
+          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Del</span>
           <span className="text-gray-400">Remove brick from board</span>
         </div>
         <div className="flex items-center gap-3 text-sm">

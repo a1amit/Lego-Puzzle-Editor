@@ -37,12 +37,47 @@ function DragDropManager() {
     return puzzle?.inventory.find(b => b.id === selectedBrickId);
   }, [puzzle, selectedBrickId, selectedPlacedBrick]);
   
+  // Calculate z-level for ghost preview (for stacking)
+  const ghostZLevel = useMemo(() => {
+    if (!selectedInventoryBrick || !hoveredCell) return 0;
+    
+    const shape = SHAPE_LIBRARY[selectedInventoryBrick.shape];
+    if (!shape) return 0;
+    
+    const rotatedCells = rotateShape(shape.cells, previewRotation);
+    const cells: [number, number][] = rotatedCells.map(([dx, dy]) => [
+      hoveredCell.x + dx,
+      hoveredCell.y + dy,
+    ]);
+    
+    // Find the highest z-level at these cells
+    let maxZ = -1;
+    for (const brick of boardState.placedBricks) {
+      const brickCells = getBrickCells(brick);
+      const brickCellSet = new Set(brickCells.map(([x, y]) => `${x},${y}`));
+      
+      for (const [x, y] of cells) {
+        if (brickCellSet.has(`${x},${y}`)) {
+          maxZ = Math.max(maxZ, brick.z || 0);
+        }
+      }
+    }
+    
+    return maxZ + 1;
+  }, [selectedInventoryBrick, hoveredCell, boardState, previewRotation]);
+  
   // Check if ghost position is valid for inventory brick placement
   const isGhostValid = useMemo(() => {
     if (!selectedInventoryBrick || !hoveredCell) return false;
     
     const shape = SHAPE_LIBRARY[selectedInventoryBrick.shape];
     if (!shape) return false;
+    
+    // Check if z-level exceeds board depth (depth: 1 = no stacking, depth: 2 = one layer, etc.)
+    const maxAllowedZ = boardState.dimensions.depth - 1;
+    if (ghostZLevel > maxAllowedZ) {
+      return false; // Stacking would exceed depth limit
+    }
     
     // Use previewRotation for inventory bricks
     const rotatedCells = rotateShape(shape.cells, previewRotation);
@@ -56,8 +91,10 @@ function DragDropManager() {
         return false;
       }
       
-      // Check for overlap with other placed bricks
+      // Check for overlap with other placed bricks at the same z-level
+      // Stacking is allowed (different z-levels), but same-level overlap is not
       for (const placed of boardState.placedBricks) {
+        if ((placed.z || 0) !== ghostZLevel) continue; // Only check same z-level
         const placedCells = getBrickCells(placed);
         for (const [px, py] of placedCells) {
           if (px === x && py === y) {
@@ -68,7 +105,7 @@ function DragDropManager() {
     }
     
     return true;
-  }, [selectedInventoryBrick, hoveredCell, boardState, width, height, previewRotation]);
+  }, [selectedInventoryBrick, hoveredCell, boardState, width, height, previewRotation, ghostZLevel]);
   
   // Handle keyboard events for rotation
   useEffect(() => {
@@ -114,6 +151,12 @@ function DragDropManager() {
   const handleCellClick = useCallback((x: number, y: number) => {
     // If we have a placed brick selected (hovering), place it at new position
     if (selectedPlacedBrick) {
+      // Check if clicking on the same position - if so, just deselect
+      if (selectedPlacedBrick.position.x === x && selectedPlacedBrick.position.y === y) {
+        selectBrick(null);
+        return;
+      }
+      
       moveBrick(selectedPlacedBrick.instanceId, { x, y });
       selectBrick(null);
       return;
@@ -128,6 +171,7 @@ function DragDropManager() {
         color: selectedInventoryBrick.color,
         position: { x, y },
         rotation: previewRotation, // Use the preview rotation!
+        z: 0, // Will be recalculated in placeBrick, but required by type
       });
       selectBrick(null);
     }
@@ -178,10 +222,12 @@ function DragDropManager() {
       {/* Placed bricks */}
       {boardState.placedBricks.map((brick) => {
         // Bricks are interactive when:
-        // - No inventory brick is selected (we're not in placement mode)
-        // - OR this specific brick is currently selected (so it can be deselected)
+        // - No inventory brick is selected (we're not in placement mode), AND
+        // - No placed brick is selected (normal state - can select any brick)
+        // When a placed brick is selected for moving, ALL bricks (including the selected one) 
+        // become non-interactive so clicks pass through to the board for movement
         const isThisBrickSelected = selectedBrickId === brick.instanceId;
-        const isInteractive = !selectedInventoryBrick || isThisBrickSelected;
+        const isInteractive = !selectedInventoryBrick && !selectedPlacedBrick;
         
         return (
           <PolyominoBrick
@@ -209,20 +255,53 @@ function DragDropManager() {
           color={selectedInventoryBrick.color}
           rotation={previewRotation}
           position={{ x: hoveredCell.x - boardOffset.x, y: hoveredCell.y - boardOffset.y }}
+          z={ghostZLevel}
           isValid={isGhostValid}
         />
       )}
       
       {/* Ghost preview when repositioning a placed brick */}
-      {selectedPlacedBrick && hoveredCell && (
-        <GhostBrick
-          shape={selectedPlacedBrick.shape}
-          color={selectedPlacedBrick.color}
-          rotation={selectedPlacedBrick.rotation}
-          position={{ x: hoveredCell.x - boardOffset.x, y: hoveredCell.y - boardOffset.y }}
-          isValid={true}
-        />
-      )}
+      {selectedPlacedBrick && hoveredCell && (() => {
+        // Calculate z-level for moved brick
+        const shape = SHAPE_LIBRARY[selectedPlacedBrick.shape];
+        if (!shape) return null;
+        
+        const rotatedCells = rotateShape(shape.cells, selectedPlacedBrick.rotation || 0);
+        const cells: [number, number][] = rotatedCells.map(([dx, dy]) => [
+          hoveredCell.x + dx,
+          hoveredCell.y + dy,
+        ]);
+        
+        // Exclude the current brick from z-level calculation
+        const otherBricks = boardState.placedBricks.filter(b => b.instanceId !== selectedPlacedBrick.instanceId);
+        let maxZ = -1;
+        for (const brick of otherBricks) {
+          const brickCells = getBrickCells(brick);
+          const brickCellSet = new Set(brickCells.map(([x, y]) => `${x},${y}`));
+          
+          for (const [x, y] of cells) {
+            if (brickCellSet.has(`${x},${y}`)) {
+              maxZ = Math.max(maxZ, brick.z || 0);
+            }
+          }
+        }
+        const movedZLevel = maxZ + 1;
+        
+        // Check if z-level exceeds board depth
+        const maxAllowedZ = boardState.dimensions.depth - 1;
+        const isValidMove = movedZLevel <= maxAllowedZ;
+        
+        return (
+          <GhostBrick
+            shape={selectedPlacedBrick.shape}
+            color={selectedPlacedBrick.color}
+            rotation={selectedPlacedBrick.rotation}
+            position={{ x: hoveredCell.x - boardOffset.x, y: hoveredCell.y - boardOffset.y }}
+            z={movedZLevel}
+            isValid={isValidMove}
+          />
+        );
+      })()}
     </group>
   );
 }

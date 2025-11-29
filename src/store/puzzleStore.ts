@@ -5,9 +5,10 @@ import {
   BoardState, 
   ValidationResult,
   DEFAULT_PUZZLE,
-  PuzzleDefinitionSchema
+  PuzzleDefinitionSchema,
+  SHAPE_LIBRARY
 } from '../types/puzzle';
-import { ValidationRegistry } from '../validation/ValidationRegistry';
+import { ValidationRegistry, getBrickCells, rotateShape } from '../validation/ValidationRegistry';
 
 interface PuzzleStore {
   // Puzzle Definition
@@ -52,6 +53,31 @@ interface PuzzleStore {
 
 // Initialize with default puzzle JSON
 const defaultJson = JSON.stringify(DEFAULT_PUZZLE, null, 2);
+
+/**
+ * Calculate the maximum z-level at the given cells
+ * Returns the highest z-level + 1 (to stack on top)
+ */
+function calculateZLevel(
+  boardState: BoardState,
+  cells: [number, number][]
+): number {
+  let maxZ = -1;
+  
+  for (const brick of boardState.placedBricks) {
+    const brickCells = getBrickCells(brick);
+    const brickCellSet = new Set(brickCells.map(([x, y]) => `${x},${y}`));
+    
+    // Check if any of the new cells overlap with this brick's cells
+    for (const [x, y] of cells) {
+      if (brickCellSet.has(`${x},${y}`)) {
+        maxZ = Math.max(maxZ, brick.z);
+      }
+    }
+  }
+  
+  return maxZ + 1; // Stack on top of the highest brick
+}
 
 const createInitialBoardState = (puzzle: PuzzleDefinition | null): BoardState => {
   if (!puzzle) {
@@ -154,11 +180,31 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     const remaining = inventoryState.get(brick.id) ?? 0;
     if (remaining <= 0) return;
     
+    // Calculate z-level for stacking
+    const shape = SHAPE_LIBRARY[brick.shape];
+    if (!shape) return;
+    
+    const rotatedCells = rotateShape(shape.cells, brick.rotation || 0);
+    const cells: [number, number][] = rotatedCells.map(([dx, dy]) => [
+      brick.position.x + dx,
+      brick.position.y + dy,
+    ]);
+    
+    const zLevel = calculateZLevel(boardState, cells);
+    
+    // Check if z-level exceeds board depth (depth: 1 = no stacking, depth: 2 = one layer, etc.)
+    const maxAllowedZ = boardState.dimensions.depth - 1;
+    if (zLevel > maxAllowedZ) {
+      // Stacking would exceed depth limit
+      return;
+    }
+    
     // Create new placed brick with unique instance ID
     const instanceId = `${brick.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const placedBrick: PlacedBrick = {
       ...brick,
       instanceId,
+      z: zLevel,
     };
     
     // Update state
@@ -203,12 +249,47 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   moveBrick: (instanceId, newPosition) => {
     const { boardState } = get();
     
+    const brick = boardState.placedBricks.find(b => b.instanceId === instanceId);
+    if (!brick) return;
+    
+    // Check if position is actually changing
+    if (brick.position.x === newPosition.x && brick.position.y === newPosition.y) {
+      // Position is the same, no need to move
+      return;
+    }
+    
+    // Calculate new z-level for the new position
+    const shape = SHAPE_LIBRARY[brick.shape];
+    if (!shape) return;
+    
+    const rotatedCells = rotateShape(shape.cells, brick.rotation || 0);
+    const cells: [number, number][] = rotatedCells.map(([dx, dy]) => [
+      newPosition.x + dx,
+      newPosition.y + dy,
+    ]);
+    
+    // Exclude the current brick from z-level calculation (it's being moved)
+    const otherBricks = boardState.placedBricks.filter(b => b.instanceId !== instanceId);
+    const tempBoardState: BoardState = {
+      ...boardState,
+      placedBricks: otherBricks,
+    };
+    
+    const zLevel = calculateZLevel(tempBoardState, cells);
+    
+    // Check if z-level exceeds board depth (depth: 1 = no stacking, depth: 2 = one layer, etc.)
+    const maxAllowedZ = boardState.dimensions.depth - 1;
+    if (zLevel > maxAllowedZ) {
+      // Stacking would exceed depth limit, don't move
+      return;
+    }
+    
     set({
       boardState: {
         ...boardState,
         placedBricks: boardState.placedBricks.map(b =>
           b.instanceId === instanceId
-            ? { ...b, position: newPosition }
+            ? { ...b, position: newPosition, z: zLevel }
             : b
         ),
       },
