@@ -90,13 +90,13 @@ interface BrickItemProps {
 function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onSelect }: BrickItemProps) {
   void _id; // Available for future use (e.g., accessibility)
   const isAvailable = remaining > 0;
-  
+
   return (
     <button
       className={`
-        relative flex flex-col items-center gap-2 p-3 rounded-lg transition-all duration-200
-        ${isSelected 
-          ? 'bg-editor-accent/20 ring-2 ring-editor-accent shadow-lg scale-105' 
+        relative flex items-center gap-2 p-2 rounded-lg transition-all duration-200
+        ${isSelected
+          ? 'bg-editor-accent/20 ring-2 ring-editor-accent shadow-lg'
           : 'bg-editor-sidebar hover:bg-editor-border/50'
         }
         ${!isAvailable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
@@ -106,20 +106,20 @@ function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onS
     >
       {/* Shape preview with rotation */}
       <div className={`
-        p-2 rounded-lg bg-black/30 transition-all duration-200
+        p-1.5 rounded-md bg-black/30 transition-all duration-200 flex-shrink-0
         ${isSelected ? 'ring-2 ring-editor-accent/50' : ''}
       `}>
-        <ShapePreview 
-          shape={shape} 
-          color={color} 
-          size={48} 
+        <ShapePreview
+          shape={shape}
+          color={color}
+          size={36}
           rotation={isSelected ? rotation : 0}
         />
       </div>
-      
+
       {/* Info */}
-      <div className="text-center">
-        <div className="text-xs text-gray-400 font-display">{shape}</div>
+      <div className="flex-1 text-left min-w-0">
+        <div className="text-xs text-gray-400 font-display truncate">{shape}</div>
         <div className={`
           text-sm font-bold
           ${remaining > 0 ? 'text-white' : 'text-gray-500'}
@@ -127,26 +127,17 @@ function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onS
           ×{remaining}
         </div>
       </div>
-      
-      {/* Color indicator */}
-      <div 
-        className="absolute top-2 right-2 w-3 h-3 rounded-full ring-1 ring-white/20"
-        style={{ backgroundColor: color }}
-      />
-      
-      {/* Selection indicator with rotation */}
+
+      {/* Selection indicator */}
       {isSelected && (
-        <>
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-editor-accent rounded-full flex items-center justify-center">
+        <div className="flex-shrink-0 flex items-center gap-1">
+          <span className="text-[10px] text-editor-accent font-display">{rotation}°</span>
+          <div className="w-4 h-4 bg-editor-accent rounded-full flex items-center justify-center">
             <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
           </div>
-          {/* Rotation indicator */}
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-editor-accent text-white text-[10px] font-display rounded">
-            {rotation}°
-          </div>
-        </>
+        </div>
       )}
     </button>
   );
@@ -219,9 +210,9 @@ export function InventoryPanel({ className = '' }: InventoryPanelProps) {
         </div>
       )}
       
-      {/* Brick grid - scrollable */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3">
-        <div className="grid grid-cols-2 gap-3">
+      {/* Brick list - scrollable */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-2">
+        <div className="flex flex-col gap-1.5">
           {puzzle.inventory.map((brick) => (
             <BrickItem
               key={brick.id}
@@ -236,19 +227,13 @@ export function InventoryPanel({ className = '' }: InventoryPanelProps) {
           ))}
         </div>
       </div>
-      
-      {/* Instructions */}
-      <div className="flex-shrink-0 px-4 py-3 bg-editor-sidebar/50 border-t border-editor-border">
-        <div className="text-xs text-gray-400 space-y-1">
-          <p className="font-semibold text-gray-300 mb-1.5">Brick Controls:</p>
-          <p>• Click inventory brick → <kbd className="px-1 bg-editor-border rounded">R</kbd> to rotate → click board</p>
-          <p>• Click placed brick to lift & hover</p>
-          <p>• While hovering: right-click or <kbd className="px-1 bg-editor-border rounded">R</kbd> to rotate</p>
-          <p>• <kbd className="px-1 bg-editor-border rounded">Del</kbd> to remove</p>
-          <p className="font-semibold text-gray-300 mt-2 mb-1.5">Camera Controls:</p>
-          <p>• Left-click drag: Rotate view</p>
-          <p>• Right-click drag: Pan view</p>
-          <p>• Scroll: Zoom in/out</p>
+
+      {/* Compact instructions */}
+      <div className="flex-shrink-0 px-3 py-2 bg-editor-sidebar/50 border-t border-editor-border">
+        <div className="text-[10px] text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
+          <span><kbd className="px-0.5 bg-editor-border rounded text-gray-400">R</kbd> rotate</span>
+          <span><kbd className="px-0.5 bg-editor-border rounded text-gray-400">Del</kbd> remove</span>
+          <span><kbd className="px-0.5 bg-editor-border rounded text-gray-400">Esc</kbd> cancel</span>
         </div>
       </div>
     </div>

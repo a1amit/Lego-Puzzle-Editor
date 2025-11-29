@@ -31,8 +31,9 @@ function BoardCell({
   isHighlighted: boolean;
   highlightColor?: string;
 }) {
-  const baseColor = isBlocked ? '#4a4a4a' : '#2a2a2a';
-  const studColor = isBlocked ? '#3a3a3a' : '#333333';
+  // Classic LEGO baseplate green for better contrast with dark background
+  const baseColor = isBlocked ? '#4a4a4a' : '#1a5c32';
+  const studColor = isBlocked ? '#3a3a3a' : '#1e6b3a';
   
   return (
     <group position={[x * CELL_SIZE, 0, y * CELL_SIZE]}>

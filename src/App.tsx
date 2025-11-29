@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ResizablePanels } from './components/layout/ResizablePanels';
 import { PuzzleEditor } from './components/editor/PuzzleEditor';
 import { PuzzleScene } from './components/3d/PuzzleScene';
 import { InventoryPanel } from './components/ui/InventoryPanel';
 import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
+import { CompletionModal } from './components/ui/CompletionModal';
 import { usePuzzleStore } from './store/puzzleStore';
 import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE } from './types/puzzle';
 
@@ -71,11 +72,25 @@ function Header() {
   const { puzzle, isComplete, setPuzzle, resetPuzzle } = usePuzzleStore();
   const [showPuzzleMenu, setShowPuzzleMenu] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
-  
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const wasCompleteRef = useRef(false);
+
+  // Track when puzzle transitions from incomplete to complete
+  useEffect(() => {
+    if (isComplete && !wasCompleteRef.current) {
+      // Puzzle just completed - show celebration!
+      setShowCompletionModal(true);
+    }
+    wasCompleteRef.current = isComplete;
+  }, [isComplete]);
+
   const handlePuzzleSelect = (selectedPuzzle: typeof DEFAULT_PUZZLE) => {
     setPuzzle(selectedPuzzle);
     resetPuzzle();
     setShowPuzzleMenu(false);
+    // Reset completion tracking for new puzzle
+    wasCompleteRef.current = false;
+    setShowCompletionModal(false);
   };
   
   return (
@@ -224,9 +239,16 @@ function Header() {
       </div>
       
       {/* Instructions Modal */}
-      <InstructionsModal 
-        isOpen={showInstructions} 
-        onClose={() => setShowInstructions(false)} 
+      <InstructionsModal
+        isOpen={showInstructions}
+        onClose={() => setShowInstructions(false)}
+      />
+
+      {/* Completion Celebration Modal */}
+      <CompletionModal
+        isOpen={showCompletionModal}
+        onClose={() => setShowCompletionModal(false)}
+        puzzleTitle={puzzle?.title}
       />
     </header>
   );
