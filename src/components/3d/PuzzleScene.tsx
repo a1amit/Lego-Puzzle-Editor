@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, ContactShadows } from '@react-three/drei';
 import { LegoBoard } from './LegoBoard';
@@ -267,7 +267,7 @@ function BackgroundGrid() {
 }
 
 export function PuzzleScene() {
-  const { selectedBrickId, boardState, rotatePreview } = usePuzzleStore();
+  const { selectedBrickId, boardState, rotatePreview, hoveredCell, puzzle, previewRotation } = usePuzzleStore();
   
   // Check if we have an inventory brick selected (not a placed brick)
   const hasInventorySelection = selectedBrickId && 
@@ -279,6 +279,27 @@ export function PuzzleScene() {
   
   // Hide cursor when any brick is selected for placement/movement
   const shouldHideCursor = hasInventorySelection || hasPlacedBrickSelection;
+
+  // Cursor position for drag preview overlay
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+
+  // Get the selected inventory brick info (if any)
+  const selectedInventoryBrick = useMemo(() => {
+    if (!hasInventorySelection) return null;
+    return puzzle?.inventory.find(b => b.id === selectedBrickId) ?? null;
+  }, [puzzle, selectedBrickId, hasInventorySelection]);
+
+  // Listen for pointer movements only when an inventory brick is selected
+  useEffect(() => {
+    if (!hasInventorySelection) return;
+
+    const onPointerMove = (e: PointerEvent) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    return () => window.removeEventListener('pointermove', onPointerMove);
+  }, [hasInventorySelection]);
   
   return (
     <div 
@@ -330,6 +351,60 @@ export function PuzzleScene() {
         {/* Subtle fog for depth */}
         <fog attach="fog" args={['#0a0a0a', 20, 50]} />
       </Canvas>
+
+      {/* Drag preview overlay: shows a 2D preview of the selected inventory brick following the pointer
+          This appears only while an inventory brick is selected and the pointer is not hovering over the board */}
+      {hasInventorySelection && !hoveredCell && selectedInventoryBrick && (
+        <div
+          style={{
+            position: 'absolute',
+            left: cursorPos.x,
+            top: cursorPos.y,
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 1200,
+          }}
+        >
+          <div className="p-1 bg-editor-sidebar/60 rounded shadow-lg border border-editor-border/40">
+            <svg width={72} height={72} viewBox={`0 0 72 72`}>
+              {(() => {
+                // Render cells as a small 2D preview - keep consistent with Inventory ShapePreview
+                const shapeDef = SHAPE_LIBRARY[selectedInventoryBrick.shape];
+                if (!shapeDef) return null;
+
+                const cells = rotateShape(shapeDef.cells, previewRotation);
+                const maxX = Math.max(...cells.map(([x]) => x)) + 1;
+                const maxY = Math.max(...cells.map(([, y]) => y)) + 1;
+                const size = 64;
+                const cellSize = Math.min(size / maxX, size / maxY) * 0.75;
+                const offsetX = (size - maxX * cellSize) / 2;
+                const offsetY = (size - maxY * cellSize) / 2;
+
+                return cells.map(([x, y], i) => (
+                  <g key={i}>
+                    <rect
+                      x={offsetX + x * cellSize + 1}
+                      y={offsetY + y * cellSize + 1}
+                      width={cellSize - 2}
+                      height={cellSize - 2}
+                      fill={selectedInventoryBrick.color}
+                      rx={3}
+                    />
+                    <circle
+                      cx={offsetX + x * cellSize + cellSize / 2}
+                      cy={offsetY + y * cellSize + cellSize / 2}
+                      r={cellSize * 0.24}
+                      fill={selectedInventoryBrick.color}
+                      stroke="rgba(255,255,255,0.25)"
+                      strokeWidth={1}
+                    />
+                  </g>
+                ));
+              })()}
+            </svg>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
