@@ -5,18 +5,55 @@ import { z } from 'zod';
 // ============================================
 
 /**
- * A shape is defined as a list of [x, y] coordinate offsets from origin (0,0)
- * This allows us to define ANY polyomino shape generically
+ * 3D Rotation represented as Euler angles in 90-degree steps.
+ * Each axis value should be 0, 1, 2, or 3 (representing 0°, 90°, 180°, 270°)
+ */
+export interface Rotation3D {
+  x: number; // 0-3 (90° increments around X axis)
+  y: number; // 0-3 (90° increments around Y axis)
+  z: number; // 0-3 (90° increments around Z axis)
+}
+
+/** Helper to create a default (no rotation) Rotation3D */
+export const DEFAULT_ROTATION: Rotation3D = { x: 0, y: 0, z: 0 };
+
+/** 3D coordinate tuple [x, y, z] */
+export type Cell3D = [number, number, number];
+
+/** 2D coordinate tuple [x, y] - for backward compatibility */
+export type Cell2D = [number, number];
+
+/**
+ * A shape is defined as a list of [x, y, z] coordinate offsets from origin (0,0,0)
+ * This allows us to define ANY 3D voxel shape generically.
+ * For legacy 2D shapes, z defaults to 0.
  */
 export const ShapeDefinitionSchema = z.object({
   name: z.string(),
-  /** Coordinates representing the shape, relative to origin [0,0] */
-  cells: z.array(z.tuple([z.number(), z.number()])),
+  /** Coordinates representing the shape, relative to origin [0,0,0] */
+  cells: z.array(z.union([
+    z.tuple([z.number(), z.number(), z.number()]), // 3D cells [x, y, z]
+    z.tuple([z.number(), z.number()]), // Legacy 2D cells [x, y] - will default z to 0
+  ])),
   /** Color for visualization */
   color: z.string().optional(),
+  /** Height of this brick in units (default: 1) - used for stacking calculations */
+  height: z.number().positive().default(1).optional(),
 });
 
 export type ShapeDefinition = z.infer<typeof ShapeDefinitionSchema>;
+
+/**
+ * Normalize cells to always be 3D - converts 2D cells to 3D with z=0
+ */
+export function normalizeCellsTo3D(cells: (Cell2D | Cell3D)[]): Cell3D[] {
+  return cells.map(cell => {
+    if (cell.length === 2) {
+      return [cell[0], cell[1], 0] as Cell3D;
+    }
+    return cell as Cell3D;
+  });
+}
 
 // Predefined shapes library - extensible
 export const SHAPE_LIBRARY: Record<string, ShapeDefinition> = {
@@ -152,16 +189,15 @@ export interface PlacedBrick {
   instanceId: string; // Unique instance ID for this specific placement
   shape: string;
   color: string;
-  position: { x: number; y: number };
-  rotation: number; // 0, 90, 180, 270 degrees
-  z: number; // Vertical layer/height (0 = ground level, 1 = one brick high, etc.)
+  position: { x: number; y: number; z: number }; // 3D position in world space
+  rotation: Rotation3D; // 3D rotation (Euler angles in 90° steps)
 }
 
 /** Current state of the board */
 export interface BoardState {
   dimensions: BoardDimensions;
   placedBricks: PlacedBrick[];
-  blockedCells: [number, number][];
+  blockedCells: Cell3D[]; // 3D blocked cells [x, y, z]
 }
 
 /** Validation result */
@@ -169,7 +205,7 @@ export interface ValidationResult {
   isValid: boolean;
   rule: string;
   message: string;
-  affectedCells?: [number, number][];
+  affectedCells?: Cell3D[]; // 3D coordinates of affected cells
 }
 
 /** Overall puzzle state */

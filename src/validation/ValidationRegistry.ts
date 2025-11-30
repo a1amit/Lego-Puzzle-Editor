@@ -1,4 +1,4 @@
-import { BoardState, ValidationResult, SHAPE_LIBRARY, ShapeDefinition, PlacedBrick } from '../types/puzzle';
+import { BoardState, ValidationResult, SHAPE_LIBRARY, ShapeDefinition, PlacedBrick, Rotation3D, Cell3D, Cell2D, normalizeCellsTo3D } from '../types/puzzle';
 
 // ============================================
 // VALIDATION FUNCTION TYPE
@@ -10,54 +10,249 @@ export type ValidationFunction = (
 ) => ValidationResult;
 
 // ============================================
-// HELPER FUNCTIONS
+// 3D ROTATION MATH HELPERS
 // ============================================
 
 /**
- * Rotate shape cells by 90 degrees clockwise
+ * Apply a single 90-degree rotation around the X axis to a 3D point.
+ * Rotation formula: [x, y, z] -> [x, -z, y]
  */
-export function rotateShape(cells: [number, number][], rotation: number): [number, number][] {
-  const steps = Math.floor((rotation % 360) / 90);
-  let rotated = [...cells];
-  
-  for (let i = 0; i < steps; i++) {
-    rotated = rotated.map(([x, y]) => [y, -x] as [number, number]);
-  }
-  
-  // Normalize to positive coordinates
-  const minX = Math.min(...rotated.map(([x]) => x));
-  const minY = Math.min(...rotated.map(([, y]) => y));
-  
-  return rotated.map(([x, y]) => [x - minX, y - minY] as [number, number]);
+function rotateAroundX(cell: Cell3D): Cell3D {
+  const [x, y, z] = cell;
+  return [x, -z, y];
 }
 
 /**
- * Get all cells occupied by a placed brick
+ * Apply a single 90-degree rotation around the Y axis to a 3D point.
+ * Rotation formula: [x, y, z] -> [z, y, -x]
  */
-export function getBrickCells(brick: PlacedBrick, shapeLibrary: Record<string, ShapeDefinition> = SHAPE_LIBRARY): [number, number][] {
+function rotateAroundY(cell: Cell3D): Cell3D {
+  const [x, y, z] = cell;
+  return [z, y, -x];
+}
+
+/**
+ * Apply a single 90-degree rotation around the Z axis to a 3D point.
+ * Rotation formula: [x, y, z] -> [-y, x, z]
+ */
+function rotateAroundZ(cell: Cell3D): Cell3D {
+  const [x, y, z] = cell;
+  return [-y, x, z];
+}
+
+/**
+ * Apply N 90-degree rotations around a specific axis
+ */
+function applyAxisRotation(cell: Cell3D, axis: 'x' | 'y' | 'z', steps: number): Cell3D {
+  const normalizedSteps = ((steps % 4) + 4) % 4; // Normalize to 0-3
+  let result = cell;
+
+  for (let i = 0; i < normalizedSteps; i++) {
+    switch (axis) {
+      case 'x':
+        result = rotateAroundX(result);
+        break;
+      case 'y':
+        result = rotateAroundY(result);
+        break;
+      case 'z':
+        result = rotateAroundZ(result);
+        break;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Apply a full 3D rotation (Euler angles in 90-degree steps) to a cell.
+ * Rotation order: Z first, then X, then Y (common convention)
+ */
+function applyRotation3D(cell: Cell3D, rotation: Rotation3D): Cell3D {
+  let result = cell;
+  // Apply rotations in order: Z -> X -> Y
+  result = applyAxisRotation(result, 'z', rotation.z);
+  result = applyAxisRotation(result, 'x', rotation.x);
+  result = applyAxisRotation(result, 'y', rotation.y);
+  return result;
+}
+
+/**
+ * Normalize cells so minimum coordinates are at origin (0, 0, 0)
+ */
+function normalizeCellsToOrigin(cells: Cell3D[]): Cell3D[] {
+  if (cells.length === 0) return cells;
+
+  const minX = Math.min(...cells.map(([x]) => x));
+  const minY = Math.min(...cells.map(([, y]) => y));
+  const minZ = Math.min(...cells.map(([, , z]) => z));
+
+  return cells.map(([x, y, z]) => [x - minX, y - minY, z - minZ]);
+}
+
+// ============================================
+// PUBLIC ROTATION FUNCTIONS
+// ============================================
+
+/**
+ * Rotate 3D shape cells by the given Rotation3D.
+ * This applies rotations around Z, then X, then Y axes (in that order).
+ * Returns cells normalized to positive coordinates starting at origin.
+ */
+export function rotateShape3D(cells: Cell3D[], rotation: Rotation3D): Cell3D[] {
+  const rotated = cells.map(cell => applyRotation3D(cell, rotation));
+  return normalizeCellsToOrigin(rotated);
+}
+
+/**
+ * Legacy 2D rotation function for backward compatibility.
+ * Converts to 3D, rotates around Z axis, and returns 2D cells.
+ * @deprecated Use rotateShape3D instead
+ */
+export function rotateShape(cells: (Cell2D | Cell3D)[], rotation: number | Rotation3D): Cell3D[] {
+  // Normalize to 3D cells
+  const cells3D = normalizeCellsTo3D(cells);
+
+  // Handle legacy numeric rotation (Z-axis only)
+  if (typeof rotation === 'number') {
+    const steps = Math.floor((rotation % 360) / 90);
+    return rotateShape3D(cells3D, { x: 0, y: 0, z: steps });
+  }
+
+  // Handle full 3D rotation
+  return rotateShape3D(cells3D, rotation);
+}
+
+/**
+ * Increment rotation by 90 degrees on a specific axis
+ */
+export function incrementRotation(currentRotation: Rotation3D, axis: 'x' | 'y' | 'z'): Rotation3D {
+  return {
+    ...currentRotation,
+    [axis]: (currentRotation[axis] + 1) % 4,
+  };
+}
+
+/**
+ * Convert Rotation3D to Euler angles in radians for Three.js
+ */
+export function rotation3DToEuler(rotation: Rotation3D): [number, number, number] {
+  const toRadians = (steps: number) => (steps * Math.PI) / 2;
+  return [
+    toRadians(rotation.x),
+    toRadians(rotation.y),
+    toRadians(rotation.z),
+  ];
+}
+
+// ============================================
+// BRICK CELL CALCULATION (3D)
+// ============================================
+
+/**
+ * Get all 3D cells (voxels) occupied by a placed brick in world space.
+ * Takes into account the brick's position and rotation.
+ */
+export function getBrickCells3D(
+  brick: PlacedBrick,
+  shapeLibrary: Record<string, ShapeDefinition> = SHAPE_LIBRARY
+): Cell3D[] {
   const shape = shapeLibrary[brick.shape];
   if (!shape) {
     console.warn(`Unknown shape: ${brick.shape}`);
     return [];
   }
-  
-  const rotatedCells = rotateShape(shape.cells, brick.rotation);
-  
-  return rotatedCells.map(([dx, dy]) => [
+
+  // Normalize shape cells to 3D
+  const cells3D = normalizeCellsTo3D(shape.cells);
+
+  // Apply rotation
+  const rotatedCells = rotateShape3D(cells3D, brick.rotation);
+
+  // Translate to world position
+  return rotatedCells.map(([dx, dy, dz]) => [
     brick.position.x + dx,
     brick.position.y + dy,
-  ] as [number, number]);
+    brick.position.z + dz,
+  ] as Cell3D);
 }
 
 /**
- * Get all cells occupied by all placed bricks
- * Returns a map of "x,y" -> bricks at that position (across all z-levels)
+ * Legacy function - returns 2D cells for backward compatibility
+ * @deprecated Use getBrickCells3D instead
+ */
+export function getBrickCells(
+  brick: PlacedBrick,
+  shapeLibrary: Record<string, ShapeDefinition> = SHAPE_LIBRARY
+): Cell3D[] {
+  return getBrickCells3D(brick, shapeLibrary);
+}
+
+/**
+ * Get the 3D bounding box of a brick after rotation
+ */
+export function getBrickBoundingBox(
+  brick: PlacedBrick,
+  shapeLibrary: Record<string, ShapeDefinition> = SHAPE_LIBRARY
+): { min: Cell3D; max: Cell3D; size: Cell3D } {
+  const cells = getBrickCells3D(brick, shapeLibrary);
+
+  if (cells.length === 0) {
+    return {
+      min: [0, 0, 0],
+      max: [0, 0, 0],
+      size: [0, 0, 0],
+    };
+  }
+
+  const minX = Math.min(...cells.map(([x]) => x));
+  const minY = Math.min(...cells.map(([, y]) => y));
+  const minZ = Math.min(...cells.map(([, , z]) => z));
+  const maxX = Math.max(...cells.map(([x]) => x));
+  const maxY = Math.max(...cells.map(([, y]) => y));
+  const maxZ = Math.max(...cells.map(([, , z]) => z));
+
+  return {
+    min: [minX, minY, minZ],
+    max: [maxX, maxY, maxZ],
+    size: [maxX - minX + 1, maxY - minY + 1, maxZ - minZ + 1],
+  };
+}
+
+// ============================================
+// 3D OCCUPIED CELLS TRACKING
+// ============================================
+
+/**
+ * Get all 3D cells occupied by all placed bricks.
+ * Returns a map of "x,y,z" -> bricks at that voxel position.
+ */
+export function getAllOccupiedCells3D(boardState: BoardState): Map<string, PlacedBrick[]> {
+  const cellMap = new Map<string, PlacedBrick[]>();
+
+  for (const brick of boardState.placedBricks) {
+    const cells = getBrickCells3D(brick);
+    for (const [x, y, z] of cells) {
+      const key = `${x},${y},${z}`;
+      if (!cellMap.has(key)) {
+        cellMap.set(key, []);
+      }
+      cellMap.get(key)!.push(brick);
+    }
+  }
+
+  return cellMap;
+}
+
+/**
+ * Legacy function - for 2D projection compatibility
+ * Returns a map of "x,y" -> bricks (ignoring Z)
  */
 export function getAllOccupiedCells(boardState: BoardState): Map<string, PlacedBrick[]> {
   const cellMap = new Map<string, PlacedBrick[]>();
-  
+
   for (const brick of boardState.placedBricks) {
-    const cells = getBrickCells(brick);
+    const cells = getBrickCells3D(brick);
     for (const [x, y] of cells) {
       const key = `${x},${y}`;
       if (!cellMap.has(key)) {
@@ -66,30 +261,52 @@ export function getAllOccupiedCells(boardState: BoardState): Map<string, PlacedB
       cellMap.get(key)!.push(brick);
     }
   }
-  
+
   return cellMap;
 }
 
 /**
- * Get all cells occupied by bricks at a specific z-level
- * Returns a map of "x,y" -> bricks at that position and z-level
+ * Check if a specific 3D cell is occupied
  */
-export function getOccupiedCellsAtZ(boardState: BoardState, z: number): Map<string, PlacedBrick[]> {
-  const cellMap = new Map<string, PlacedBrick[]>();
-  
+export function isCellOccupied(
+  boardState: BoardState,
+  x: number,
+  y: number,
+  z: number,
+  excludeBrickId?: string
+): boolean {
   for (const brick of boardState.placedBricks) {
-    if (brick.z !== z) continue;
-    const cells = getBrickCells(brick);
-    for (const [x, y] of cells) {
-      const key = `${x},${y}`;
-      if (!cellMap.has(key)) {
-        cellMap.set(key, []);
+    if (excludeBrickId && brick.instanceId === excludeBrickId) continue;
+
+    const cells = getBrickCells3D(brick);
+    for (const [cx, cy, cz] of cells) {
+      if (cx === x && cy === y && cz === z) {
+        return true;
       }
-      cellMap.get(key)!.push(brick);
     }
   }
-  
-  return cellMap;
+  return false;
+}
+
+/**
+ * Get all occupied voxel keys as a Set for fast lookup
+ */
+export function getOccupiedCellSet(
+  boardState: BoardState,
+  excludeBrickId?: string
+): Set<string> {
+  const occupied = new Set<string>();
+
+  for (const brick of boardState.placedBricks) {
+    if (excludeBrickId && brick.instanceId === excludeBrickId) continue;
+
+    const cells = getBrickCells3D(brick);
+    for (const [x, y, z] of cells) {
+      occupied.add(`${x},${y},${z}`);
+    }
+  }
+
+  return occupied;
 }
 
 // ============================================
@@ -97,24 +314,36 @@ export function getOccupiedCellsAtZ(boardState: BoardState, z: number): Map<stri
 // ============================================
 
 /**
- * Check if all board squares are covered by bricks
+ * Check if all board squares are covered by bricks at ground level (z=0)
+ * For 3D puzzles, this checks the base layer coverage
  */
 const validateAllBoardSquaresCovered: ValidationFunction = (boardState) => {
   const { dimensions, blockedCells } = boardState;
-  const occupiedCells = getAllOccupiedCells(boardState);
+  const occupiedCells = getAllOccupiedCells3D(boardState);
+
+  // Create set of blocked cells (only considering x,y for ground level)
   const blockedSet = new Set(blockedCells.map(([x, y]) => `${x},${y}`));
-  
-  const uncoveredCells: [number, number][] = [];
-  
+
+  // Track which ground-level cells (z=0) are covered
+  const coveredGroundCells = new Set<string>();
+  for (const [key] of occupiedCells.entries()) {
+    const [x, y, z] = key.split(',').map(Number);
+    if (z === 0) {
+      coveredGroundCells.add(`${x},${y}`);
+    }
+  }
+
+  const uncoveredCells: Cell3D[] = [];
+
   for (let x = 0; x < dimensions.width; x++) {
     for (let y = 0; y < dimensions.height; y++) {
       const key = `${x},${y}`;
-      if (!blockedSet.has(key) && !occupiedCells.has(key)) {
-        uncoveredCells.push([x, y]);
+      if (!blockedSet.has(key) && !coveredGroundCells.has(key)) {
+        uncoveredCells.push([x, y, 0]);
       }
     }
   }
-  
+
   if (uncoveredCells.length > 0) {
     return {
       isValid: false,
@@ -123,7 +352,7 @@ const validateAllBoardSquaresCovered: ValidationFunction = (boardState) => {
       affectedCells: uncoveredCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'ALL_BOARD_SQUARES_MUST_BE_COVERED',
@@ -132,33 +361,29 @@ const validateAllBoardSquaresCovered: ValidationFunction = (boardState) => {
 };
 
 /**
- * Check if any bricks overlap at the same z-level
- * Bricks can stack vertically (different z-levels) but cannot overlap at the same level
+ * Check if any bricks overlap in 3D space.
+ * Two bricks cannot occupy the same voxel (x, y, z).
  */
 const validateNoBrickOverlap: ValidationFunction = (boardState) => {
-  // Group bricks by z-level and check for overlaps at each level
-  const zLevels = new Set(boardState.placedBricks.map(b => b.z));
-  const overlappingCells: [number, number][] = [];
-  
-  for (const z of zLevels) {
-    const cellMap = getOccupiedCellsAtZ(boardState, z);
-    for (const [key, bricks] of cellMap.entries()) {
-      if (bricks.length > 1) {
-        const [x, y] = key.split(',').map(Number);
-        overlappingCells.push([x, y]);
-      }
+  const cellMap = getAllOccupiedCells3D(boardState);
+  const overlappingCells: Cell3D[] = [];
+
+  for (const [key, bricks] of cellMap.entries()) {
+    if (bricks.length > 1) {
+      const [x, y, z] = key.split(',').map(Number);
+      overlappingCells.push([x, y, z]);
     }
   }
-  
+
   if (overlappingCells.length > 0) {
     return {
       isValid: false,
       rule: 'NO_BRICK_OVERLAP',
-      message: `${overlappingCells.length} cell(s) have overlapping bricks at the same level`,
+      message: `${overlappingCells.length} voxel(s) have overlapping bricks`,
       affectedCells: overlappingCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'NO_BRICK_OVERLAP',
@@ -167,21 +392,25 @@ const validateNoBrickOverlap: ValidationFunction = (boardState) => {
 };
 
 /**
- * Check if any bricks are placed outside the board boundaries
+ * Check if any bricks are placed outside the board boundaries (3D)
  */
 const validateNoBricksOutOfBounds: ValidationFunction = (boardState) => {
   const { dimensions } = boardState;
-  const outOfBoundsCells: [number, number][] = [];
-  
+  const outOfBoundsCells: Cell3D[] = [];
+
   for (const brick of boardState.placedBricks) {
-    const cells = getBrickCells(brick);
-    for (const [x, y] of cells) {
-      if (x < 0 || x >= dimensions.width || y < 0 || y >= dimensions.height) {
-        outOfBoundsCells.push([x, y]);
+    const cells = getBrickCells3D(brick);
+    for (const [x, y, z] of cells) {
+      if (
+        x < 0 || x >= dimensions.width ||
+        y < 0 || y >= dimensions.height ||
+        z < 0 || z >= dimensions.depth
+      ) {
+        outOfBoundsCells.push([x, y, z]);
       }
     }
   }
-  
+
   if (outOfBoundsCells.length > 0) {
     return {
       isValid: false,
@@ -190,7 +419,7 @@ const validateNoBricksOutOfBounds: ValidationFunction = (boardState) => {
       affectedCells: outOfBoundsCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'NO_BRICKS_OUT_OF_BOUNDS',
@@ -199,22 +428,22 @@ const validateNoBricksOutOfBounds: ValidationFunction = (boardState) => {
 };
 
 /**
- * Check if bricks are placed on blocked cells
+ * Check if bricks are placed on blocked cells (3D)
  */
 const validateNoBlockedCells: ValidationFunction = (boardState) => {
   const { blockedCells } = boardState;
-  const blockedSet = new Set(blockedCells.map(([x, y]) => `${x},${y}`));
-  const violatingCells: [number, number][] = [];
-  
+  const blockedSet = new Set(blockedCells.map(([x, y, z]) => `${x},${y},${z}`));
+  const violatingCells: Cell3D[] = [];
+
   for (const brick of boardState.placedBricks) {
-    const cells = getBrickCells(brick);
-    for (const [x, y] of cells) {
-      if (blockedSet.has(`${x},${y}`)) {
-        violatingCells.push([x, y]);
+    const cells = getBrickCells3D(brick);
+    for (const [x, y, z] of cells) {
+      if (blockedSet.has(`${x},${y},${z}`)) {
+        violatingCells.push([x, y, z]);
       }
     }
   }
-  
+
   if (violatingCells.length > 0) {
     return {
       isValid: false,
@@ -223,7 +452,7 @@ const validateNoBlockedCells: ValidationFunction = (boardState) => {
       affectedCells: violatingCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'NO_BLOCKED_CELLS',
@@ -232,34 +461,30 @@ const validateNoBlockedCells: ValidationFunction = (boardState) => {
 };
 
 /**
- * Check if any bricks exceed the board depth limit
- * Depth: 1 = no stacking (only z=0), depth: 2 = one layer (z=0,1), etc.
+ * Check if any bricks exceed the board depth limit (3D)
  */
 const validateNoBricksExceedDepth: ValidationFunction = (boardState) => {
   const maxAllowedZ = boardState.dimensions.depth - 1;
-  const exceedingBricks: PlacedBrick[] = [];
-  
+  const affectedCells: Cell3D[] = [];
+
   for (const brick of boardState.placedBricks) {
-    if ((brick.z || 0) > maxAllowedZ) {
-      exceedingBricks.push(brick);
+    const cells = getBrickCells3D(brick);
+    for (const [x, y, z] of cells) {
+      if (z > maxAllowedZ) {
+        affectedCells.push([x, y, z]);
+      }
     }
   }
-  
-  if (exceedingBricks.length > 0) {
-    const affectedCells: [number, number][] = [];
-    for (const brick of exceedingBricks) {
-      const cells = getBrickCells(brick);
-      affectedCells.push(...cells);
-    }
-    
+
+  if (affectedCells.length > 0) {
     return {
       isValid: false,
       rule: 'NO_BRICKS_EXCEED_DEPTH',
-      message: `${exceedingBricks.length} brick(s) exceed the board depth limit (max z-level: ${maxAllowedZ})`,
+      message: `${affectedCells.length} cell(s) exceed the board depth limit (max z-level: ${maxAllowedZ})`,
       affectedCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'NO_BRICKS_EXCEED_DEPTH',

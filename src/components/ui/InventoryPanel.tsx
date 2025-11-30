@@ -1,22 +1,22 @@
 import { useMemo } from 'react';
 import { usePuzzleStore } from '../../store/puzzleStore';
-import { SHAPE_LIBRARY } from '../../types/puzzle';
-import { rotateShape } from '../../validation/ValidationRegistry';
+import { SHAPE_LIBRARY, Rotation3D, DEFAULT_ROTATION, normalizeCellsTo3D } from '../../types/puzzle';
+import { rotateShape3D } from '../../validation/ValidationRegistry';
 
 interface ShapePreviewProps {
   shape: string;
   color: string;
   size?: number;
-  rotation?: number;
+  rotation?: Rotation3D;
 }
 
-// SVG preview of a shape with rotation support
-function ShapePreview({ shape, color, size = 40, rotation = 0 }: ShapePreviewProps) {
+// SVG preview of a shape with 3D rotation support
+function ShapePreview({ shape, color, size = 40, rotation = DEFAULT_ROTATION }: ShapePreviewProps) {
   const shapeDefinition = SHAPE_LIBRARY[shape];
-  
+
   if (!shapeDefinition) {
     return (
-      <div 
+      <div
         className="flex items-center justify-center text-xs text-gray-500"
         style={{ width: size, height: size }}
       >
@@ -24,27 +24,28 @@ function ShapePreview({ shape, color, size = 40, rotation = 0 }: ShapePreviewPro
       </div>
     );
   }
-  
-  // Apply rotation to cells
+
+  // Apply 3D rotation to cells and project to 2D for preview
   const cells = useMemo(() => {
-    return rotateShape(shapeDefinition.cells, rotation);
+    const cells3D = normalizeCellsTo3D(shapeDefinition.cells);
+    return rotateShape3D(cells3D, rotation);
   }, [shapeDefinition.cells, rotation]);
-  
-  const maxX = Math.max(...cells.map(([x]) => x)) + 1;
-  const maxY = Math.max(...cells.map(([, y]) => y)) + 1;
-  
+
+  const maxX = Math.max(...cells.map((c: [number, number, number]) => c[0])) + 1;
+  const maxY = Math.max(...cells.map((c: [number, number, number]) => c[1])) + 1;
+
   const cellSize = Math.min(size / maxX, size / maxY) * 0.8;
   const offsetX = (size - maxX * cellSize) / 2;
   const offsetY = (size - maxY * cellSize) / 2;
-  
+
   return (
-    <svg 
-      width={size} 
-      height={size} 
+    <svg
+      width={size}
+      height={size}
       viewBox={`0 0 ${size} ${size}`}
       className="transition-transform duration-200"
     >
-      {cells.map(([x, y], i) => (
+      {cells.map(([x, y]: [number, number, number], i: number) => (
         <g key={i}>
           {/* Cell body */}
           <rect
@@ -83,7 +84,7 @@ interface BrickItemProps {
   color: string;
   remaining: number;
   isSelected: boolean;
-  rotation: number;
+  rotation: Rotation3D;
   onSelect: () => void;
 }
 
@@ -113,7 +114,7 @@ function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onS
           shape={shape}
           color={color}
           size={36}
-          rotation={isSelected ? rotation : 0}
+          rotation={isSelected ? rotation : DEFAULT_ROTATION}
         />
       </div>
 
@@ -131,7 +132,9 @@ function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onS
       {/* Selection indicator */}
       {isSelected && (
         <div className="flex-shrink-0 flex items-center gap-1">
-          <span className="text-[10px] text-editor-accent font-display">{rotation}°</span>
+          <span className="text-[10px] text-editor-accent font-display">
+            {rotation.x},{rotation.y},{rotation.z}
+          </span>
           <div className="w-4 h-4 bg-editor-accent rounded-full flex items-center justify-center">
             <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -205,7 +208,7 @@ export function InventoryPanel({ className = '' }: InventoryPanelProps) {
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Rotate ({previewRotation}°)
+            Rotate (X:{previewRotation.x} Y:{previewRotation.y} Z:{previewRotation.z})
           </button>
         </div>
       )}
@@ -221,7 +224,7 @@ export function InventoryPanel({ className = '' }: InventoryPanelProps) {
               color={brick.color}
               remaining={inventoryState.get(brick.id) ?? 0}
               isSelected={selectedBrickId === brick.id}
-              rotation={selectedBrickId === brick.id ? previewRotation : 0}
+              rotation={selectedBrickId === brick.id ? previewRotation : DEFAULT_ROTATION}
               onSelect={() => selectBrick(selectedBrickId === brick.id ? null : brick.id)}
             />
           ))}
@@ -231,9 +234,10 @@ export function InventoryPanel({ className = '' }: InventoryPanelProps) {
       {/* Compact instructions */}
       <div className="flex-shrink-0 px-3 py-2 bg-editor-sidebar/50 border-t border-editor-border">
         <div className="text-[10px] text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
-          <span><kbd className="px-0.5 bg-editor-border rounded text-gray-400">R</kbd> rotate</span>
+          <span><kbd className="px-0.5 bg-editor-border rounded text-gray-400">Q/E</kbd> Z-rot</span>
+          <span><kbd className="px-0.5 bg-editor-border rounded text-gray-400">W/S</kbd> X-rot</span>
+          <span><kbd className="px-0.5 bg-editor-border rounded text-gray-400">A/D</kbd> Y-rot</span>
           <span><kbd className="px-0.5 bg-editor-border rounded text-gray-400">Del</kbd> remove</span>
-          <span><kbd className="px-0.5 bg-editor-border rounded text-gray-400">Esc</kbd> cancel</span>
         </div>
       </div>
     </div>

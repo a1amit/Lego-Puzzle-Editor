@@ -3,8 +3,8 @@ import { ThreeEvent, useFrame } from '@react-three/fiber';
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import type { RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
-import { SHAPE_LIBRARY, PlacedBrick, ShapeDefinition } from '../../types/puzzle';
-import { rotateShape } from '../../validation/ValidationRegistry';
+import { SHAPE_LIBRARY, PlacedBrick, ShapeDefinition, Rotation3D, normalizeCellsTo3D } from '../../types/puzzle';
+import { rotateShape3D } from '../../validation/ValidationRegistry';
 
 interface PolyominoBrickProps {
   brick: PlacedBrick;
@@ -27,24 +27,27 @@ const STUD_HEIGHT = 0.15;
 const HOVER_HEIGHT = 1.5; // Height when brick is lifted
 const BRICK_STACK_HEIGHT = BRICK_HEIGHT + STUD_HEIGHT; // Total height of one brick layer
 
-// Individual brick cell with stud
-function BrickCell({ 
-  x, 
-  y, 
+// Individual brick cell with stud - now supports 3D positioning
+function BrickCell({
+  x,
+  y,
+  z = 0,
   color,
   isGhost,
   isSelected,
   isHovering,
-}: { 
-  x: number; 
-  y: number; 
+}: {
+  x: number;
+  y: number;
+  z?: number;
   color: string;
   isGhost?: boolean;
   isSelected?: boolean;
   isHovering?: boolean;
 }) {
+  // Position in local brick space - x maps to X, y maps to Z, z maps to Y (up)
   return (
-    <group position={[x * CELL_SIZE + 0.5, 0, y * CELL_SIZE + 0.5]}>
+    <group position={[x * CELL_SIZE + 0.5, z * BRICK_STACK_HEIGHT, y * CELL_SIZE + 0.5]}>
       {/* Brick body */}
       <mesh 
         position={[0, BRICK_HEIGHT / 2, 0]} 
@@ -128,23 +131,26 @@ export function PolyominoBrick({
   // Update rigid body position when brick moves or is selected
   useEffect(() => {
     if (rigidBodyRef.current) {
-      const posX = brick.position.x - boardOffset.x;
-      const posZ = brick.position.y - boardOffset.y;
+      const brickPosX = brick.position.x - boardOffset.x;
+      const brickPosY = brick.position.z * BRICK_STACK_HEIGHT;
+      const brickPosZ = brick.position.y - boardOffset.y;
 
       if (isSelected) {
         // When selected, lift the brick up and make it kinematic
         rigidBodyRef.current.setBodyType(2, true); // 2 = kinematic
-        rigidBodyRef.current.setTranslation({ x: posX, y: HOVER_HEIGHT + 1, z: posZ }, true);
+        rigidBodyRef.current.setTranslation({ x: brickPosX, y: HOVER_HEIGHT + 1, z: brickPosZ }, true);
         rigidBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
         rigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
       } else {
         // When not selected, make it dynamic so it falls
         rigidBodyRef.current.setBodyType(0, true); // 0 = dynamic
+        // Set initial position based on 3D coordinates
+        rigidBodyRef.current.setTranslation({ x: brickPosX, y: brickPosY + 2, z: brickPosZ }, true);
         // Wake up the body to make sure physics applies
         rigidBodyRef.current.wakeUp();
       }
     }
-  }, [isSelected, brick.position.x, brick.position.y, boardOffset.x, boardOffset.y]);
+  }, [isSelected, brick.position.x, brick.position.y, brick.position.z, boardOffset.x, boardOffset.y]);
 
   // Floating animation when selected
   useFrame(() => {
@@ -161,18 +167,20 @@ export function PolyominoBrick({
     return null;
   }
 
-  // Apply rotation to shape cells for rendering
+  // Apply 3D rotation to shape cells for rendering
   const rotatedCells = useMemo(() => {
-    return rotateShape(shape.cells, brick.rotation);
+    const cells3D = normalizeCellsTo3D(shape.cells);
+    return rotateShape3D(cells3D, brick.rotation);
   }, [shape.cells, brick.rotation]);
 
-  // Render cells
+  // Render cells - now with 3D coordinates
   const cells = useMemo(() => {
-    return rotatedCells.map(([dx, dy], index) => (
+    return rotatedCells.map(([dx, dy, dz], index: number) => (
       <BrickCell
-        key={`${dx}-${dy}-${index}`}
+        key={`${dx}-${dy}-${dz}-${index}`}
         x={dx}
         y={dy}
+        z={dz}
         color={isValid ? brick.color : '#888888'}
         isGhost={isGhost}
         isSelected={isSelected}
@@ -181,13 +189,13 @@ export function PolyominoBrick({
     ));
   }, [rotatedCells, brick.color, isGhost, isSelected, isValid, hovered, interactive]);
 
-  // Generate colliders for each cell
+  // Generate colliders for each cell - now with 3D positions
   const colliders = useMemo(() => {
-    return rotatedCells.map(([dx, dy], index) => (
+    return rotatedCells.map(([dx, dy, dz], index: number) => (
       <CuboidCollider
-        key={`collider-${dx}-${dy}-${index}`}
+        key={`collider-${dx}-${dy}-${dz}-${index}`}
         args={[CELL_SIZE / 2 - 0.02, BRICK_HEIGHT / 2, CELL_SIZE / 2 - 0.02]}
-        position={[dx * CELL_SIZE + 0.5, BRICK_HEIGHT / 2, dy * CELL_SIZE + 0.5]}
+        position={[dx * CELL_SIZE + 0.5, dz * BRICK_STACK_HEIGHT + BRICK_HEIGHT / 2, dy * CELL_SIZE + 0.5]}
       />
     ));
   }, [rotatedCells]);
@@ -230,29 +238,30 @@ export function PolyominoBrick({
 
   const handlePointerLeave = () => setHovered(false);
 
-  // Calculate actual position
+  // Calculate actual position - now using 3D position
   const posX = brick.position.x - boardOffset.x;
+  const posY = brick.position.z * BRICK_STACK_HEIGHT; // Z position becomes Y in Three.js
   const posZ = brick.position.y - boardOffset.y;
 
-  // Calculate center offset for rotation pivot
+  // Calculate center offset for rotation pivot (now considering 3D cells)
   const centerX = rotatedCells.length > 0
-    ? (Math.max(...rotatedCells.map(c => c[0])) + 1) / 2
+    ? (Math.max(...rotatedCells.map((c: [number, number, number]) => c[0])) + 1) / 2
     : 0.5;
   const centerZ = rotatedCells.length > 0
-    ? (Math.max(...rotatedCells.map(c => c[1])) + 1) / 2
+    ? (Math.max(...rotatedCells.map((c: [number, number, number]) => c[1])) + 1) / 2
     : 0.5;
 
   return (
     <RigidBody
       ref={rigidBodyRef}
-      position={[posX, isSelected ? HOVER_HEIGHT + 1 : 2, posZ]}
+      position={[posX, isSelected ? HOVER_HEIGHT + 1 : posY + 2, posZ]}
       type={isSelected ? 'kinematicPosition' : 'dynamic'}
       colliders={false}
       friction={0.8}
       restitution={0.1}
       linearDamping={0.5}
       angularDamping={0.99}
-      lockRotations={true} // Prevent tipping over
+      lockRotations={true} // Prevent tipping over in physics
     >
       <group
         ref={groupRef}
@@ -280,8 +289,8 @@ export function PolyominoBrick({
                 rotation={[-Math.PI / 2, 0, 0]}
               >
                 <planeGeometry args={[
-                  Math.max(...rotatedCells.map(c => c[0])) + 1.5,
-                  Math.max(...rotatedCells.map(c => c[1])) + 1.5
+                  Math.max(...rotatedCells.map((c: [number, number, number]) => c[0])) + 1.5,
+                  Math.max(...rotatedCells.map((c: [number, number, number]) => c[1])) + 1.5
                 ]} />
                 <meshBasicMaterial
                   color="#000000"
@@ -295,12 +304,12 @@ export function PolyominoBrick({
             <mesh position={[centerX, 0.02, centerZ]} rotation={[-Math.PI / 2, 0, 0]}>
               <ringGeometry args={[
                 Math.max(
-                  Math.max(...rotatedCells.map(c => c[0])) + 1,
-                  Math.max(...rotatedCells.map(c => c[1])) + 1
+                  Math.max(...rotatedCells.map((c: [number, number, number]) => c[0])) + 1,
+                  Math.max(...rotatedCells.map((c: [number, number, number]) => c[1])) + 1
                 ) * 0.6,
                 Math.max(
-                  Math.max(...rotatedCells.map(c => c[0])) + 1,
-                  Math.max(...rotatedCells.map(c => c[1])) + 1
+                  Math.max(...rotatedCells.map((c: [number, number, number]) => c[0])) + 1,
+                  Math.max(...rotatedCells.map((c: [number, number, number]) => c[1])) + 1
                 ) * 0.7,
                 32
               ]} />
@@ -332,7 +341,7 @@ export function PolyominoBrick({
   );
 }
 
-// Ghost preview brick for drag operations
+// Ghost preview brick for drag operations - now supports 3D rotation
 export function GhostBrick({
   shape,
   color,
@@ -343,23 +352,24 @@ export function GhostBrick({
 }: {
   shape: string;
   color: string;
-  rotation: number;
+  rotation: Rotation3D;
   position: { x: number; y: number };
   z?: number;
   isValid: boolean;
 }) {
   const shapeDefinition = SHAPE_LIBRARY[shape];
   if (!shapeDefinition) return null;
-  
-  const rotatedCells = rotateShape(shapeDefinition.cells, rotation);
+
+  const cells3D = normalizeCellsTo3D(shapeDefinition.cells);
+  const rotatedCells = rotateShape3D(cells3D, rotation);
   const baseHeight = z * BRICK_STACK_HEIGHT;
-  
+
   return (
     <group position={[position.x, baseHeight + 0.05, position.y]}>
-      {rotatedCells.map(([dx, dy], index) => (
+      {rotatedCells.map(([dx, dy, dz], index: number) => (
         <mesh
           key={index}
-          position={[dx + 0.5, 0.2, dy + 0.5]}
+          position={[dx + 0.5, dz * BRICK_STACK_HEIGHT + 0.2, dy + 0.5]}
         >
           <boxGeometry args={[0.9, 0.4, 0.9]} />
           <meshBasicMaterial
