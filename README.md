@@ -2,7 +2,7 @@
 
 A **sustainable platform** for CS Escape Room puzzles built with React, Three.js, and TypeScript. The system is fully data-driven - puzzles are defined via JSON and rendered dynamically.
 
-![Virtual Lego Puzzle Editor](https://img.shields.io/badge/React-18.2-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue) ![Three.js](https://img.shields.io/badge/Three.js-0.159-green)
+![Virtual Lego Puzzle Editor](https://img.shields.io/badge/React-19.2-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue) ![Three.js](https://img.shields.io/badge/Three.js-0.159-green)
 
 ## 🎮 Features
 
