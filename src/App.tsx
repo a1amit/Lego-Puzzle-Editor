@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ResizablePanels } from './components/layout/ResizablePanels';
 import { PuzzleEditor } from './components/editor/PuzzleEditor';
 import { PuzzleScene } from './components/3d/PuzzleScene';
+import { PuzzleRenderer, ViewModeIndicator } from './components/renderer';
 import { InventoryPanel } from './components/ui/InventoryPanel';
 import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
 import { usePuzzleStore } from './store/puzzleStore';
-import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE } from './types/puzzle';
+import { usePuzzleEngine } from './engine';
+import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
@@ -61,8 +63,10 @@ function LegoLogo({ className = "w-8 h-8" }: { className?: string }) {
 }
 
 const SAMPLE_PUZZLES = [
-  { id: 'coverage', label: 'T-Time (Coverage)', puzzle: DEFAULT_PUZZLE },
-  { id: 'fit-all', label: 'Tetris Pack (Fit All)', puzzle: FIT_ALL_PUZZLE },
+  { id: 'coverage', label: 'T-Time (Coverage)', puzzle: DEFAULT_PUZZLE, is3D: true },
+  { id: 'fit-all', label: 'Tetris Pack (Fit All)', puzzle: FIT_ALL_PUZZLE, is3D: true },
+  { id: 'slider', label: 'Slide Master (2D)', puzzle: SLIDER_PUZZLE, is3D: false },
+  { id: 'grid', label: 'Grid Fill (2D)', puzzle: GRID_PUZZLE, is3D: false },
 ];
 
 type ViewMode = 'split' | 'editor' | 'preview';
@@ -166,8 +170,16 @@ function Header() {
                     />
                   </div>
                   <div className="flex-1">
-                    <div className="font-display font-medium text-white text-sm">
+                    <div className="font-display font-medium text-white text-sm flex items-center gap-2">
                       {item.puzzle.title}
+                      {/* 2D/3D Badge */}
+                      <span className={`px-1.5 py-0.5 text-[10px] rounded ${
+                        item.is3D 
+                          ? 'bg-purple-500/20 text-purple-300' 
+                          : 'bg-cyan-500/20 text-cyan-300'
+                      }`}>
+                        {item.is3D ? '3D' : '2D'}
+                      </span>
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5">
                       {item.puzzle.description}
@@ -176,10 +188,14 @@ function Header() {
                       <span className={`px-1.5 py-0.5 text-xs rounded ${
                         item.puzzle.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')
                           ? 'bg-lego-blue/20 text-blue-300'
+                          : item.puzzle.validation_rules.some(r => r.rule === 'SLIDING_ONLY')
+                          ? 'bg-orange-500/20 text-orange-300'
                           : 'bg-lego-green/20 text-green-300'
                       }`}>
                         {item.puzzle.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')
                           ? 'Coverage'
+                          : item.puzzle.validation_rules.some(r => r.rule === 'SLIDING_ONLY')
+                          ? 'Slider'
                           : 'Fit All'}
                       </span>
                       <span className="text-xs text-gray-500">
@@ -241,6 +257,20 @@ function EditorPanel() {
 }
 
 function PreviewPanel() {
+  const { puzzle } = usePuzzleStore();
+  const viewMode = puzzle?.viewMode ?? '3D_ISOMETRIC';
+  const is2D = viewMode === '2D_TOP_DOWN' || viewMode === '2D_GRID';
+  
+  // Use the engine hook for 2D puzzles (view-agnostic architecture)
+  const engine = usePuzzleEngine({ puzzle: null }); // Start empty
+  
+  // Sync engine with store's puzzle when it changes (for 2D puzzles)
+  useEffect(() => {
+    if (puzzle && is2D) {
+      engine.loadPuzzle(puzzle);
+    }
+  }, [puzzle, is2D]); // eslint-disable-line react-hooks/exhaustive-deps
+  
   return (
     <ResizablePanels
       direction="horizontal"
@@ -248,9 +278,20 @@ function PreviewPanel() {
       minSize={40}
       maxSize={90}
     >
-      {/* 3D Scene */}
-      <div className="h-full bg-editor-bg">
-        <PuzzleScene />
+      {/* Puzzle Scene - switches between 2D and 3D */}
+      <div className="h-full bg-editor-bg relative">
+        {is2D ? (
+          // 2D puzzles use the new view-agnostic PuzzleRenderer
+          <PuzzleRenderer engine={engine} />
+        ) : (
+          // 3D puzzles use the existing PuzzleScene (with store)
+          <PuzzleScene />
+        )}
+        
+        {/* View mode badge */}
+        <div className="absolute top-3 right-3 z-10">
+          <ViewModeIndicator viewMode={viewMode} />
+        </div>
       </div>
       
       {/* Side panels - Inventory & Validation */}
@@ -261,8 +302,8 @@ function PreviewPanel() {
           minSize={20}
           maxSize={85}
         >
-          <InventoryPanel className="h-full" />
-          <ValidationPanel className="h-full" />
+          <InventoryPanel className="h-full" engine={is2D ? engine : undefined} />
+          <ValidationPanel className="h-full" engine={is2D ? engine : undefined} />
         </ResizablePanels>
       </div>
     </ResizablePanels>

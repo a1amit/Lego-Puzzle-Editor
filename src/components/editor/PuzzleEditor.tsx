@@ -37,18 +37,43 @@ const puzzleJsonSchema = {
         },
         initial_state: {
           type: 'array',
+          description: 'Pre-placed pieces on the board (for slider puzzles)',
           items: {
             type: 'object',
-            properties: {
-              brickId: { type: 'string' },
-              position: {
-                type: 'array',
-                items: { type: 'number' },
-                minItems: 2,
-                maxItems: 2,
+            oneOf: [
+              {
+                // Reference to inventory piece
+                properties: {
+                  brickId: { type: 'string' },
+                  position: {
+                    type: 'array',
+                    items: { type: 'number' },
+                    minItems: 2,
+                    maxItems: 2,
+                  },
+                  rotation: { type: 'number', default: 0 },
+                },
+                required: ['brickId', 'position'],
               },
-              rotation: { type: 'number', default: 0 },
-            },
+              {
+                // Cell-based piece (most explicit)
+                properties: {
+                  id: { type: 'string' },
+                  cells: {
+                    type: 'array',
+                    description: 'Exactly which cells this piece covers [[x,y], ...]',
+                    items: {
+                      type: 'array',
+                      items: { type: 'number' },
+                      minItems: 2,
+                      maxItems: 2,
+                    },
+                  },
+                  color: { type: 'string' },
+                },
+                required: ['id', 'cells', 'color'],
+              },
+            ],
           },
         },
         blocked_cells: {
@@ -81,6 +106,7 @@ const puzzleJsonSchema = {
               'J-tetromino',
               'unit',
               'domino',
+              'domino-v',
             ],
           },
           color: { type: 'string' },
@@ -96,7 +122,7 @@ const puzzleJsonSchema = {
         properties: {
           type: {
             type: 'string',
-            enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'CUSTOM'],
+            enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'GOAL', 'CUSTOM'],
           },
           rule: {
             type: 'string',
@@ -106,11 +132,41 @@ const puzzleJsonSchema = {
               'NO_BRICK_OVERLAP',
               'NO_BRICKS_OUT_OF_BOUNDS',
               'NO_BLOCKED_CELLS',
+              'SLIDING_ONLY',
+              'FREE_PLACEMENT',
+              'GOAL_REACHED',
             ],
           },
           params: { type: 'object' },
         },
       },
+    },
+    viewMode: {
+      type: 'string',
+      enum: ['3D_ISOMETRIC', '2D_TOP_DOWN', '2D_GRID'],
+      description: 'How to render the puzzle (3D or 2D)',
+      default: '3D_ISOMETRIC',
+    },
+    goal: {
+      type: 'object',
+      description: 'Win condition for slider puzzles',
+      properties: {
+        targetPieceId: {
+          type: 'string',
+          description: 'ID of the piece that must reach the goal',
+        },
+        cells: {
+          type: 'array',
+          description: 'Cells the target piece must cover to win [[x,y], ...]',
+          items: {
+            type: 'array',
+            items: { type: 'number' },
+            minItems: 2,
+            maxItems: 2,
+          },
+        },
+      },
+      required: ['targetPieceId', 'cells'],
     },
     metadata: {
       type: 'object',

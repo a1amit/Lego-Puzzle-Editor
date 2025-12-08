@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { usePuzzleStore } from '../../store/puzzleStore';
+import type { ValidationResult } from '../../types/puzzle';
 
 interface LegoBoardProps {
   width: number;
@@ -9,6 +10,12 @@ interface LegoBoardProps {
   depth?: number;
   onCellClick?: (x: number, y: number) => void;
   onCellHover?: (x: number, y: number | null) => void;
+  /** External blocked cells - if provided, overrides store */
+  blockedCellsOverride?: [number, number][];
+  /** External hovered cell - if provided, overrides store */
+  hoveredCellOverride?: { x: number; y: number } | null;
+  /** External validation results - if provided, overrides store */
+  validationResultsOverride?: ValidationResult[];
 }
 
 const CELL_SIZE = 1;
@@ -78,9 +85,17 @@ export function LegoBoard({
   height, 
   onCellClick,
   onCellHover,
+  blockedCellsOverride,
+  hoveredCellOverride,
+  validationResultsOverride,
 }: LegoBoardProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const { boardState, hoveredCell, validationResults } = usePuzzleStore();
+  const store = usePuzzleStore();
+  
+  // Use override props if provided, otherwise fall back to store
+  const hoveredCell = hoveredCellOverride !== undefined ? hoveredCellOverride : store.hoveredCell;
+  const validationResults = validationResultsOverride ?? store.validationResults;
+  const blockedCellsArray = blockedCellsOverride ?? store.boardState.blockedCells;
   
   // Get cells that need highlighting from validation
   const invalidCells = useMemo(() => {
@@ -97,8 +112,8 @@ export function LegoBoard({
   
   // Create blocked cells set
   const blockedCells = useMemo(() => {
-    return new Set(boardState.blockedCells.map(([x, y]) => `${x},${y}`));
-  }, [boardState.blockedCells]);
+    return new Set(blockedCellsArray.map(([x, y]) => `${x},${y}`));
+  }, [blockedCellsArray]);
   
   // Generate cells
   const cells = useMemo(() => {

@@ -320,6 +320,75 @@ const validateAllBricksMustBeUsed: ValidationFunction = (boardState, params) => 
   };
 };
 
+/**
+ * Check if the target piece has reached the goal (for slider puzzles)
+ * Params should contain: { targetPieceId: string, goalCells: [number, number][] }
+ */
+const validateGoalReached: ValidationFunction = (boardState, params) => {
+  const targetPieceId = params?.targetPieceId as string | undefined;
+  const goalCells = params?.goalCells as [number, number][] | undefined;
+  
+  if (!targetPieceId || !goalCells || goalCells.length === 0) {
+    return {
+      isValid: false,
+      rule: 'GOAL_REACHED',
+      message: 'Goal parameters not provided (targetPieceId, goalCells)',
+    };
+  }
+  
+  // Find the target piece on the board
+  const targetPiece = boardState.placedBricks.find(b => b.id === targetPieceId);
+  
+  if (!targetPiece) {
+    return {
+      isValid: false,
+      rule: 'GOAL_REACHED',
+      message: `Target piece "${targetPieceId}" not found on board`,
+    };
+  }
+  
+  // Get the cells the target piece currently covers
+  const shapeDef = SHAPE_LIBRARY[targetPiece.shape];
+  if (!shapeDef) {
+    return {
+      isValid: false,
+      rule: 'GOAL_REACHED',
+      message: `Unknown shape "${targetPiece.shape}"`,
+    };
+  }
+  
+  const rotatedCells = rotateShape(shapeDef.cells, targetPiece.rotation || 0);
+  const pieceCells = rotatedCells.map(([dx, dy]) => [
+    targetPiece.position.x + dx,
+    targetPiece.position.y + dy,
+  ] as [number, number]);
+  
+  // Check if piece cells match goal cells exactly
+  const pieceCellSet = new Set(pieceCells.map(([x, y]) => `${x},${y}`));
+  const goalCellSet = new Set(goalCells.map(([x, y]) => `${x},${y}`));
+  
+  const isAtGoal = pieceCellSet.size === goalCellSet.size &&
+    [...pieceCellSet].every(cell => goalCellSet.has(cell));
+  
+  if (isAtGoal) {
+    return {
+      isValid: true,
+      rule: 'GOAL_REACHED',
+      message: '🎉 Goal reached! Puzzle solved!',
+    };
+  }
+  
+  // Show which goal cells are not yet covered
+  const uncoveredGoal = goalCells.filter(([x, y]) => !pieceCellSet.has(`${x},${y}`));
+  
+  return {
+    isValid: false,
+    rule: 'GOAL_REACHED',
+    message: `Move the RED piece to cover the goal area`,
+    affectedCells: uncoveredGoal,
+  };
+};
+
 // ============================================
 // VALIDATION REGISTRY
 // ============================================
@@ -335,6 +404,18 @@ class ValidationRegistryClass {
     this.register('NO_BRICKS_OUT_OF_BOUNDS', validateNoBricksOutOfBounds);
     this.register('NO_BLOCKED_CELLS', validateNoBlockedCells);
     this.register('NO_BRICKS_EXCEED_DEPTH', validateNoBricksExceedDepth);
+    this.register('GOAL_REACHED', validateGoalReached);
+    // Movement rules (these are constraints, not validations - always pass)
+    this.register('SLIDING_ONLY', () => ({
+      isValid: true,
+      rule: 'SLIDING_ONLY',
+      message: 'Sliding movement enabled - click a piece then click to slide it',
+    }));
+    this.register('FREE_PLACEMENT', () => ({
+      isValid: true,
+      rule: 'FREE_PLACEMENT',
+      message: 'Free placement enabled - place pieces anywhere valid',
+    }));
   }
   
   /**

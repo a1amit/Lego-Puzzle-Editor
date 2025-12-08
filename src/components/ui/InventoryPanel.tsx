@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { rotateShape } from '../../validation/ValidationRegistry';
+import type { UsePuzzleEngineReturn } from '../../engine';
 
 interface ShapePreviewProps {
   shape: string;
@@ -154,10 +155,20 @@ function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onS
 
 interface InventoryPanelProps {
   className?: string;
+  /** Optional engine for 2D puzzles - when provided, uses engine state instead of store */
+  engine?: UsePuzzleEngineReturn;
 }
 
-export function InventoryPanel({ className = '' }: InventoryPanelProps) {
-  const { puzzle, inventoryState, selectedBrickId, previewRotation, selectBrick, rotatePreview } = usePuzzleStore();
+export function InventoryPanel({ className = '', engine }: InventoryPanelProps) {
+  const store = usePuzzleStore();
+  
+  // Use engine state if provided, otherwise fall back to store
+  const puzzle = engine?.puzzle ?? store.puzzle;
+  const inventoryState = engine?.inventory ?? store.inventoryState;
+  const selectedBrickId = engine?.selectedPieceId ?? store.selectedBrickId;
+  const previewRotation = engine?.previewRotation ?? store.previewRotation;
+  const selectBrick = engine?.selectPiece ?? store.selectBrick;
+  const rotatePreview = engine?.rotatePreview ?? store.rotatePreview;
   
   // Check if selected brick is from inventory (not a placed brick)
   const isInventorySelection = useMemo(() => {
