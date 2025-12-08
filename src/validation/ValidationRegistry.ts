@@ -411,6 +411,11 @@ class ValidationRegistryClass {
       rule: 'SLIDING_ONLY',
       message: 'Sliding movement enabled - click a piece then click to slide it',
     }));
+    this.register('NO_ROTATION', () => ({
+      isValid: true,
+      rule: 'NO_ROTATION',
+      message: 'Rotation disabled - pieces cannot be rotated',
+    }));
     this.register('FREE_PLACEMENT', () => ({
       isValid: true,
       rule: 'FREE_PLACEMENT',

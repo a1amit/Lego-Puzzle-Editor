@@ -406,6 +406,11 @@ function ValidationTab() {
       desc: 'Pieces can be placed freely anywhere on the board (default behavior).',
     },
     {
+      name: 'NO_ROTATION',
+      type: 'ROTATION',
+      desc: 'Disables rotation for all pieces. Used for slider puzzles where pieces cannot be rotated.',
+    },
+    {
       name: 'GOAL_REACHED',
       type: 'GOAL',
       desc: 'Check if the target piece has reached the goal cells. Used as win condition for slider puzzles.',
@@ -418,6 +423,7 @@ function ValidationTab() {
       case 'COUNT': return 'bg-green-500/20 text-green-300';
       case 'PLACEMENT': return 'bg-yellow-500/20 text-yellow-300';
       case 'MOVEMENT': return 'bg-purple-500/20 text-purple-300';
+      case 'ROTATION': return 'bg-orange-500/20 text-orange-300';
       case 'GOAL': return 'bg-red-500/20 text-red-300';
       default: return 'bg-gray-500/20 text-gray-300';
     }
@@ -456,6 +462,7 @@ function ValidationTab() {
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
 {`"validation_rules": [
   { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
+  { "type": "ROTATION", "rule": "NO_ROTATION" },
   { "type": "GOAL", "rule": "GOAL_REACHED" }
 ]`}
       </pre>
@@ -542,6 +549,7 @@ function SliderTab() {
   "inventory": [],
   "validation_rules": [
     { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
+    { "type": "ROTATION", "rule": "NO_ROTATION" },
     { "type": "GOAL", "rule": "GOAL_REACHED" }
   ],
   "goal": {
@@ -665,6 +673,7 @@ function ExamplesTab() {
   "inventory": [],
   "validation_rules": [
     { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
+    { "type": "ROTATION", "rule": "NO_ROTATION" },
     { "type": "GOAL", "rule": "GOAL_REACHED" }
   ],
   "goal": {

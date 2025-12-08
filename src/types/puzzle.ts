@@ -109,6 +109,7 @@ export const ValidationRuleTypes = [
   'PLACEMENT',
   'COUNT',
   'MOVEMENT',
+  'ROTATION',
   'GOAL',
   'CUSTOM',
 ] as const;
@@ -417,6 +418,7 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
   validation_rules: [
     { type: "GOAL", rule: "GOAL_REACHED" },
     { type: "MOVEMENT", rule: "SLIDING_ONLY" },
+    { type: "ROTATION", rule: "NO_ROTATION" },
     { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
     { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
   ],

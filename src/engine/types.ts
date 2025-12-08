@@ -134,6 +134,7 @@ export interface EngineConfig {
   viewMode: ViewMode;
   movementRule: MovementRule;
   allowStacking: boolean;  // Derived from depth > 1
+  rotationEnabled: boolean;  // Derived from NO_ROTATION rule
 }
 
 // ============================================

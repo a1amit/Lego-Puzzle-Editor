@@ -190,10 +190,17 @@ function deriveConfig(puzzle: PuzzleDefinition | null, viewModeOverride?: ViewMo
   // Determine if stacking is allowed based on depth
   const allowStacking = (puzzle?.board.dimensions.depth ?? 1) > 1;
   
+  // Check if rotation is disabled (NO_ROTATION rule present)
+  const hasNoRotationRule = puzzle?.validation_rules?.some(
+    r => r.type === 'ROTATION' && r.rule === 'NO_ROTATION'
+  ) ?? false;
+  const rotationEnabled = !hasNoRotationRule;
+  
   return {
     viewMode,
     movementRule,
     allowStacking,
+    rotationEnabled,
   };
 }
 
@@ -485,6 +492,12 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   // ============================================
   
   const rotatePiece = useCallback((instanceId: string) => {
+    // Check if rotation is disabled
+    if (!config.rotationEnabled) {
+      console.log('Rotation is disabled for this puzzle');
+      return;
+    }
+    
     setBoard(prev => ({
       ...prev,
       placedPieces: prev.placedPieces.map(p =>
@@ -495,7 +508,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     }));
     
     // Validation runs automatically via useEffect when board changes
-  }, []);
+  }, [config.rotationEnabled]);
   
   // ============================================
   // SELECTION
@@ -509,8 +522,12 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   }, [selectedPieceId]);
   
   const rotatePreview = useCallback(() => {
+    // Check if rotation is disabled
+    if (!config.rotationEnabled) {
+      return;
+    }
     setPreviewRotation(prev => (prev + 90) % 360);
-  }, []);
+  }, [config.rotationEnabled]);
   
   const setHoveredCellFn = useCallback((cell: { x: number; y: number } | null) => {
     setHoveredCell(cell);

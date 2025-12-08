@@ -122,7 +122,7 @@ const puzzleJsonSchema = {
         properties: {
           type: {
             type: 'string',
-            enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'GOAL', 'CUSTOM'],
+            enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'ROTATION', 'GOAL', 'CUSTOM'],
           },
           rule: {
             type: 'string',
@@ -134,6 +134,7 @@ const puzzleJsonSchema = {
               'NO_BLOCKED_CELLS',
               'SLIDING_ONLY',
               'FREE_PLACEMENT',
+              'NO_ROTATION',
               'GOAL_REACHED',
             ],
           },
