@@ -110,6 +110,7 @@ export const ValidationRuleTypes = [
   'COUNT',
   'MOVEMENT',
   'ROTATION',
+  'PATTERN',
   'GOAL',
   'CUSTOM',
 ] as const;
@@ -192,6 +193,33 @@ export const GoalPositionSchema = z.object({
 
 export type GoalPosition = z.infer<typeof GoalPositionSchema>;
 
+// ============================================
+// TARGET PATTERN (for pattern matching puzzles)
+// ============================================
+
+/**
+ * Defines a target pattern that must be matched.
+ * Used for Binary encoding puzzles, RLE art, etc.
+ */
+export const TargetPatternSchema = z.object({
+  /** 
+   * 2D grid of expected values. rows[y][x] = value
+   * Value is typically a number (0, 1) or string that maps to colors
+   */
+  rows: z.array(z.array(z.union([z.number(), z.string()]))),
+  /**
+   * Maps pattern values to expected colors
+   * Example: { "0": "#1a1a1a", "1": "#ffffff" }
+   */
+  color_mapping: z.record(z.string(), z.string()),
+  /**
+   * Optional: Allow partial matches (some cells can be empty)
+   */
+  allow_empty_cells: z.boolean().optional(),
+});
+
+export type TargetPattern = z.infer<typeof TargetPatternSchema>;
+
 export const PuzzleDefinitionSchema = z.object({
   puzzle_id: z.string(),
   title: z.string(),
@@ -202,6 +230,8 @@ export const PuzzleDefinitionSchema = z.object({
   inventory: z.array(BrickSchema),
   /** Goal position for slider puzzles */
   goal: GoalPositionSchema.optional(),
+  /** Target pattern for pattern-matching puzzles (Binary, RLE, etc.) */
+  target_pattern: TargetPatternSchema.optional(),
   validation_rules: z.array(ValidationRuleSchema),
   /** Optional custom shape definitions */
   custom_shapes: z.record(z.string(), ShapeDefinitionSchema).optional(),
@@ -457,6 +487,56 @@ export const GRID_PUZZLE: PuzzleDefinition = {
     author: "CS Escape Room",
     difficulty: "easy",
     tags: ["grid", "2D", "coverage"]
+  }
+};
+
+// ============================================
+// BINARY SAFE PUZZLE (Pattern Matching)
+// ============================================
+
+/**
+ * Binary Safe Puzzle - Decode ASCII from binary
+ * 
+ * The player must place black (0) and white (1) bricks
+ * to spell out "HI" in ASCII:
+ * 
+ * Row 0: 01001000 = 'H' (72)
+ * Row 1: 01001001 = 'I' (73)
+ */
+export const BINARY_PUZZLE: PuzzleDefinition = {
+  puzzle_id: "Binary-01",
+  title: "Binary Safe",
+  description: "Crack the code! Place black (0) and white (1) bricks to spell the secret password in binary ASCII. Hint: The password is a 2-letter greeting.",
+  viewMode: "2D_TOP_DOWN",
+  board: {
+    dimensions: { width: 8, height: 2, depth: 1 },
+    initial_state: []
+  },
+  inventory: [
+    { shape: "unit", color: "#1a1a1a", quantity: 11, id: "bit-0" },  // Black = 0
+    { shape: "unit", color: "#ffffff", quantity: 5, id: "bit-1" },   // White = 1
+  ],
+  target_pattern: {
+    // 'H' = 01001000, 'I' = 01001001
+    rows: [
+      [0, 1, 0, 0, 1, 0, 0, 0],  // H = 72
+      [0, 1, 0, 0, 1, 0, 0, 1],  // I = 73
+    ],
+    color_mapping: {
+      "0": "#1a1a1a",  // Black
+      "1": "#ffffff",  // White
+    },
+  },
+  validation_rules: [
+    { type: "PATTERN", rule: "PATTERN_MATCH" },
+    { type: "ROTATION", rule: "NO_ROTATION" },
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+  metadata: {
+    author: "CS Escape Room",
+    difficulty: "medium",
+    tags: ["binary", "2D", "ASCII", "pattern", "encoding"]
   }
 };
 

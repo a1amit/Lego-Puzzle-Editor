@@ -122,7 +122,7 @@ const puzzleJsonSchema = {
         properties: {
           type: {
             type: 'string',
-            enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'ROTATION', 'GOAL', 'CUSTOM'],
+            enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'ROTATION', 'PATTERN', 'GOAL', 'CUSTOM'],
           },
           rule: {
             type: 'string',
@@ -135,6 +135,7 @@ const puzzleJsonSchema = {
               'SLIDING_ONLY',
               'FREE_PLACEMENT',
               'NO_ROTATION',
+              'PATTERN_MATCH',
               'GOAL_REACHED',
             ],
           },
@@ -168,6 +169,31 @@ const puzzleJsonSchema = {
         },
       },
       required: ['targetPieceId', 'cells'],
+    },
+    target_pattern: {
+      type: 'object',
+      description: 'Target pattern for pattern-matching puzzles (Binary, RLE, etc.)',
+      properties: {
+        rows: {
+          type: 'array',
+          description: '2D grid of expected values. rows[y][x] = value (0, 1, or color key)',
+          items: {
+            type: 'array',
+            items: { type: ['number', 'string'] },
+          },
+        },
+        color_mapping: {
+          type: 'object',
+          description: 'Maps pattern values to colors. e.g., {"0": "#000000", "1": "#ffffff"}',
+          additionalProperties: { type: 'string' },
+        },
+        allow_empty_cells: {
+          type: 'boolean',
+          description: 'If true, cells without pieces are allowed',
+          default: false,
+        },
+      },
+      required: ['rows', 'color_mapping'],
     },
     metadata: {
       type: 'object',

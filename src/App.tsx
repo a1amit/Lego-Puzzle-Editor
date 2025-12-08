@@ -8,7 +8,7 @@ import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
-import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE } from './types/puzzle';
+import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
@@ -65,8 +65,9 @@ function LegoLogo({ className = "w-8 h-8" }: { className?: string }) {
 const SAMPLE_PUZZLES = [
   { id: 'coverage', label: 'T-Time (Coverage)', puzzle: DEFAULT_PUZZLE, is3D: true },
   { id: 'fit-all', label: 'Tetris Pack (Fit All)', puzzle: FIT_ALL_PUZZLE, is3D: true },
-  { id: 'slider', label: 'Slide Master (2D)', puzzle: SLIDER_PUZZLE, is3D: false },
-  { id: 'grid', label: 'Grid Fill (2D)', puzzle: GRID_PUZZLE, is3D: false },
+  { id: 'slider', label: 'Klotski Classic', puzzle: SLIDER_PUZZLE, is3D: false },
+  { id: 'grid', label: 'Grid Fill', puzzle: GRID_PUZZLE, is3D: false },
+  { id: 'binary', label: 'Binary Safe', puzzle: BINARY_PUZZLE, is3D: false },
 ];
 
 type ViewMode = 'split' | 'editor' | 'preview';

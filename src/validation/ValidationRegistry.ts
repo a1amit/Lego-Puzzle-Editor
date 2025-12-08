@@ -321,6 +321,96 @@ const validateAllBricksMustBeUsed: ValidationFunction = (boardState, params) => 
 };
 
 /**
+ * Check if placed pieces match a target pattern (for Binary, RLE, and pattern puzzles)
+ * Params should contain: { rows: (number|string)[][], color_mapping: Record<string, string>, allow_empty_cells?: boolean }
+ */
+const validatePatternMatch: ValidationFunction = (boardState, params) => {
+  const rows = params?.rows as (number | string)[][] | undefined;
+  const colorMapping = params?.color_mapping as Record<string, string> | undefined;
+  const allowEmptyCells = params?.allow_empty_cells as boolean | undefined;
+  
+  if (!rows || !colorMapping) {
+    return {
+      isValid: false,
+      rule: 'PATTERN_MATCH',
+      message: 'Pattern parameters not provided (rows, color_mapping)',
+    };
+  }
+  
+  // Build a map of cell -> color from placed bricks
+  const cellColorMap = new Map<string, string>();
+  
+  for (const brick of boardState.placedBricks) {
+    // Get cells from brick - check if it has direct cells or uses shape library
+    let brickCells: [number, number][];
+    
+    if ((brick as any).cells) {
+      // Direct cell-based definition (like slider puzzles)
+      brickCells = (brick as any).cells;
+    } else {
+      // Shape-based definition
+      brickCells = getBrickCells(brick);
+    }
+    
+    for (const [x, y] of brickCells) {
+      cellColorMap.set(`${x},${y}`, brick.color.toLowerCase());
+    }
+  }
+  
+  // Check each cell in the pattern
+  const mismatches: { x: number; y: number; expected: string; actual: string | null }[] = [];
+  const affectedCells: [number, number][] = [];
+  
+  for (let y = 0; y < rows.length; y++) {
+    for (let x = 0; x < rows[y].length; x++) {
+      const expectedValue = String(rows[y][x]);
+      const expectedColor = colorMapping[expectedValue]?.toLowerCase();
+      
+      if (!expectedColor) {
+        // Value not in color mapping - skip or error
+        continue;
+      }
+      
+      const actualColor = cellColorMap.get(`${x},${y}`);
+      
+      if (!actualColor) {
+        // Cell is empty
+        if (!allowEmptyCells) {
+          mismatches.push({ x, y, expected: expectedColor, actual: null });
+          affectedCells.push([x, y]);
+        }
+      } else if (actualColor !== expectedColor) {
+        // Wrong color
+        mismatches.push({ x, y, expected: expectedColor, actual: actualColor });
+        affectedCells.push([x, y]);
+      }
+    }
+  }
+  
+  if (mismatches.length > 0) {
+    const emptyCount = mismatches.filter(m => m.actual === null).length;
+    const wrongCount = mismatches.length - emptyCount;
+    
+    let message = 'Pattern does not match: ';
+    if (emptyCount > 0) message += `${emptyCount} cell(s) empty`;
+    if (wrongCount > 0) message += `${emptyCount > 0 ? ', ' : ''}${wrongCount} cell(s) wrong color`;
+    
+    return {
+      isValid: false,
+      rule: 'PATTERN_MATCH',
+      message,
+      affectedCells,
+    };
+  }
+  
+  return {
+    isValid: true,
+    rule: 'PATTERN_MATCH',
+    message: 'Pattern matches perfectly!',
+  };
+};
+
+/**
  * Check if the target piece has reached the goal (for slider puzzles)
  * Params should contain: { targetPieceId: string, goalCells: [number, number][] }
  */
@@ -405,6 +495,7 @@ class ValidationRegistryClass {
     this.register('NO_BLOCKED_CELLS', validateNoBlockedCells);
     this.register('NO_BRICKS_EXCEED_DEPTH', validateNoBricksExceedDepth);
     this.register('GOAL_REACHED', validateGoalReached);
+    this.register('PATTERN_MATCH', validatePatternMatch);
     // Movement rules (these are constraints, not validations - always pass)
     this.register('SLIDING_ONLY', () => ({
       isValid: true,

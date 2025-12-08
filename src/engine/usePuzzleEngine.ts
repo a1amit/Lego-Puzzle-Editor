@@ -259,6 +259,20 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
         };
       }
       
+      // Add target pattern data for PATTERN_MATCH rule
+      if (rule.rule === 'PATTERN_MATCH' && (puzzle as any).target_pattern) {
+        const targetPattern = (puzzle as any).target_pattern;
+        return {
+          ...rule,
+          params: {
+            ...rule.params,
+            rows: targetPattern.rows,
+            color_mapping: targetPattern.color_mapping,
+            allow_empty_cells: targetPattern.allow_empty_cells,
+          },
+        };
+      }
+      
       return rule;
     });
     

@@ -411,6 +411,11 @@ function ValidationTab() {
       desc: 'Disables rotation for all pieces. Used for slider puzzles where pieces cannot be rotated.',
     },
     {
+      name: 'PATTERN_MATCH',
+      type: 'PATTERN',
+      desc: 'Check if placed pieces match a target pattern. Used for Binary encoding, RLE art, and pixel art puzzles.',
+    },
+    {
       name: 'GOAL_REACHED',
       type: 'GOAL',
       desc: 'Check if the target piece has reached the goal cells. Used as win condition for slider puzzles.',
@@ -424,6 +429,7 @@ function ValidationTab() {
       case 'PLACEMENT': return 'bg-yellow-500/20 text-yellow-300';
       case 'MOVEMENT': return 'bg-purple-500/20 text-purple-300';
       case 'ROTATION': return 'bg-orange-500/20 text-orange-300';
+      case 'PATTERN': return 'bg-cyan-500/20 text-cyan-300';
       case 'GOAL': return 'bg-red-500/20 text-red-300';
       default: return 'bg-gray-500/20 text-gray-300';
     }
