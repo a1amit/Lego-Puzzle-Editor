@@ -416,26 +416,26 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
     // Cell-based piece definitions - explicitly list which cells each piece covers!
     initial_state: [
       // Red 2x2 goal block - Located in rows 1 and 2, columns 0 and 1
-      { id: "goal", cells: [[0,1], [1,1], [0,2], [1,2]], color: "#D01012" },
-  
+      { id: "goal", cells: [[0, 1], [1, 1], [0, 2], [1, 2]], color: "#D01012" },
+
       // Blue vertical blocks
-      { id: "v1", cells: [[3,0], [3,1]], color: "#0055BF" },  // Top Right
-      { id: "v2", cells: [[2,2], [2,3]], color: "#0055BF" },  // Middle Right (column 2)
-      { id: "v3", cells: [[3,2], [3,3]], color: "#0055BF" },  // Bottom Right (column 3)
-  
+      { id: "v1", cells: [[3, 0], [3, 1]], color: "#0055BF" },  // Top Right
+      { id: "v2", cells: [[2, 2], [2, 3]], color: "#0055BF" },  // Middle Right (column 2)
+      { id: "v3", cells: [[3, 2], [3, 3]], color: "#0055BF" },  // Bottom Right (column 3)
+
       // Yellow small blocks - Top Row
-      { id: "s1", cells: [[0,0]], color: "#F5C300" },
-      { id: "s2", cells: [[1,0]], color: "#F5C300" },
-  
+      { id: "s1", cells: [[0, 0]], color: "#F5C300" },
+      { id: "s2", cells: [[1, 0]], color: "#F5C300" },
+
       // Yellow small blocks - Row 3 (below the Red block)
-      { id: "s3", cells: [[0,3]], color: "#F5C300" },
-      { id: "s4", cells: [[1,3]], color: "#F5C300" },
-  
+      { id: "s3", cells: [[0, 3]], color: "#F5C300" },
+      { id: "s4", cells: [[1, 3]], color: "#F5C300" },
+
       // Yellow small blocks - Bottom Row (Row 4 is completely filled)
-      { id: "s5", cells: [[0,4]], color: "#F5C300" },
-      { id: "s6", cells: [[1,4]], color: "#F5C300" },
-      { id: "s7", cells: [[2,4]], color: "#F5C300" },
-      { id: "s8", cells: [[3,4]], color: "#F5C300" },
+      { id: "s5", cells: [[0, 4]], color: "#F5C300" },
+      { id: "s6", cells: [[1, 4]], color: "#F5C300" },
+      { id: "s7", cells: [[2, 4]], color: "#F5C300" },
+      { id: "s8", cells: [[3, 4]], color: "#F5C300" },
     ]
   },
   // Empty inventory - all pieces are pre-placed for slider puzzles
@@ -443,7 +443,7 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
   // Goal: Red block must cover cells [1,3], [2,3], [1,4], [2,4] (bottom center)
   goal: {
     targetPieceId: "goal",
-    cells: [[1,3], [2,3], [1,4], [2,4]],
+    cells: [[1, 3], [2, 3], [1, 4], [2, 4]],
   },
   validation_rules: [
     { type: "GOAL", rule: "GOAL_REACHED" },

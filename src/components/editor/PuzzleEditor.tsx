@@ -135,6 +135,7 @@ const puzzleJsonSchema = {
               'SLIDING_ONLY',
               'FREE_PLACEMENT',
               'NO_ROTATION',
+              'NO_BRICK_REMOVAL',
               'PATTERN_MATCH',
               'GOAL_REACHED',
             ],

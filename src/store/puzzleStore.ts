@@ -100,6 +100,16 @@ function hasSlidingOnlyRule(puzzle: PuzzleDefinition | null): boolean {
   );
 }
 
+/**
+ * Check if a puzzle has the NO_BRICK_REMOVAL constraint rule
+ */
+function hasNoBrickRemovalRule(puzzle: PuzzleDefinition | null): boolean {
+  if (!puzzle) return false;
+  return puzzle.validation_rules.some(
+    r => r.rule === 'NO_BRICK_REMOVAL'
+  );
+}
+
 // Initialize with default puzzle JSON
 const defaultJson = JSON.stringify(DEFAULT_PUZZLE, null, 2);
 
@@ -384,7 +394,13 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   },
 
   removeBrick: (instanceId) => {
-    const { boardState, inventoryState } = get();
+    const { boardState, inventoryState, puzzle } = get();
+
+    // Block removal if NO_BRICK_REMOVAL rule is present
+    if (hasNoBrickRemovalRule(puzzle)) {
+      console.log('Brick removal is disabled for this puzzle (NO_BRICK_REMOVAL rule)');
+      return;
+    }
 
     const brick = boardState.placedBricks.find(b => b.instanceId === instanceId);
     if (!brick) return;

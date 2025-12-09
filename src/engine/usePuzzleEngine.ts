@@ -30,7 +30,6 @@ import type {
 } from './types';
 import {
   rotateShape,
-  getPieceCells,
   calculateZLevel,
   findPiecesStackedOnTop,
   arePieceCellsWithinBounds,
@@ -74,10 +73,10 @@ function createInitialBoard(puzzle: PuzzleDefinition | null): EngineBoard {
       blockedCells: [],
     };
   }
-  
+
   // Load initial piece placements from puzzle definition (for slider puzzles)
   const placedPieces: PlacedPiece[] = [];
-  
+
   if (puzzle.board.initial_state && puzzle.board.initial_state.length > 0) {
     for (const placement of puzzle.board.initial_state) {
       // Check which type of placement this is
@@ -87,11 +86,11 @@ function createInitialBoard(puzzle: PuzzleDefinition | null): EngineBoard {
         const cells = placement.cells as [number, number][];
         const minX = Math.min(...cells.map(c => c[0]));
         const minY = Math.min(...cells.map(c => c[1]));
-        
+
         // Create a custom shape from the cells (normalized to origin)
         const normalizedCells = cells.map(([x, y]) => [x - minX, y - minY] as [number, number]);
         const shapeName = `custom-${placement.id}`;
-        
+
         // Register custom shape if not exists
         if (!SHAPE_LIBRARY[shapeName]) {
           SHAPE_LIBRARY[shapeName] = {
@@ -99,7 +98,7 @@ function createInitialBoard(puzzle: PuzzleDefinition | null): EngineBoard {
             cells: normalizedCells,
           };
         }
-        
+
         placedPieces.push({
           id: placement.id,
           instanceId: `${placement.id}-initial-${placedPieces.length}`,
@@ -146,7 +145,7 @@ function createInitialBoard(puzzle: PuzzleDefinition | null): EngineBoard {
       }
     }
   }
-  
+
   return {
     dimensions: puzzle.board.dimensions,
     placedPieces,
@@ -161,7 +160,7 @@ function createInitialInventory(puzzle: PuzzleDefinition | null): InventoryState
     for (const brick of puzzle.inventory) {
       inventory.set(brick.id, brick.quantity);
     }
-    
+
     // Subtract pre-placed pieces that reference inventory (not inline pieces)
     if (puzzle.board.initial_state) {
       for (const placement of puzzle.board.initial_state) {
@@ -178,24 +177,24 @@ function createInitialInventory(puzzle: PuzzleDefinition | null): InventoryState
 
 function deriveConfig(puzzle: PuzzleDefinition | null, viewModeOverride?: ViewMode): EngineConfig {
   // Extract viewMode from puzzle or use override/default
-  const viewMode: ViewMode = viewModeOverride ?? 
-    (puzzle as any)?.viewMode ?? 
+  const viewMode: ViewMode = viewModeOverride ??
+    (puzzle as any)?.viewMode ??
     '3D_ISOMETRIC';
-  
+
   // Extract movement rule from validation_rules
   const movementRule: MovementRule = puzzle?.validation_rules?.find(
     r => r.type === 'MOVEMENT'
   )?.rule as MovementRule ?? 'FREE_PLACEMENT';
-  
+
   // Determine if stacking is allowed based on depth
   const allowStacking = (puzzle?.board.dimensions.depth ?? 1) > 1;
-  
+
   // Check if rotation is disabled (NO_ROTATION rule present)
   const hasNoRotationRule = puzzle?.validation_rules?.some(
     r => r.type === 'ROTATION' && r.rule === 'NO_ROTATION'
   ) ?? false;
   const rotationEnabled = !hasNoRotationRule;
-  
+
   return {
     viewMode,
     movementRule,
@@ -210,30 +209,30 @@ function deriveConfig(puzzle: PuzzleDefinition | null, viewModeOverride?: ViewMo
 
 export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngineReturn {
   const { puzzle: initialPuzzle, viewModeOverride } = options;
-  
+
   // Core state
   const [puzzle, setPuzzle] = useState<PuzzleDefinition | null>(initialPuzzle);
   const [board, setBoard] = useState<EngineBoard>(() => createInitialBoard(initialPuzzle));
   const [inventory, setInventory] = useState<InventoryState>(() => createInitialInventory(initialPuzzle));
   const [validationResults, setValidationResults] = useState<EngineValidationResult[]>([]);
   const [isComplete, setIsComplete] = useState(false);
-  
+
   // Selection state
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
-  
+
   // Derived configuration
   const config = useMemo(() => deriveConfig(puzzle, viewModeOverride), [puzzle, viewModeOverride]);
-  
+
   // ============================================
   // VALIDATION (runs automatically via useEffect)
   // ============================================
-  
+
   // Run validation automatically whenever board changes
   useEffect(() => {
     if (!puzzle) return;
-    
+
     // Enhance validation rules with additional parameters
     const rulesWithParams: ValidationRule[] = puzzle.validation_rules.map(rule => {
       // Add inventory data for ALL_BRICKS_MUST_BE_USED rule
@@ -246,7 +245,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
           },
         };
       }
-      
+
       // Add goal cells data for GOAL_REACHED rule (slider puzzles)
       if (rule.rule === 'GOAL_REACHED' && puzzle.goal) {
         return {
@@ -258,7 +257,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
           },
         };
       }
-      
+
       // Add target pattern data for PATTERN_MATCH rule
       if (rule.rule === 'PATTERN_MATCH' && (puzzle as any).target_pattern) {
         const targetPattern = (puzzle as any).target_pattern;
@@ -272,10 +271,10 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
           },
         };
       }
-      
+
       return rule;
     });
-    
+
     // Convert engine board to validation board format
     const validationBoard = {
       dimensions: board.dimensions,
@@ -290,68 +289,68 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       })),
       blockedCells: board.blockedCells,
     };
-    
+
     const results = ValidationRegistry.validate(validationBoard, rulesWithParams);
     setValidationResults(results);
     setIsComplete(ValidationRegistry.isAllValid(results));
   }, [puzzle, board]); // Re-run whenever puzzle or board changes
-  
+
   // ============================================
   // PIECE PLACEMENT
   // ============================================
-  
+
   const placePiece = useCallback((
     pieceId: string,
     position: Coordinate3D,
     rotation: number = previewRotation
   ): boolean => {
     if (!puzzle) return false;
-    
+
     // Find the piece definition in inventory
     const pieceDefinition = puzzle.inventory.find(p => p.id === pieceId);
     if (!pieceDefinition) return false;
-    
+
     // Check inventory availability
     const remaining = inventory.get(pieceId) ?? 0;
     if (remaining <= 0) return false;
-    
+
     // Get shape and calculate cells
     const shape = SHAPE_LIBRARY[pieceDefinition.shape];
     if (!shape) return false;
-    
+
     const rotatedCells = rotateShape(shape.cells, rotation);
     const targetCells: Coordinate2D[] = rotatedCells.map(([dx, dy]) => [
       position.x + dx,
       position.y + dy,
     ]);
-    
+
     // Validate bounds
     if (!arePieceCellsWithinBounds(targetCells, board.dimensions)) {
       return false;
     }
-    
+
     // Check blocked cells
     if (containsBlockedCells(targetCells, board.blockedCells)) {
       return false;
     }
-    
+
     // Calculate z-level for stacking
     let targetZ = position.z;
     if (config.allowStacking) {
       targetZ = calculateZLevel(board, targetCells);
     }
-    
+
     // Check depth limit
     const maxAllowedZ = board.dimensions.depth - 1;
     if (targetZ > maxAllowedZ) {
       return false;
     }
-    
+
     // Check for overlap at target z-level
     if (wouldOverlapAtZ(board, targetCells, targetZ)) {
       return false;
     }
-    
+
     // Create new placed piece
     const placedPiece: PlacedPiece = {
       id: pieceId,
@@ -361,47 +360,57 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       position: { x: position.x, y: position.y, z: targetZ },
       rotation,
     };
-    
+
     // Update state
     setBoard(prev => ({
       ...prev,
       placedPieces: [...prev.placedPieces, placedPiece],
     }));
-    
+
     setInventory(prev => {
       const newInventory = new Map(prev);
       newInventory.set(pieceId, remaining - 1);
       return newInventory;
     });
-    
+
     setPreviewRotation(0);
-    
+
     // Validation runs automatically via useEffect when board changes
-    
+
     return true;
   }, [puzzle, inventory, board, config, previewRotation]);
-  
+
   // ============================================
   // PIECE REMOVAL
   // ============================================
-  
+
   const removePiece = useCallback((instanceId: string) => {
+    // Check if piece removal is disabled
+    const hasNoBrickRemovalRule = puzzle?.validation_rules?.some(
+      r => r.rule === 'NO_BRICK_REMOVAL'
+    ) ?? false;
+
+    if (hasNoBrickRemovalRule) {
+      console.log('Brick removal is disabled for this puzzle (NO_BRICK_REMOVAL rule)');
+      return;
+    }
+
     const piece = board.placedPieces.find(p => p.instanceId === instanceId);
     if (!piece) return;
-    
+
     // Find all pieces stacked on top
     const stackedIds = findPiecesStackedOnTop(board, piece);
     const allIdsToRemove = new Set([instanceId, ...stackedIds]);
-    
+
     // Get all pieces being removed to return to inventory
     const piecesToRemove = board.placedPieces.filter(p => allIdsToRemove.has(p.instanceId));
-    
+
     // Update board
     setBoard(prev => ({
       ...prev,
       placedPieces: prev.placedPieces.filter(p => !allIdsToRemove.has(p.instanceId)),
     }));
-    
+
     // Return pieces to inventory
     setInventory(prev => {
       const newInventory = new Map(prev);
@@ -411,23 +420,23 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       }
       return newInventory;
     });
-    
+
     // Validation runs automatically via useEffect when board changes
-  }, [board]);
-  
+  }, [board, puzzle]);
+
   // ============================================
   // PIECE MOVEMENT
   // ============================================
-  
+
   const movePiece = useCallback((instanceId: string, destination: Coordinate3D): boolean => {
     const piece = board.placedPieces.find(p => p.instanceId === instanceId);
     if (!piece) return false;
-    
+
     // Check if position is actually changing
     if (piece.position.x === destination.x && piece.position.y === destination.y) {
       return true; // No change needed
     }
-    
+
     // For sliding puzzles, validate the move
     if (config.movementRule === 'SLIDING_ONLY') {
       const validDestinations = getValidSlideDestinations(board, piece);
@@ -436,26 +445,26 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       );
       if (!isValidSlide) return false;
     }
-    
+
     // Get shape and calculate new cells
     const shape = SHAPE_LIBRARY[piece.shape];
     if (!shape) return false;
-    
+
     const rotatedCells = rotateShape(shape.cells, piece.rotation);
     const targetCells: Coordinate2D[] = rotatedCells.map(([dx, dy]) => [
       destination.x + dx,
       destination.y + dy,
     ]);
-    
+
     // Validate bounds
     if (!arePieceCellsWithinBounds(targetCells, board.dimensions)) {
       return false;
     }
-    
+
     // Find and remove stacked pieces
     const stackedIds = findPiecesStackedOnTop(board, piece);
     const stackedPieces = board.placedPieces.filter(p => stackedIds.has(p.instanceId));
-    
+
     // Calculate new z-level
     let targetZ = destination.z;
     if (config.allowStacking) {
@@ -467,13 +476,13 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       };
       targetZ = calculateZLevel(boardWithoutStacked, targetCells, instanceId);
     }
-    
+
     // Check depth limit
     const maxAllowedZ = board.dimensions.depth - 1;
     if (targetZ > maxAllowedZ) {
       return false;
     }
-    
+
     // Update board: remove stacked pieces and move target piece
     setBoard(prev => ({
       ...prev,
@@ -484,7 +493,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
           : p
         ),
     }));
-    
+
     // Return stacked pieces to inventory
     if (stackedPieces.length > 0) {
       setInventory(prev => {
@@ -496,22 +505,22 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
         return newInventory;
       });
     }
-    
+
     // Validation runs automatically via useEffect when board changes
     return true;
   }, [board, config]);
-  
+
   // ============================================
   // PIECE ROTATION
   // ============================================
-  
+
   const rotatePiece = useCallback((instanceId: string) => {
     // Check if rotation is disabled
     if (!config.rotationEnabled) {
       console.log('Rotation is disabled for this puzzle');
       return;
     }
-    
+
     setBoard(prev => ({
       ...prev,
       placedPieces: prev.placedPieces.map(p =>
@@ -520,21 +529,21 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
           : p
       ),
     }));
-    
+
     // Validation runs automatically via useEffect when board changes
   }, [config.rotationEnabled]);
-  
+
   // ============================================
   // SELECTION
   // ============================================
-  
+
   const selectPiece = useCallback((pieceId: string | null) => {
     if (pieceId !== selectedPieceId) {
       setPreviewRotation(0);
     }
     setSelectedPieceId(pieceId);
   }, [selectedPieceId]);
-  
+
   const rotatePreview = useCallback(() => {
     // Check if rotation is disabled
     if (!config.rotationEnabled) {
@@ -542,25 +551,25 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     }
     setPreviewRotation(prev => (prev + 90) % 360);
   }, [config.rotationEnabled]);
-  
+
   const setHoveredCellFn = useCallback((cell: { x: number; y: number } | null) => {
     setHoveredCell(cell);
   }, []);
-  
+
   // ============================================
   // VALIDATE BOARD (manual trigger - for external use)
   // ============================================
-  
+
   const validateBoard = useCallback((): EngineValidationResult[] => {
     // Return the current validation results
     // Note: Validation runs automatically via useEffect when board changes
     return validationResults;
   }, [validationResults]);
-  
+
   // ============================================
   // RESET & LOAD
   // ============================================
-  
+
   const resetBoard = useCallback(() => {
     setBoard(createInitialBoard(puzzle));
     setInventory(createInitialInventory(puzzle));
@@ -569,7 +578,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     setSelectedPieceId(null);
     setPreviewRotation(0);
   }, [puzzle]);
-  
+
   const loadPuzzle = useCallback((newPuzzle: PuzzleDefinition) => {
     setPuzzle(newPuzzle);
     setBoard(createInitialBoard(newPuzzle));
@@ -579,11 +588,11 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     setSelectedPieceId(null);
     setPreviewRotation(0);
   }, []);
-  
+
   // ============================================
   // RETURN
   // ============================================
-  
+
   return {
     // State
     puzzle,
@@ -595,7 +604,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     hoveredCell,
     validationResults,
     isComplete,
-    
+
     // Actions
     placePiece,
     removePiece,

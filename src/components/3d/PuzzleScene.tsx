@@ -1,11 +1,98 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, ContactShadows } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, ContactShadows, Line } from '@react-three/drei';
 import { LegoBoard } from './LegoBoard';
 import { PolyominoBrick, GhostBrick } from './PolyominoBrick';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { getBrickCells, rotateShape } from '../../validation/ValidationRegistry';
+
+// Floating Goal Area Indicator - renders a visible frame above bricks
+function GoalAreaIndicator({
+  goalCells,
+  boardOffset,
+}: {
+  goalCells: [number, number][];
+  boardOffset: { x: number; y: number };
+}) {
+  // Calculate bounding box of goal area
+  const bounds = useMemo(() => {
+    if (!goalCells || goalCells.length === 0) return null;
+
+    const xs = goalCells.map(([x]) => x);
+    const ys = goalCells.map(([, y]) => y);
+
+    return {
+      minX: Math.min(...xs),
+      maxX: Math.max(...xs),
+      minY: Math.min(...ys),
+      maxY: Math.max(...ys),
+    };
+  }, [goalCells]);
+
+  if (!bounds) return null;
+
+  // Calculate world positions (cells are 1x1 units, need +1 to get far edge)
+  const x1 = bounds.minX - boardOffset.x;
+  const x2 = bounds.maxX + 1 - boardOffset.x;
+  const z1 = bounds.minY - boardOffset.y;
+  const z2 = bounds.maxY + 1 - boardOffset.y;
+
+  const postHeight = 1.5; // Height of corner posts
+  const frameHeight = 1.2; // Height of the floating frame
+  const cornerInset = 0.1; // Slight inset from cell edges
+
+  // Corner positions
+  const corners = [
+    [x1 + cornerInset, z1 + cornerInset],
+    [x2 - cornerInset, z1 + cornerInset],
+    [x2 - cornerInset, z2 - cornerInset],
+    [x1 + cornerInset, z2 - cornerInset],
+  ];
+
+  // Frame line points (closed loop)
+  const framePoints: [number, number, number][] = [
+    [x1 + cornerInset, frameHeight, z1 + cornerInset],
+    [x2 - cornerInset, frameHeight, z1 + cornerInset],
+    [x2 - cornerInset, frameHeight, z2 - cornerInset],
+    [x1 + cornerInset, frameHeight, z2 - cornerInset],
+    [x1 + cornerInset, frameHeight, z1 + cornerInset], // Close the loop
+  ];
+
+  return (
+    <group>
+      {/* Corner posts - vertical cylinders */}
+      {corners.map(([cx, cz], i) => (
+        <mesh key={`post-${i}`} position={[cx, postHeight / 2, cz]}>
+          <cylinderGeometry args={[0.05, 0.05, postHeight, 8]} />
+          <meshStandardMaterial
+            color="#F5C300"
+            emissive="#F5C300"
+            emissiveIntensity={0.3}
+            metalness={0.6}
+            roughness={0.3}
+          />
+        </mesh>
+      ))}
+
+      {/* Floating dashed frame line */}
+      <Line
+        points={framePoints}
+        color="#3FB950"
+        lineWidth={3}
+        dashed
+        dashSize={0.15}
+        gapSize={0.1}
+      />
+
+      {/* "GOAL" label - small floating text indicator */}
+      <mesh position={[(x1 + x2) / 2, frameHeight + 0.15, (z1 + z2) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.8, 0.25]} />
+        <meshBasicMaterial color="#3FB950" transparent opacity={0.9} />
+      </mesh>
+    </group>
+  );
+}
 
 // Drag and drop manager component
 function DragDropManager() {
@@ -120,6 +207,7 @@ function DragDropManager() {
         } else if (event.code === 'Escape' || event.key === 'Escape') {
           selectBrick(null);
         } else if (event.code === 'Delete' || event.code === 'Backspace') {
+          // removeBrick will check for NO_BRICK_REMOVAL rule and block if needed
           removeBrick(selectedPlacedBrick.instanceId);
           selectBrick(null);
         }
@@ -230,6 +318,9 @@ function DragDropManager() {
         slideDestinations={slideDestinations}
         goalCells={goalCells}
       />
+
+      {/* Floating goal area indicator - visible above bricks */}
+      {goalCells && <GoalAreaIndicator goalCells={goalCells} boardOffset={boardOffset} />}
 
       {/* Placed bricks */}
       {boardState.placedBricks.map((brick) => {
