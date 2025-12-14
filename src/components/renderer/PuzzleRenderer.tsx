@@ -11,7 +11,7 @@
  * - 2D_GRID: Simple grid view
  */
 
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import type { ViewMode } from '../../types/puzzle';
 import type { UsePuzzleEngineReturn } from '../../engine';
 

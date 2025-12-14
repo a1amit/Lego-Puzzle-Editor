@@ -9,8 +9,7 @@
  * - 2D_GRID: Simple grid view with minimal styling
  */
 
-import React, { useMemo, useCallback, useEffect, useState } from 'react';
-import type { ViewMode } from '../../types/puzzle';
+import { useMemo, useCallback, useEffect, useState } from 'react';
 import type { UsePuzzleEngineReturn, PlacedPiece, Coordinate2D } from '../../engine';
 import { rotateShape, getPieceCells, getValidSlideDestinations } from '../../engine';
 import { SHAPE_LIBRARY } from '../../types/puzzle';

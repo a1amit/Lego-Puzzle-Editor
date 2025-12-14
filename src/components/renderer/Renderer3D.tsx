@@ -8,7 +8,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, ContactShadows } from '@react-three/drei';
-import type { UsePuzzleEngineReturn, PlacedPiece } from '../../engine';
+import type { UsePuzzleEngineReturn } from '../../engine';
 import { rotateShape, getPieceCells } from '../../engine';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { LegoBoard } from '../3d/LegoBoard';
