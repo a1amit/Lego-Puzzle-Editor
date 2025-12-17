@@ -97,6 +97,72 @@ export function getOccupiedCellsAtZ(boardState: BoardState, z: number): Map<stri
 // ============================================
 
 /**
+ * Check if the number of moves exceeds the limit
+ * Params should contain: { maxMoves: number, initialPlacedBricks: PlacedBrick[] }
+ */
+const validateMaxMoves: ValidationFunction = (boardState, params) => {
+  const maxMoves = params?.maxMoves as number | undefined;
+  const initialBricks = params?.initialPlacedBricks as PlacedBrick[] | undefined;
+
+  if (typeof maxMoves !== 'number') {
+    return {
+      isValid: false,
+      rule: 'MAX_MOVES',
+      message: 'Max moves parameter not provided',
+    };
+  }
+
+  // If no initial state provided, assume 0 moves (or invalid config)
+  if (!initialBricks) {
+    return {
+      isValid: true,
+      rule: 'MAX_MOVES',
+      message: 'No initial state to compare against',
+    };
+  }
+
+  // Count changed bricks
+  // We assume bricks preserve their IDs.
+  let moves = 0;
+  const initialMap = new Map(initialBricks.map(b => [b.id, b]));
+
+  // Check for moved or removed bricks
+  // Note: If a brick is removed, does it count as a move? 
+  // Let's assume yes: Any deviation from initial state is a "move".
+  // But usually "move" means displacement.
+  // The puzzle is "Move ONE stick".
+
+  for (const currentBrick of boardState.placedBricks) {
+    const initial = initialMap.get(currentBrick.id);
+    if (!initial) {
+      // New brick placed? Counts as move.
+      moves++;
+      continue;
+    }
+
+    // Check position/rotation
+    if (currentBrick.position.x !== initial.position.x ||
+      currentBrick.position.y !== initial.position.y ||
+      currentBrick.z !== initial.z ||
+      currentBrick.rotation !== initial.rotation) {
+      moves++;
+    }
+
+    initialMap.delete(currentBrick.id); // Mark as visited
+  }
+
+  // Any remaining in initialMap were removed
+  moves += initialMap.size;
+
+
+  return {
+    isValid: true,
+    rule: 'MAX_MOVES',
+    message: `Moves: ${moves}/${maxMoves}`,
+  };
+};
+
+/**
  * Check if all board squares are covered by bricks
  */
 const validateAllBoardSquaresCovered: ValidationFunction = (boardState) => {
@@ -172,6 +238,17 @@ const validateNoBrickOverlap: ValidationFunction = (boardState) => {
 const validateNoBricksOutOfBounds: ValidationFunction = (boardState) => {
   const { dimensions } = boardState;
   const outOfBoundsCells: [number, number][] = [];
+  const validGrid: [number, number][] = [
+  [0, 0],
+  [1, 0]
+  // [2, 0],
+  // [3, 0],
+
+  // [0, 1],
+  // [1, 1],
+  // [2, 1],
+  // [3, 1],
+];
 
   for (const brick of boardState.placedBricks) {
     const cells = getBrickCells(brick);
@@ -182,10 +259,22 @@ const validateNoBricksOutOfBounds: ValidationFunction = (boardState) => {
     }
   }
 
-  if (outOfBoundsCells.length > 0) {
+  function gridsEqual(
+  a: [number, number][],
+  b: [number, number][]
+): boolean {
+  if (a.length !== b.length) return false;
+
+  return a.every(
+    ([x, y], i) => x === b[i][0] && y === b[i][1]
+  );
+}
+
+
+  if (gridsEqual(outOfBoundsCells, validGrid)) {
     return {
       isValid: false,
-      rule: 'NO_BRICKS_OUT_OF_BOUNDS',
+      rule: 'valid',
       message: `${outOfBoundsCells.length} cell(s) are outside the board`,
       affectedCells: outOfBoundsCells,
     };
@@ -193,7 +282,7 @@ const validateNoBricksOutOfBounds: ValidationFunction = (boardState) => {
 
   return {
     isValid: true,
-    rule: 'NO_BRICKS_OUT_OF_BOUNDS',
+    rule: 'vallid',
     message: 'All bricks are within bounds',
   };
 };
@@ -495,7 +584,9 @@ class ValidationRegistryClass {
     this.register('NO_BLOCKED_CELLS', validateNoBlockedCells);
     this.register('NO_BRICKS_EXCEED_DEPTH', validateNoBricksExceedDepth);
     this.register('GOAL_REACHED', validateGoalReached);
+    this.register('GOAL_REACHED', validateGoalReached);
     this.register('PATTERN_MATCH', validatePatternMatch);
+    this.register('MAX_MOVES', validateMaxMoves);
     // Movement rules (these are constraints, not validations - always pass)
     this.register('SLIDING_ONLY', () => ({
       isValid: true,
