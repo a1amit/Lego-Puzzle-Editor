@@ -213,6 +213,12 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   // Core state
   const [puzzle, setPuzzle] = useState<PuzzleDefinition | null>(initialPuzzle);
   const [board, setBoard] = useState<EngineBoard>(() => createInitialBoard(initialPuzzle));
+  // Store initial placed pieces for "MAX_MOVES" validation
+  // We use a ref or state that only updates on loadPuzzle
+  const [initialPlacedPieces, setInitialPlacedPieces] = useState<PlacedPiece[]>(() =>
+    createInitialBoard(initialPuzzle).placedPieces
+  );
+
   const [inventory, setInventory] = useState<InventoryState>(() => createInitialInventory(initialPuzzle));
   const [validationResults, setValidationResults] = useState<EngineValidationResult[]>([]);
   const [isComplete, setIsComplete] = useState(false);
@@ -269,6 +275,20 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
             color_mapping: targetPattern.color_mapping,
             allow_empty_cells: targetPattern.allow_empty_cells,
           },
+        };
+      }
+
+
+
+
+      // Add initial state for MAX_MOVES rule
+      if (rule.rule === 'MAX_MOVES') {
+        return {
+          ...rule,
+          params: {
+            ...rule.params,
+            initialPlacedBricks: initialPlacedPieces,
+          }
         };
       }
 
@@ -581,7 +601,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
 
   const loadPuzzle = useCallback((newPuzzle: PuzzleDefinition) => {
     setPuzzle(newPuzzle);
-    setBoard(createInitialBoard(newPuzzle));
+    const initialBoard = createInitialBoard(newPuzzle);
+    setBoard(initialBoard);
+    setInitialPlacedPieces(initialBoard.placedPieces);
     setInventory(createInitialInventory(newPuzzle));
     setValidationResults([]);
     setIsComplete(false);
