@@ -8,7 +8,7 @@ import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
-import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE } from './types/puzzle';
+import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE, LOGIC_PUZZLE } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
@@ -68,6 +68,7 @@ const SAMPLE_PUZZLES = [
   { id: 'slider', label: 'Klotski Classic', puzzle: SLIDER_PUZZLE, is3D: false },
   { id: 'grid', label: 'Grid Fill', puzzle: GRID_PUZZLE, is3D: false },
   { id: 'binary', label: 'Binary Safe', puzzle: BINARY_PUZZLE, is3D: false },
+  { id: 'logic', label: 'Pen Challenge (Logic)', puzzle: LOGIC_PUZZLE, is3D: false },
 ];
 
 type ViewMode = 'split' | 'editor' | 'preview';
@@ -174,8 +175,8 @@ function Header() {
                       {item.puzzle.title}
                       {/* 2D/3D Badge */}
                       <span className={`px-1.5 py-0.5 text-[10px] rounded ${item.is3D
-                          ? 'bg-purple-500/20 text-purple-300'
-                          : 'bg-cyan-500/20 text-cyan-300'
+                        ? 'bg-purple-500/20 text-purple-300'
+                        : 'bg-cyan-500/20 text-cyan-300'
                         }`}>
                         {item.is3D ? '3D' : '2D'}
                       </span>
@@ -185,10 +186,10 @@ function Header() {
                     </div>
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className={`px-1.5 py-0.5 text-xs rounded ${item.puzzle.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')
-                          ? 'bg-lego-blue/20 text-blue-300'
-                          : item.puzzle.validation_rules.some(r => r.rule === 'SLIDING_ONLY')
-                            ? 'bg-orange-500/20 text-orange-300'
-                            : 'bg-lego-green/20 text-green-300'
+                        ? 'bg-lego-blue/20 text-blue-300'
+                        : item.puzzle.validation_rules.some(r => r.rule === 'SLIDING_ONLY')
+                          ? 'bg-orange-500/20 text-orange-300'
+                          : 'bg-lego-green/20 text-green-300'
                         }`}>
                         {item.puzzle.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')
                           ? 'Coverage'
@@ -313,8 +314,8 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
     <div className="flex items-center gap-1 p-1 bg-editor-sidebar/50 rounded-lg border border-editor-border">
       <button
         className={`px-3 py-1.5 text-xs font-display rounded transition-all ${mode === 'split'
-            ? 'bg-editor-accent text-white'
-            : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
+          ? 'bg-editor-accent text-white'
+          : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
           }`}
         onClick={() => onChange('split')}
       >
@@ -322,8 +323,8 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
       </button>
       <button
         className={`px-3 py-1.5 text-xs font-display rounded transition-all ${mode === 'editor'
-            ? 'bg-editor-accent text-white'
-            : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
+          ? 'bg-editor-accent text-white'
+          : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
           }`}
         onClick={() => onChange('editor')}
       >
@@ -331,8 +332,8 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
       </button>
       <button
         className={`px-3 py-1.5 text-xs font-display rounded transition-all ${mode === 'preview'
-            ? 'bg-editor-accent text-white'
-            : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
+          ? 'bg-editor-accent text-white'
+          : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
           }`}
         onClick={() => onChange('preview')}
       >
