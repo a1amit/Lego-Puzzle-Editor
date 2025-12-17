@@ -113,6 +113,7 @@ export const ValidationRuleTypes = [
   'PATTERN',
   'GOAL',
   'CUSTOM',
+  'MAX_MOVES',
 ] as const;
 
 export const ValidationRuleSchema = z.object({
@@ -540,3 +541,53 @@ export const BINARY_PUZZLE: PuzzleDefinition = {
   }
 };
 
+// ============================================
+// LOGIC PUZZLE (Pen Challenge)
+// ============================================
+
+export const LOGIC_PUZZLE: PuzzleDefinition = {
+  puzzle_id: "Logic-01",
+  title: "Pen Challenge",
+  description: "Reverse the order! The sticks form the numbers 4, 3, 2, 1. Move exactly ONE stick to make them read 1, 2, 3, 4.",
+  viewMode: "2D_GRID",
+  board: {
+    dimensions: { width: 13, height: 6, depth: 1 },
+    initial_state: [
+      // 4 (IIII) - Group 1
+      { id: "g1-1", cells: [[0, 1], [0, 2], [0, 3]], color: "#0055BF" },
+      { id: "g1-2", cells: [[1, 1], [1, 2], [1, 3]], color: "#0055BF" },
+      { id: "g1-3", cells: [[2, 1], [2, 2], [2, 3]], color: "#0055BF" },
+      { id: "g1-4", cells: [[3, 1], [3, 2], [3, 3]], color: "#0055BF" },
+
+      // 3 (III) - Group 2 (Offset x+5)
+      { id: "g2-1", cells: [[5, 1], [5, 2], [5, 3]], color: "#D01012" },
+      { id: "g2-2", cells: [[6, 1], [6, 2], [6, 3]], color: "#D01012" },
+      { id: "g2-3", cells: [[7, 1], [7, 2], [7, 3]], color: "#D01012" },
+
+      // 2 (II) - Group 3 (Offset x+9)
+      { id: "g3-1", cells: [[9, 1], [9, 2], [9, 3]], color: "#287F46" },
+      { id: "g3-2", cells: [[10, 1], [10, 2], [10, 3]], color: "#287F46" },
+
+      // 1 (I) - Group 4 (Offset x+12)
+      { id: "g4-1", cells: [[12, 1], [12, 2], [12, 3]], color: "#F5CD2F" },
+    ]
+  },
+  inventory: [], // No extra pieces
+  goal: {
+    targetPieceId: "g1-2",
+    cells: [[11, 1], [11, 2], [11, 3]],
+  },
+  validation_rules: [
+    // Goal: Move g1-2 to the end
+    { type: "GOAL", rule: "GOAL_REACHED" },
+    // Standard constraints
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" },
+    { type: "ROTATION", rule: "NO_ROTATION" }, // Sticks stay vertical
+  ],
+  metadata: {
+    author: "Logic Master",
+    difficulty: "expert",
+    tags: ["logic", "classic", "lateral-thinking"]
+  }
+};
