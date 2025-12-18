@@ -1,20 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ResizablePanels } from './components/layout/ResizablePanels';
 import { PuzzleEditor } from './components/editor/PuzzleEditor';
 import { PuzzleScene } from './components/3d/PuzzleScene';
+import { PuzzleRenderer, ViewModeIndicator } from './components/renderer';
 import { InventoryPanel } from './components/ui/InventoryPanel';
 import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
 import { usePuzzleStore } from './store/puzzleStore';
-import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE } from './types/puzzle';
+import { usePuzzleEngine } from './engine';
+import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="4" y="8" width="16" height="12" rx="1" fill={color} stroke={color} strokeWidth="1"/>
-      <rect x="8" y="4" width="8" height="6" rx="1" fill={color} stroke={color} strokeWidth="1"/>
-      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+      <rect x="4" y="8" width="16" height="12" rx="1" fill={color} stroke={color} strokeWidth="1" />
+      <rect x="8" y="4" width="8" height="6" rx="1" fill={color} stroke={color} strokeWidth="1" />
+      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
     </svg>
   );
 }
@@ -23,12 +25,12 @@ function LegoStackIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
       {/* Bottom brick - blue */}
-      <rect x="2" y="14" width="20" height="8" rx="1" fill="#0055BF"/>
+      <rect x="2" y="14" width="20" height="8" rx="1" fill="#0055BF" />
       {/* Top brick - red */}
-      <rect x="5" y="6" width="14" height="8" rx="1" fill="#D01012"/>
+      <rect x="5" y="6" width="14" height="8" rx="1" fill="#D01012" />
       {/* Studs */}
-      <ellipse cx="8" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
-      <ellipse cx="16" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      <ellipse cx="8" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+      <ellipse cx="16" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
     </svg>
   );
 }
@@ -38,31 +40,34 @@ function LegoLogo({ className = "w-8 h-8" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 32 32" fill="none">
       {/* Background rounded square */}
-      <rect x="1" y="1" width="30" height="30" rx="4" fill="#1a1a2e"/>
-      
+      <rect x="1" y="1" width="30" height="30" rx="4" fill="#1a1a2e" />
+
       {/* 2x2 Grid of colored bricks */}
       {/* Top-left - Red */}
-      <rect x="3" y="3" width="12" height="12" rx="2" fill="#D01012"/>
-      <ellipse cx="9" cy="7" rx="3" ry="1.5" fill="#D01012" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
-      
+      <rect x="3" y="3" width="12" height="12" rx="2" fill="#D01012" />
+      <ellipse cx="9" cy="7" rx="3" ry="1.5" fill="#D01012" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" />
+
       {/* Top-right - Yellow */}
-      <rect x="17" y="3" width="12" height="12" rx="2" fill="#F5CD2F"/>
-      <ellipse cx="23" cy="7" rx="3" ry="1.5" fill="#F5CD2F" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
-      
+      <rect x="17" y="3" width="12" height="12" rx="2" fill="#F5CD2F" />
+      <ellipse cx="23" cy="7" rx="3" ry="1.5" fill="#F5CD2F" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" />
+
       {/* Bottom-left - Green */}
-      <rect x="3" y="17" width="12" height="12" rx="2" fill="#287F46"/>
-      <ellipse cx="9" cy="21" rx="3" ry="1.5" fill="#287F46" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
-      
+      <rect x="3" y="17" width="12" height="12" rx="2" fill="#287F46" />
+      <ellipse cx="9" cy="21" rx="3" ry="1.5" fill="#287F46" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" />
+
       {/* Bottom-right - Blue */}
-      <rect x="17" y="17" width="12" height="12" rx="2" fill="#0055BF"/>
-      <ellipse cx="23" cy="21" rx="3" ry="1.5" fill="#0055BF" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
+      <rect x="17" y="17" width="12" height="12" rx="2" fill="#0055BF" />
+      <ellipse cx="23" cy="21" rx="3" ry="1.5" fill="#0055BF" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" />
     </svg>
   );
 }
 
 const SAMPLE_PUZZLES = [
-  { id: 'coverage', label: 'T-Time (Coverage)', puzzle: DEFAULT_PUZZLE },
-  { id: 'fit-all', label: 'Tetris Pack (Fit All)', puzzle: FIT_ALL_PUZZLE },
+  { id: 'coverage', label: 'T-Time (Coverage)', puzzle: DEFAULT_PUZZLE, is3D: true },
+  { id: 'fit-all', label: 'Tetris Pack (Fit All)', puzzle: FIT_ALL_PUZZLE, is3D: true },
+  { id: 'slider', label: 'Klotski Classic', puzzle: SLIDER_PUZZLE, is3D: false },
+  { id: 'grid', label: 'Grid Fill', puzzle: GRID_PUZZLE, is3D: false },
+  { id: 'binary', label: 'Binary Safe', puzzle: BINARY_PUZZLE, is3D: false },
 ];
 
 type ViewMode = 'split' | 'editor' | 'preview';
@@ -71,13 +76,13 @@ function Header() {
   const { puzzle, isComplete, setPuzzle, resetPuzzle } = usePuzzleStore();
   const [showPuzzleMenu, setShowPuzzleMenu] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
-  
+
   const handlePuzzleSelect = (selectedPuzzle: typeof DEFAULT_PUZZLE) => {
     setPuzzle(selectedPuzzle);
     resetPuzzle();
     setShowPuzzleMenu(false);
   };
-  
+
   return (
     <header className="h-14 bg-editor-sidebar border-b border-editor-border flex items-center px-4 justify-between">
       <div className="flex items-center gap-4">
@@ -88,7 +93,7 @@ function Header() {
             Virtual Lego
           </span>
         </div>
-        
+
         {/* Puzzle selector */}
         <div className="relative pl-4 border-l border-editor-border">
           <button
@@ -107,7 +112,7 @@ function Header() {
               </span>
             )}
           </button>
-          
+
           {/* Dropdown menu */}
           {showPuzzleMenu && (
             <div className="absolute top-full left-4 mt-1 w-72 bg-editor-sidebar border border-editor-border rounded-lg shadow-xl z-50 overflow-hidden">
@@ -145,7 +150,7 @@ function Header() {
                   </div>
                 </div>
               </button>
-              
+
               {/* Sample Puzzles section */}
               <div className="p-2 border-b border-editor-border bg-editor-border/20">
                 <span className="text-xs text-gray-400 uppercase tracking-wide">Sample Puzzles</span>
@@ -154,33 +159,42 @@ function Header() {
                 <button
                   key={item.id}
                   onClick={() => handlePuzzleSelect(item.puzzle)}
-                  className={`w-full px-4 py-3 text-left hover:bg-editor-border/30 transition-colors flex items-start gap-3 ${
-                    puzzle?.puzzle_id === item.puzzle.puzzle_id ? 'bg-editor-accent/10' : ''
-                  }`}
+                  className={`w-full px-4 py-3 text-left hover:bg-editor-border/30 transition-colors flex items-start gap-3 ${puzzle?.puzzle_id === item.puzzle.puzzle_id ? 'bg-editor-accent/10' : ''
+                    }`}
                 >
                   {/* Lego brick icon */}
                   <div className="flex-shrink-0 mt-0.5">
-                    <LegoBrickIcon 
-                      className="w-5 h-5" 
-                      color={item.puzzle.inventory[0]?.color || '#D01012'} 
+                    <LegoBrickIcon
+                      className="w-5 h-5"
+                      color={item.puzzle.inventory[0]?.color || '#D01012'}
                     />
                   </div>
                   <div className="flex-1">
-                    <div className="font-display font-medium text-white text-sm">
+                    <div className="font-display font-medium text-white text-sm flex items-center gap-2">
                       {item.puzzle.title}
+                      {/* 2D/3D Badge */}
+                      <span className={`px-1.5 py-0.5 text-[10px] rounded ${item.is3D
+                          ? 'bg-purple-500/20 text-purple-300'
+                          : 'bg-cyan-500/20 text-cyan-300'
+                        }`}>
+                        {item.is3D ? '3D' : '2D'}
+                      </span>
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5">
                       {item.puzzle.description}
                     </div>
                     <div className="flex items-center gap-2 mt-1.5">
-                      <span className={`px-1.5 py-0.5 text-xs rounded ${
-                        item.puzzle.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')
+                      <span className={`px-1.5 py-0.5 text-xs rounded ${item.puzzle.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')
                           ? 'bg-lego-blue/20 text-blue-300'
-                          : 'bg-lego-green/20 text-green-300'
-                      }`}>
+                          : item.puzzle.validation_rules.some(r => r.rule === 'SLIDING_ONLY')
+                            ? 'bg-orange-500/20 text-orange-300'
+                            : 'bg-lego-green/20 text-green-300'
+                        }`}>
                         {item.puzzle.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')
                           ? 'Coverage'
-                          : 'Fit All'}
+                          : item.puzzle.validation_rules.some(r => r.rule === 'SLIDING_ONLY')
+                            ? 'Slider'
+                            : 'Fit All'}
                       </span>
                       <span className="text-xs text-gray-500">
                         {item.puzzle.inventory.length} pieces • {item.puzzle.board.dimensions.width}×{item.puzzle.board.dimensions.height} board
@@ -198,7 +212,7 @@ function Header() {
           )}
         </div>
       </div>
-      
+
       {/* Actions */}
       <div className="flex items-center gap-2">
         {/* Instructions button */}
@@ -209,9 +223,9 @@ function Header() {
           <LegoStackIcon className="w-5 h-5" />
           <span className="text-sm font-display">Guide</span>
         </button>
-        
+
         {/* GitHub link */}
-        <a 
+        <a
           href="https://github.com/a1amit/Lego-Puzzle-Editor"
           target="_blank"
           rel="noopener noreferrer"
@@ -222,11 +236,11 @@ function Header() {
           </svg>
         </a>
       </div>
-      
+
       {/* Instructions Modal */}
-      <InstructionsModal 
-        isOpen={showInstructions} 
-        onClose={() => setShowInstructions(false)} 
+      <InstructionsModal
+        isOpen={showInstructions}
+        onClose={() => setShowInstructions(false)}
       />
     </header>
   );
@@ -241,6 +255,20 @@ function EditorPanel() {
 }
 
 function PreviewPanel() {
+  const { puzzle } = usePuzzleStore();
+  const viewMode = puzzle?.viewMode ?? '3D_ISOMETRIC';
+  const is2D = viewMode === '2D_TOP_DOWN' || viewMode === '2D_GRID';
+
+  // Use the engine hook for 2D puzzles (view-agnostic architecture)
+  const engine = usePuzzleEngine({ puzzle: null }); // Start empty
+
+  // Sync engine with store's puzzle when it changes (for 2D puzzles)
+  useEffect(() => {
+    if (puzzle && is2D) {
+      engine.loadPuzzle(puzzle);
+    }
+  }, [puzzle, is2D]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <ResizablePanels
       direction="horizontal"
@@ -248,11 +276,22 @@ function PreviewPanel() {
       minSize={40}
       maxSize={90}
     >
-      {/* 3D Scene */}
-      <div className="h-full bg-editor-bg">
-        <PuzzleScene />
+      {/* Puzzle Scene - switches between 2D and 3D */}
+      <div className="h-full bg-editor-bg relative">
+        {is2D ? (
+          // 2D puzzles use the new view-agnostic PuzzleRenderer
+          <PuzzleRenderer engine={engine} />
+        ) : (
+          // 3D puzzles use the existing PuzzleScene (with store)
+          <PuzzleScene />
+        )}
+
+        {/* View mode badge */}
+        <div className="absolute top-3 right-3 z-10">
+          <ViewModeIndicator viewMode={viewMode} />
+        </div>
       </div>
-      
+
       {/* Side panels - Inventory & Validation */}
       <div className="h-full bg-editor-sidebar border-l border-editor-border">
         <ResizablePanels
@@ -261,8 +300,8 @@ function PreviewPanel() {
           minSize={20}
           maxSize={85}
         >
-          <InventoryPanel className="h-full" />
-          <ValidationPanel className="h-full" />
+          <InventoryPanel className="h-full" engine={is2D ? engine : undefined} />
+          <ValidationPanel className="h-full" engine={is2D ? engine : undefined} />
         </ResizablePanels>
       </div>
     </ResizablePanels>
@@ -273,31 +312,28 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
   return (
     <div className="flex items-center gap-1 p-1 bg-editor-sidebar/50 rounded-lg border border-editor-border">
       <button
-        className={`px-3 py-1.5 text-xs font-display rounded transition-all ${
-          mode === 'split' 
-            ? 'bg-editor-accent text-white' 
+        className={`px-3 py-1.5 text-xs font-display rounded transition-all ${mode === 'split'
+            ? 'bg-editor-accent text-white'
             : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
-        }`}
+          }`}
         onClick={() => onChange('split')}
       >
         Split
       </button>
       <button
-        className={`px-3 py-1.5 text-xs font-display rounded transition-all ${
-          mode === 'editor' 
-            ? 'bg-editor-accent text-white' 
+        className={`px-3 py-1.5 text-xs font-display rounded transition-all ${mode === 'editor'
+            ? 'bg-editor-accent text-white'
             : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
-        }`}
+          }`}
         onClick={() => onChange('editor')}
       >
         Editor
       </button>
       <button
-        className={`px-3 py-1.5 text-xs font-display rounded transition-all ${
-          mode === 'preview' 
-            ? 'bg-editor-accent text-white' 
+        className={`px-3 py-1.5 text-xs font-display rounded transition-all ${mode === 'preview'
+            ? 'bg-editor-accent text-white'
             : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
-        }`}
+          }`}
         onClick={() => onChange('preview')}
       >
         Preview
@@ -308,16 +344,16 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('split');
-  
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-editor-bg">
       <Header />
-      
+
       {/* View toggle bar */}
       <div className="h-10 bg-editor-sidebar/30 border-b border-editor-border flex items-center justify-center">
         <ViewToggle mode={viewMode} onChange={setViewMode} />
       </div>
-      
+
       {/* Main content */}
       <main className="flex-1 overflow-hidden">
         {viewMode === 'split' && (
@@ -334,7 +370,7 @@ function App() {
         {viewMode === 'editor' && <EditorPanel />}
         {viewMode === 'preview' && <PreviewPanel />}
       </main>
-      
+
       {/* Status bar */}
       <footer className="h-6 bg-editor-sidebar border-t border-editor-border flex items-center px-4 text-xs text-gray-500">
         <div className="flex items-center gap-4">

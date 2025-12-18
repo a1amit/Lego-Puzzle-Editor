@@ -19,15 +19,15 @@ export type ValidationFunction = (
 export function rotateShape(cells: [number, number][], rotation: number): [number, number][] {
   const steps = Math.floor((rotation % 360) / 90);
   let rotated = [...cells];
-  
+
   for (let i = 0; i < steps; i++) {
     rotated = rotated.map(([x, y]) => [y, -x] as [number, number]);
   }
-  
+
   // Normalize to positive coordinates
   const minX = Math.min(...rotated.map(([x]) => x));
   const minY = Math.min(...rotated.map(([, y]) => y));
-  
+
   return rotated.map(([x, y]) => [x - minX, y - minY] as [number, number]);
 }
 
@@ -40,9 +40,9 @@ export function getBrickCells(brick: PlacedBrick, shapeLibrary: Record<string, S
     console.warn(`Unknown shape: ${brick.shape}`);
     return [];
   }
-  
+
   const rotatedCells = rotateShape(shape.cells, brick.rotation);
-  
+
   return rotatedCells.map(([dx, dy]) => [
     brick.position.x + dx,
     brick.position.y + dy,
@@ -55,7 +55,7 @@ export function getBrickCells(brick: PlacedBrick, shapeLibrary: Record<string, S
  */
 export function getAllOccupiedCells(boardState: BoardState): Map<string, PlacedBrick[]> {
   const cellMap = new Map<string, PlacedBrick[]>();
-  
+
   for (const brick of boardState.placedBricks) {
     const cells = getBrickCells(brick);
     for (const [x, y] of cells) {
@@ -66,7 +66,7 @@ export function getAllOccupiedCells(boardState: BoardState): Map<string, PlacedB
       cellMap.get(key)!.push(brick);
     }
   }
-  
+
   return cellMap;
 }
 
@@ -76,7 +76,7 @@ export function getAllOccupiedCells(boardState: BoardState): Map<string, PlacedB
  */
 export function getOccupiedCellsAtZ(boardState: BoardState, z: number): Map<string, PlacedBrick[]> {
   const cellMap = new Map<string, PlacedBrick[]>();
-  
+
   for (const brick of boardState.placedBricks) {
     if (brick.z !== z) continue;
     const cells = getBrickCells(brick);
@@ -88,7 +88,7 @@ export function getOccupiedCellsAtZ(boardState: BoardState, z: number): Map<stri
       cellMap.get(key)!.push(brick);
     }
   }
-  
+
   return cellMap;
 }
 
@@ -103,9 +103,9 @@ const validateAllBoardSquaresCovered: ValidationFunction = (boardState) => {
   const { dimensions, blockedCells } = boardState;
   const occupiedCells = getAllOccupiedCells(boardState);
   const blockedSet = new Set(blockedCells.map(([x, y]) => `${x},${y}`));
-  
+
   const uncoveredCells: [number, number][] = [];
-  
+
   for (let x = 0; x < dimensions.width; x++) {
     for (let y = 0; y < dimensions.height; y++) {
       const key = `${x},${y}`;
@@ -114,7 +114,7 @@ const validateAllBoardSquaresCovered: ValidationFunction = (boardState) => {
       }
     }
   }
-  
+
   if (uncoveredCells.length > 0) {
     return {
       isValid: false,
@@ -123,7 +123,7 @@ const validateAllBoardSquaresCovered: ValidationFunction = (boardState) => {
       affectedCells: uncoveredCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'ALL_BOARD_SQUARES_MUST_BE_COVERED',
@@ -139,7 +139,7 @@ const validateNoBrickOverlap: ValidationFunction = (boardState) => {
   // Group bricks by z-level and check for overlaps at each level
   const zLevels = new Set(boardState.placedBricks.map(b => b.z));
   const overlappingCells: [number, number][] = [];
-  
+
   for (const z of zLevels) {
     const cellMap = getOccupiedCellsAtZ(boardState, z);
     for (const [key, bricks] of cellMap.entries()) {
@@ -149,7 +149,7 @@ const validateNoBrickOverlap: ValidationFunction = (boardState) => {
       }
     }
   }
-  
+
   if (overlappingCells.length > 0) {
     return {
       isValid: false,
@@ -158,7 +158,7 @@ const validateNoBrickOverlap: ValidationFunction = (boardState) => {
       affectedCells: overlappingCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'NO_BRICK_OVERLAP',
@@ -172,7 +172,7 @@ const validateNoBrickOverlap: ValidationFunction = (boardState) => {
 const validateNoBricksOutOfBounds: ValidationFunction = (boardState) => {
   const { dimensions } = boardState;
   const outOfBoundsCells: [number, number][] = [];
-  
+
   for (const brick of boardState.placedBricks) {
     const cells = getBrickCells(brick);
     for (const [x, y] of cells) {
@@ -181,7 +181,7 @@ const validateNoBricksOutOfBounds: ValidationFunction = (boardState) => {
       }
     }
   }
-  
+
   if (outOfBoundsCells.length > 0) {
     return {
       isValid: false,
@@ -190,7 +190,7 @@ const validateNoBricksOutOfBounds: ValidationFunction = (boardState) => {
       affectedCells: outOfBoundsCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'NO_BRICKS_OUT_OF_BOUNDS',
@@ -205,7 +205,7 @@ const validateNoBlockedCells: ValidationFunction = (boardState) => {
   const { blockedCells } = boardState;
   const blockedSet = new Set(blockedCells.map(([x, y]) => `${x},${y}`));
   const violatingCells: [number, number][] = [];
-  
+
   for (const brick of boardState.placedBricks) {
     const cells = getBrickCells(brick);
     for (const [x, y] of cells) {
@@ -214,7 +214,7 @@ const validateNoBlockedCells: ValidationFunction = (boardState) => {
       }
     }
   }
-  
+
   if (violatingCells.length > 0) {
     return {
       isValid: false,
@@ -223,7 +223,7 @@ const validateNoBlockedCells: ValidationFunction = (boardState) => {
       affectedCells: violatingCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'NO_BLOCKED_CELLS',
@@ -238,20 +238,20 @@ const validateNoBlockedCells: ValidationFunction = (boardState) => {
 const validateNoBricksExceedDepth: ValidationFunction = (boardState) => {
   const maxAllowedZ = boardState.dimensions.depth - 1;
   const exceedingBricks: PlacedBrick[] = [];
-  
+
   for (const brick of boardState.placedBricks) {
     if ((brick.z || 0) > maxAllowedZ) {
       exceedingBricks.push(brick);
     }
   }
-  
+
   if (exceedingBricks.length > 0) {
     const affectedCells: [number, number][] = [];
     for (const brick of exceedingBricks) {
       const cells = getBrickCells(brick);
       affectedCells.push(...cells);
     }
-    
+
     return {
       isValid: false,
       rule: 'NO_BRICKS_EXCEED_DEPTH',
@@ -259,7 +259,7 @@ const validateNoBricksExceedDepth: ValidationFunction = (boardState) => {
       affectedCells,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'NO_BRICKS_EXCEED_DEPTH',
@@ -273,7 +273,7 @@ const validateNoBricksExceedDepth: ValidationFunction = (boardState) => {
  */
 const validateAllBricksMustBeUsed: ValidationFunction = (boardState, params) => {
   const inventory = params?.inventory as Array<{ id: string; quantity: number }> | undefined;
-  
+
   if (!inventory) {
     return {
       isValid: false,
@@ -281,30 +281,30 @@ const validateAllBricksMustBeUsed: ValidationFunction = (boardState, params) => 
       message: 'Inventory not provided for validation',
     };
   }
-  
+
   // Count placed bricks by ID
   const placedCounts = new Map<string, number>();
   for (const brick of boardState.placedBricks) {
     const count = placedCounts.get(brick.id) ?? 0;
     placedCounts.set(brick.id, count + 1);
   }
-  
+
   // Check if all inventory bricks are placed
   const missingBricks: string[] = [];
   let totalRequired = 0;
   let totalPlaced = 0;
-  
+
   for (const item of inventory) {
     const required = item.quantity;
     const placed = placedCounts.get(item.id) ?? 0;
     totalRequired += required;
     totalPlaced += placed;
-    
+
     if (placed < required) {
       missingBricks.push(`${item.id}: ${placed}/${required}`);
     }
   }
-  
+
   if (missingBricks.length > 0) {
     return {
       isValid: false,
@@ -312,11 +312,170 @@ const validateAllBricksMustBeUsed: ValidationFunction = (boardState, params) => 
       message: `${totalPlaced}/${totalRequired} bricks placed. Missing: ${missingBricks.join(', ')}`,
     };
   }
-  
+
   return {
     isValid: true,
     rule: 'ALL_BRICKS_MUST_BE_USED',
     message: `All ${totalRequired} bricks have been placed`,
+  };
+};
+
+/**
+ * Check if placed pieces match a target pattern (for Binary, RLE, and pattern puzzles)
+ * Params should contain: { rows: (number|string)[][], color_mapping: Record<string, string>, allow_empty_cells?: boolean }
+ */
+const validatePatternMatch: ValidationFunction = (boardState, params) => {
+  const rows = params?.rows as (number | string)[][] | undefined;
+  const colorMapping = params?.color_mapping as Record<string, string> | undefined;
+  const allowEmptyCells = params?.allow_empty_cells as boolean | undefined;
+
+  if (!rows || !colorMapping) {
+    return {
+      isValid: false,
+      rule: 'PATTERN_MATCH',
+      message: 'Pattern parameters not provided (rows, color_mapping)',
+    };
+  }
+
+  // Build a map of cell -> color from placed bricks
+  const cellColorMap = new Map<string, string>();
+
+  for (const brick of boardState.placedBricks) {
+    // Get cells from brick - check if it has direct cells or uses shape library
+    let brickCells: [number, number][];
+
+    if ((brick as any).cells) {
+      // Direct cell-based definition (like slider puzzles)
+      brickCells = (brick as any).cells;
+    } else {
+      // Shape-based definition
+      brickCells = getBrickCells(brick);
+    }
+
+    for (const [x, y] of brickCells) {
+      cellColorMap.set(`${x},${y}`, brick.color.toLowerCase());
+    }
+  }
+
+  // Check each cell in the pattern
+  const mismatches: { x: number; y: number; expected: string; actual: string | null }[] = [];
+  const affectedCells: [number, number][] = [];
+
+  for (let y = 0; y < rows.length; y++) {
+    for (let x = 0; x < rows[y].length; x++) {
+      const expectedValue = String(rows[y][x]);
+      const expectedColor = colorMapping[expectedValue]?.toLowerCase();
+
+      if (!expectedColor) {
+        // Value not in color mapping - skip or error
+        continue;
+      }
+
+      const actualColor = cellColorMap.get(`${x},${y}`);
+
+      if (!actualColor) {
+        // Cell is empty
+        if (!allowEmptyCells) {
+          mismatches.push({ x, y, expected: expectedColor, actual: null });
+          affectedCells.push([x, y]);
+        }
+      } else if (actualColor !== expectedColor) {
+        // Wrong color
+        mismatches.push({ x, y, expected: expectedColor, actual: actualColor });
+        affectedCells.push([x, y]);
+      }
+    }
+  }
+
+  if (mismatches.length > 0) {
+    const emptyCount = mismatches.filter(m => m.actual === null).length;
+    const wrongCount = mismatches.length - emptyCount;
+
+    let message = 'Pattern does not match: ';
+    if (emptyCount > 0) message += `${emptyCount} cell(s) empty`;
+    if (wrongCount > 0) message += `${emptyCount > 0 ? ', ' : ''}${wrongCount} cell(s) wrong color`;
+
+    return {
+      isValid: false,
+      rule: 'PATTERN_MATCH',
+      message,
+      affectedCells,
+    };
+  }
+
+  return {
+    isValid: true,
+    rule: 'PATTERN_MATCH',
+    message: 'Pattern matches perfectly!',
+  };
+};
+
+/**
+ * Check if the target piece has reached the goal (for slider puzzles)
+ * Params should contain: { targetPieceId: string, goalCells: [number, number][] }
+ */
+const validateGoalReached: ValidationFunction = (boardState, params) => {
+  const targetPieceId = params?.targetPieceId as string | undefined;
+  const goalCells = params?.goalCells as [number, number][] | undefined;
+
+  if (!targetPieceId || !goalCells || goalCells.length === 0) {
+    return {
+      isValid: false,
+      rule: 'GOAL_REACHED',
+      message: 'Goal parameters not provided (targetPieceId, goalCells)',
+    };
+  }
+
+  // Find the target piece on the board
+  const targetPiece = boardState.placedBricks.find(b => b.id === targetPieceId);
+
+  if (!targetPiece) {
+    return {
+      isValid: false,
+      rule: 'GOAL_REACHED',
+      message: `Target piece "${targetPieceId}" not found on board`,
+    };
+  }
+
+  // Get the cells the target piece currently covers
+  const shapeDef = SHAPE_LIBRARY[targetPiece.shape];
+  if (!shapeDef) {
+    return {
+      isValid: false,
+      rule: 'GOAL_REACHED',
+      message: `Unknown shape "${targetPiece.shape}"`,
+    };
+  }
+
+  const rotatedCells = rotateShape(shapeDef.cells, targetPiece.rotation || 0);
+  const pieceCells = rotatedCells.map(([dx, dy]) => [
+    targetPiece.position.x + dx,
+    targetPiece.position.y + dy,
+  ] as [number, number]);
+
+  // Check if piece cells match goal cells exactly
+  const pieceCellSet = new Set(pieceCells.map(([x, y]) => `${x},${y}`));
+  const goalCellSet = new Set(goalCells.map(([x, y]) => `${x},${y}`));
+
+  const isAtGoal = pieceCellSet.size === goalCellSet.size &&
+    [...pieceCellSet].every(cell => goalCellSet.has(cell));
+
+  if (isAtGoal) {
+    return {
+      isValid: true,
+      rule: 'GOAL_REACHED',
+      message: '🎉 Goal reached! Puzzle solved!',
+    };
+  }
+
+  // Show which goal cells are not yet covered
+  const uncoveredGoal = goalCells.filter(([x, y]) => !pieceCellSet.has(`${x},${y}`));
+
+  return {
+    isValid: false,
+    rule: 'GOAL_REACHED',
+    message: `Move the RED piece to cover the goal area`,
+    affectedCells: uncoveredGoal,
   };
 };
 
@@ -326,7 +485,7 @@ const validateAllBricksMustBeUsed: ValidationFunction = (boardState, params) => 
 
 class ValidationRegistryClass {
   private validators: Map<string, ValidationFunction> = new Map();
-  
+
   constructor() {
     // Register default validators
     this.register('ALL_BOARD_SQUARES_MUST_BE_COVERED', validateAllBoardSquaresCovered);
@@ -335,43 +494,66 @@ class ValidationRegistryClass {
     this.register('NO_BRICKS_OUT_OF_BOUNDS', validateNoBricksOutOfBounds);
     this.register('NO_BLOCKED_CELLS', validateNoBlockedCells);
     this.register('NO_BRICKS_EXCEED_DEPTH', validateNoBricksExceedDepth);
+    this.register('GOAL_REACHED', validateGoalReached);
+    this.register('PATTERN_MATCH', validatePatternMatch);
+    // Movement rules (these are constraints, not validations - always pass)
+    this.register('SLIDING_ONLY', () => ({
+      isValid: true,
+      rule: 'SLIDING_ONLY',
+      message: 'Sliding movement enabled - click a piece then click to slide it',
+    }));
+    this.register('NO_ROTATION', () => ({
+      isValid: true,
+      rule: 'NO_ROTATION',
+      message: 'Rotation disabled - pieces cannot be rotated',
+    }));
+    this.register('FREE_PLACEMENT', () => ({
+      isValid: true,
+      rule: 'FREE_PLACEMENT',
+      message: 'Free placement enabled - place pieces anywhere valid',
+    }));
+    this.register('NO_BRICK_REMOVAL', () => ({
+      isValid: true,
+      rule: 'NO_BRICK_REMOVAL',
+      message: 'Brick removal disabled',
+    }));
   }
-  
+
   /**
    * Register a new validation function
    */
   register(ruleName: string, validator: ValidationFunction): void {
     this.validators.set(ruleName, validator);
   }
-  
+
   /**
    * Unregister a validation function
    */
   unregister(ruleName: string): boolean {
     return this.validators.delete(ruleName);
   }
-  
+
   /**
    * Get a specific validator
    */
   get(ruleName: string): ValidationFunction | undefined {
     return this.validators.get(ruleName);
   }
-  
+
   /**
    * Check if a validator exists
    */
   has(ruleName: string): boolean {
     return this.validators.has(ruleName);
   }
-  
+
   /**
    * Get all registered rule names
    */
   getRegisteredRules(): string[] {
     return Array.from(this.validators.keys());
   }
-  
+
   /**
    * Validate board state against a list of rules
    */
@@ -380,10 +562,10 @@ class ValidationRegistryClass {
     rules: { type: string; rule: string; params?: Record<string, unknown> }[]
   ): ValidationResult[] {
     const results: ValidationResult[] = [];
-    
+
     for (const ruleConfig of rules) {
       const validator = this.validators.get(ruleConfig.rule);
-      
+
       if (validator) {
         const result = validator(boardState, ruleConfig.params);
         results.push(result);
@@ -395,10 +577,10 @@ class ValidationRegistryClass {
         });
       }
     }
-    
+
     return results;
   }
-  
+
   /**
    * Check if all validations pass
    */

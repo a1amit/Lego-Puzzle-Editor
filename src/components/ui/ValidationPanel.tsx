@@ -1,11 +1,20 @@
 import { usePuzzleStore } from '../../store/puzzleStore';
+import type { UsePuzzleEngineReturn } from '../../engine';
 
 interface ValidationPanelProps {
   className?: string;
+  /** Optional engine for 2D puzzles - when provided, uses engine state instead of store */
+  engine?: UsePuzzleEngineReturn;
 }
 
-export function ValidationPanel({ className = '' }: ValidationPanelProps) {
-  const { puzzle, validationResults, isComplete, resetPuzzle } = usePuzzleStore();
+export function ValidationPanel({ className = '', engine }: ValidationPanelProps) {
+  const store = usePuzzleStore();
+  
+  // Use engine state if provided, otherwise fall back to store
+  const puzzle = engine?.puzzle ?? store.puzzle;
+  const validationResults = engine?.validationResults ?? store.validationResults;
+  const isComplete = engine?.isComplete ?? store.isComplete;
+  const resetPuzzle = engine?.resetBoard ?? store.resetPuzzle;
   
   if (!puzzle) {
     return null;
