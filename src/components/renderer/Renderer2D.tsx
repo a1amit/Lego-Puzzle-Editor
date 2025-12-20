@@ -317,6 +317,8 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
       // Skip ALL_BOARD_SQUARES_MUST_BE_COVERED - uncovered cells are not "errors", 
       // they're just cells that need to be filled. Showing all cells as red is confusing.
       if (result.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED') continue;
+      // Skip PATTERN_MATCH - cells that need the correct color aren't errors, just incomplete
+      if (result.rule === 'PATTERN_MATCH') continue;
 
       if (!result.isValid && result.affectedCells) {
         for (const [x, y] of result.affectedCells) {
