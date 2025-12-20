@@ -1,6 +1,7 @@
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Suspense, useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, ContactShadows, Line } from '@react-three/drei';
+import * as THREE from 'three';
 import { LegoBoard } from './LegoBoard';
 import { PolyominoBrick, GhostBrick } from './PolyominoBrick';
 import { usePuzzleStore } from '../../store/puzzleStore';
@@ -89,6 +90,122 @@ function GoalAreaIndicator({
       <mesh position={[(x1 + x2) / 2, frameHeight + 0.15, (z1 + z2) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.8, 0.25]} />
         <meshBasicMaterial color="#3FB950" transparent opacity={0.9} />
+      </mesh>
+    </group>
+  );
+}
+
+// Floating 3D Preview Brick - follows mouse cursor in 3D space when not hovering the board
+function FloatingPreviewBrick({
+  shape,
+  color,
+  rotation,
+}: {
+  shape: string;
+  color: string;
+  rotation: number;
+}) {
+  const { camera, raycaster, pointer } = useThree();
+  const groupRef = useRef<THREE.Group>(null);
+  const [worldPosition, setWorldPosition] = useState<THREE.Vector3 | null>(null);
+
+  // Create a horizontal plane at board level (y=0.5 to float slightly above)
+  const boardPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5), []);
+
+  // Get shape definition
+  const shapeDefinition = SHAPE_LIBRARY[shape];
+  const rotatedCells = useMemo(() => {
+    if (!shapeDefinition) return [];
+    return rotateShape(shapeDefinition.cells, rotation);
+  }, [shapeDefinition, rotation]);
+
+  // Calculate center offset for the shape
+  const centerOffset = useMemo(() => {
+    if (rotatedCells.length === 0) return { x: 0, z: 0 };
+    const maxX = Math.max(...rotatedCells.map(c => c[0])) + 1;
+    const maxZ = Math.max(...rotatedCells.map(c => c[1])) + 1;
+    return { x: maxX / 2, z: maxZ / 2 };
+  }, [rotatedCells]);
+
+  // Update position on each frame based on mouse
+  useFrame(() => {
+    // Only update if pointer is valid (inside canvas)
+    if (pointer.x < -1 || pointer.x > 1 || pointer.y < -1 || pointer.y > 1) {
+      setWorldPosition(null);
+      return;
+    }
+
+    raycaster.setFromCamera(pointer, camera);
+    const target = new THREE.Vector3();
+    const result = raycaster.ray.intersectPlane(boardPlane, target);
+
+    if (result) {
+      setWorldPosition(target.clone());
+    } else {
+      setWorldPosition(null);
+    }
+  });
+
+  if (!shapeDefinition || !worldPosition) return null;
+
+  // Position centered on cursor
+  const posX = worldPosition.x - centerOffset.x;
+  const posZ = worldPosition.z - centerOffset.z;
+
+  return (
+    <group ref={groupRef} position={[posX, 0.5, posZ]}>
+      {/* Brick cells */}
+      {rotatedCells.map(([dx, dy], index) => (
+        <mesh
+          key={index}
+          position={[dx + 0.5, 0.2, dy + 0.5]}
+        >
+          <boxGeometry args={[0.9, 0.4, 0.9]} />
+          <meshStandardMaterial
+            color={color}
+            transparent
+            opacity={0.7}
+            emissive={color}
+            emissiveIntensity={0.2}
+          />
+        </mesh>
+      ))}
+
+      {/* Studs on each cell */}
+      {rotatedCells.map(([dx, dy], index) => (
+        <mesh
+          key={`stud-${index}`}
+          position={[dx + 0.5, 0.45, dy + 0.5]}
+        >
+          <cylinderGeometry args={[0.2, 0.2, 0.1, 12]} />
+          <meshStandardMaterial
+            color={color}
+            transparent
+            opacity={0.7}
+            emissive={color}
+            emissiveIntensity={0.2}
+          />
+        </mesh>
+      ))}
+
+      {/* Rotation indicator arrow */}
+      <group position={[centerOffset.x, 0.8, centerOffset.z]}>
+        {/* Circular arc */}
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.35, 0.04, 8, 24, Math.PI * 1.5]} />
+          <meshBasicMaterial color="#58A6FF" transparent opacity={0.9} />
+        </mesh>
+        {/* Arrow head */}
+        <mesh position={[0.35, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+          <coneGeometry args={[0.08, 0.16, 6]} />
+          <meshBasicMaterial color="#58A6FF" />
+        </mesh>
+      </group>
+
+      {/* "Press R" hint - small indicator */}
+      <mesh position={[centerOffset.x, 1.1, centerOffset.z]} rotation={[-Math.PI / 4, 0, 0]}>
+        <planeGeometry args={[0.6, 0.25]} />
+        <meshBasicMaterial color="#58A6FF" transparent opacity={0.6} />
       </mesh>
     </group>
   );
@@ -448,8 +565,35 @@ function BackgroundGrid() {
   );
 }
 
+// Wrapper component to render floating preview when needed
+// This must be inside Canvas to use useThree hooks
+function FloatingPreviewWrapper() {
+  const { selectedBrickId, boardState, hoveredCell, puzzle, previewRotation } = usePuzzleStore();
+
+  // Check if we have an inventory brick selected (not a placed brick)
+  const hasInventorySelection = selectedBrickId &&
+    !boardState.placedBricks.find(b => b.instanceId === selectedBrickId);
+
+  // Get the selected inventory brick info
+  const selectedInventoryBrick = useMemo(() => {
+    if (!hasInventorySelection) return null;
+    return puzzle?.inventory.find(b => b.id === selectedBrickId) ?? null;
+  }, [puzzle, selectedBrickId, hasInventorySelection]);
+
+  // Only show when we have an inventory brick selected AND not hovering over the board
+  if (!selectedInventoryBrick || hoveredCell) return null;
+
+  return (
+    <FloatingPreviewBrick
+      shape={selectedInventoryBrick.shape}
+      color={selectedInventoryBrick.color}
+      rotation={previewRotation}
+    />
+  );
+}
+
 export function PuzzleScene() {
-  const { selectedBrickId, boardState, rotatePreview, hoveredCell, puzzle, previewRotation } = usePuzzleStore();
+  const { selectedBrickId, boardState, rotatePreview } = usePuzzleStore();
 
   // Check if we have an inventory brick selected (not a placed brick)
   const hasInventorySelection = selectedBrickId &&
@@ -461,27 +605,6 @@ export function PuzzleScene() {
 
   // Hide cursor when any brick is selected for placement/movement
   const shouldHideCursor = hasInventorySelection || hasPlacedBrickSelection;
-
-  // Cursor position for drag preview overlay
-  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
-
-  // Get the selected inventory brick info (if any)
-  const selectedInventoryBrick = useMemo(() => {
-    if (!hasInventorySelection) return null;
-    return puzzle?.inventory.find(b => b.id === selectedBrickId) ?? null;
-  }, [puzzle, selectedBrickId, hasInventorySelection]);
-
-  // Listen for pointer movements only when an inventory brick is selected
-  useEffect(() => {
-    if (!hasInventorySelection) return;
-
-    const onPointerMove = (e: PointerEvent) => {
-      setCursorPos({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('pointermove', onPointerMove);
-    return () => window.removeEventListener('pointermove', onPointerMove);
-  }, [hasInventorySelection]);
 
   return (
     <div
@@ -520,6 +643,7 @@ export function PuzzleScene() {
 
         <Suspense fallback={null}>
           <DragDropManager />
+          <FloatingPreviewWrapper />
           <BackgroundGrid />
           <ContactShadows
             position={[0, -0.49, 0]}
@@ -533,60 +657,6 @@ export function PuzzleScene() {
         {/* Subtle fog for depth */}
         <fog attach="fog" args={['#0a0a0a', 20, 50]} />
       </Canvas>
-
-      {/* Drag preview overlay: shows a 2D preview of the selected inventory brick following the pointer
-          This appears only while an inventory brick is selected and the pointer is not hovering over the board */}
-      {hasInventorySelection && !hoveredCell && selectedInventoryBrick && (
-        <div
-          style={{
-            position: 'absolute',
-            left: cursorPos.x,
-            top: cursorPos.y,
-            transform: 'translate(-50%, -50%)',
-            pointerEvents: 'none',
-            zIndex: 1200,
-          }}
-        >
-          <div className="p-1 bg-editor-sidebar/60 rounded shadow-lg border border-editor-border/40">
-            <svg width={72} height={72} viewBox={`0 0 72 72`}>
-              {(() => {
-                // Render cells as a small 2D preview - keep consistent with Inventory ShapePreview
-                const shapeDef = SHAPE_LIBRARY[selectedInventoryBrick.shape];
-                if (!shapeDef) return null;
-
-                const cells = rotateShape(shapeDef.cells, previewRotation);
-                const maxX = Math.max(...cells.map(([x]) => x)) + 1;
-                const maxY = Math.max(...cells.map(([, y]) => y)) + 1;
-                const size = 64;
-                const cellSize = Math.min(size / maxX, size / maxY) * 0.75;
-                const offsetX = (size - maxX * cellSize) / 2;
-                const offsetY = (size - maxY * cellSize) / 2;
-
-                return cells.map(([x, y], i) => (
-                  <g key={i}>
-                    <rect
-                      x={offsetX + x * cellSize + 1}
-                      y={offsetY + y * cellSize + 1}
-                      width={cellSize - 2}
-                      height={cellSize - 2}
-                      fill={selectedInventoryBrick.color}
-                      rx={3}
-                    />
-                    <circle
-                      cx={offsetX + x * cellSize + cellSize / 2}
-                      cy={offsetY + y * cellSize + cellSize / 2}
-                      r={cellSize * 0.24}
-                      fill={selectedInventoryBrick.color}
-                      stroke="rgba(255,255,255,0.25)"
-                      strokeWidth={1}
-                    />
-                  </g>
-                ));
-              })()}
-            </svg>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
