@@ -29,6 +29,7 @@ const CELL_GAP = 2;
 const PADDING = 20;
 const STUD_RADIUS = 8;
 const BRICK_OUTER_INSET = 2; // Inset from cell edges for brick body and borders
+const SELECTION_Y_OFFSET = 4; // Vertical lift when brick is selected
 
 // ============================================
 // HELPER COMPONENTS
@@ -187,15 +188,15 @@ function Piece2D({
 
   // Get outer edge segments for border rendering
   const outerEdges = useMemo(() => {
-    return getOuterEdgeSegments(cells, cellSize, isSelected ? -4 : 0, BRICK_OUTER_INSET);
+    return getOuterEdgeSegments(cells, cellSize, isSelected ? -SELECTION_Y_OFFSET : 0, BRICK_OUTER_INSET);
   }, [cells, cellSize, isSelected]);
 
   // Darker border color based on piece color for strong 3D effect
   const borderColor = useMemo(() => {
     const hex = piece.color.replace('#', '');
-    const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 80);
-    const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 80);
-    const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 80);
+    const r = Math.max(0, parseInt(hex.substring(0, 2), 16) - 80);
+    const g = Math.max(0, parseInt(hex.substring(2, 4), 16) - 80);
+    const b = Math.max(0, parseInt(hex.substring(4, 6), 16) - 80);
     return `rgb(${r},${g},${b})`;
   }, [piece.color]);
 
@@ -224,8 +225,8 @@ function Piece2D({
         const inset = BRICK_OUTER_INSET;
         const left = hasLeft ? x * cellSize : x * cellSize + inset;
         const right = hasRight ? (x + 1) * cellSize : (x + 1) * cellSize - inset;
-        const top = hasTop ? y * cellSize + 4 : y * cellSize + inset + 4;
-        const bottom = hasBottom ? (y + 1) * cellSize + 4 : (y + 1) * cellSize - inset + 4;
+        const top = hasTop ? y * cellSize + SELECTION_Y_OFFSET : y * cellSize + inset + SELECTION_Y_OFFSET;
+        const bottom = hasBottom ? (y + 1) * cellSize + SELECTION_Y_OFFSET : (y + 1) * cellSize - inset + SELECTION_Y_OFFSET;
         return (
           <rect
             key={`shadow-${i}`}
@@ -240,7 +241,7 @@ function Piece2D({
 
       {/* Connected brick body - fills cells seamlessly with neighbors */}
       {cells.map(([x, y], i) => {
-        const yOff = isSelected ? -4 : 0;
+        const yOff = isSelected ? -SELECTION_Y_OFFSET : 0;
         // Calculate rectangle that extends to meet neighbors (no gap between same-brick cells)
         const hasLeft = hasNeighbor(x, y, -1, 0);
         const hasRight = hasNeighbor(x, y, 1, 0);
@@ -289,7 +290,7 @@ function Piece2D({
         <g key={`stud-${i}`}>
           <circle
             cx={x * cellSize + cellSize / 2}
-            cy={y * cellSize + cellSize / 2 - (isSelected ? 4 : 0)}
+            cy={y * cellSize + cellSize / 2 - (isSelected ? SELECTION_Y_OFFSET : 0)}
             r={STUD_RADIUS}
             fill={piece.color}
             stroke="rgba(255,255,255,0.25)"
