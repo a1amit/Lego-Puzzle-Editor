@@ -28,6 +28,7 @@ const CELL_SIZE = 60;
 const CELL_GAP = 2;
 const PADDING = 20;
 const STUD_RADIUS = 8;
+const BRICK_OUTER_INSET = 2; // Inset from cell edges for brick body and borders
 
 // ============================================
 // HELPER COMPONENTS
@@ -135,7 +136,7 @@ interface PieceProps {
 
 // Helper function to get outer edge segments for brick border rendering
 // Returns an array of line segments that form the outer boundary of the piece
-function getOuterEdgeSegments(cells: [number, number][], cellSize: number, yOffset: number = 0, outerInset: number = 2): {
+function getOuterEdgeSegments(cells: [number, number][], cellSize: number, yOffset: number = 0, outerInset: number = BRICK_OUTER_INSET): {
   x1: number; y1: number; x2: number; y2: number;
 }[] {
   const cellSet = new Set(cells.map(([x, y]) => `${x},${y}`));
@@ -186,7 +187,7 @@ function Piece2D({
 
   // Get outer edge segments for border rendering
   const outerEdges = useMemo(() => {
-    return getOuterEdgeSegments(cells, cellSize, isSelected ? -4 : 0, 2);
+    return getOuterEdgeSegments(cells, cellSize, isSelected ? -4 : 0, BRICK_OUTER_INSET);
   }, [cells, cellSize, isSelected]);
 
   // Darker border color based on piece color for strong 3D effect
@@ -220,7 +221,7 @@ function Piece2D({
         const hasRight = hasNeighbor(x, y, 1, 0);
         const hasTop = hasNeighbor(x, y, 0, -1);
         const hasBottom = hasNeighbor(x, y, 0, 1);
-        const inset = 2;
+        const inset = BRICK_OUTER_INSET;
         const left = hasLeft ? x * cellSize : x * cellSize + inset;
         const right = hasRight ? (x + 1) * cellSize : (x + 1) * cellSize - inset;
         const top = hasTop ? y * cellSize + 4 : y * cellSize + inset + 4;
@@ -247,7 +248,7 @@ function Piece2D({
         const hasBottom = hasNeighbor(x, y, 0, 1);
 
         // Extend towards neighbors to fill gaps
-        const inset = 2; // Small inset for outer edges
+        const inset = BRICK_OUTER_INSET; // Small inset for outer edges
         const left = hasLeft ? x * cellSize : x * cellSize + inset;
         const right = hasRight ? (x + 1) * cellSize : (x + 1) * cellSize - inset;
         const top = hasTop ? y * cellSize + yOff : y * cellSize + inset + yOff;
