@@ -95,7 +95,24 @@ function GoalAreaIndicator({
   );
 }
 
-// Floating 3D Preview Brick - follows mouse cursor in 3D space when not hovering the board
+/**
+ * Floating 3D Preview Brick - renders a translucent brick that follows the mouse cursor
+ * in 3D space. Uses raycasting to project the 2D mouse position onto a horizontal plane
+ * at board level.
+ * 
+ * This component is displayed when:
+ * - An inventory brick is selected for placement
+ * - The mouse cursor is NOT hovering over the board (when hovering, GhostBrick is shown instead)
+ * 
+ * Features:
+ * - Shows the brick shape and color with transparency
+ * - Displays a rotation indicator arrow to show the user they can rotate with R key
+ * - Follows the mouse cursor smoothly in 3D space
+ * 
+ * @param shape - The shape identifier from SHAPE_LIBRARY
+ * @param color - The brick color
+ * @param rotation - Current rotation in degrees (0, 90, 180, 270)
+ */
 function FloatingPreviewBrick({
   shape,
   color,
@@ -108,6 +125,10 @@ function FloatingPreviewBrick({
   const { camera, raycaster, pointer } = useThree();
   const groupRef = useRef<THREE.Group>(null);
   const [worldPosition, setWorldPosition] = useState<THREE.Vector3 | null>(null);
+
+  // Refs for performance optimization - avoid recalculating when pointer hasn't moved
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const raycastTargetRef = useRef<THREE.Vector3>(new THREE.Vector3());
 
   // Create a horizontal plane at board level (y=0.5 to float slightly above)
   const boardPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5), []);
@@ -129,19 +150,34 @@ function FloatingPreviewBrick({
 
   // Update position on each frame based on mouse
   useFrame(() => {
+    // Skip expensive work if pointer position hasn't changed
+    if (
+      lastPointerRef.current &&
+      lastPointerRef.current.x === pointer.x &&
+      lastPointerRef.current.y === pointer.y
+    ) {
+      return;
+    }
+    lastPointerRef.current = { x: pointer.x, y: pointer.y };
+
     // Only update if pointer is valid (inside canvas)
     if (pointer.x < -1 || pointer.x > 1 || pointer.y < -1 || pointer.y > 1) {
-      setWorldPosition(null);
+      if (worldPosition !== null) {
+        setWorldPosition(null);
+      }
       return;
     }
 
     raycaster.setFromCamera(pointer, camera);
-    const target = new THREE.Vector3();
+    const target = raycastTargetRef.current;
     const result = raycaster.ray.intersectPlane(boardPlane, target);
 
     if (result) {
-      setWorldPosition(target.clone());
-    } else {
+      // Avoid unnecessary state updates if the position hasn't changed significantly
+      if (!worldPosition || !worldPosition.equals(target)) {
+        setWorldPosition(target.clone());
+      }
+    } else if (worldPosition !== null) {
       setWorldPosition(null);
     }
   });
