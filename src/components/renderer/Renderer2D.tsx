@@ -308,12 +308,15 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
   const svgWidth = width * cellSize + PADDING * 2;
   const svgHeight = height * cellSize + PADDING * 2;
 
-  // Get invalid cells from validation (but NOT goal cells - those are shown separately)
+  // Get invalid cells from validation (skip certain rules that shouldn't show as red errors)
   const invalidCells = useMemo(() => {
     const cells = new Set<string>();
     for (const result of validationResults) {
       // Skip GOAL_REACHED - goal area is shown with dotted border, not red background
       if (result.rule === 'GOAL_REACHED') continue;
+      // Skip ALL_BOARD_SQUARES_MUST_BE_COVERED - uncovered cells are not "errors", 
+      // they're just cells that need to be filled. Showing all cells as red is confusing.
+      if (result.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED') continue;
 
       if (!result.isValid && result.affectedCells) {
         for (const [x, y] of result.affectedCells) {
@@ -323,6 +326,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
     }
     return cells;
   }, [validationResults]);
+
 
   // Get blocked cells
   const blockedCells = useMemo(() => {
