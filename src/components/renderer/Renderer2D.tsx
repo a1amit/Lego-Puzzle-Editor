@@ -61,11 +61,11 @@ function GridCell({
   const baseColor = isBlocked ? '#3a3a3a' : '#2a2a2a';
   const hoverColor = isValidDestination ? '#4a8f4a' : '#4a6fa5';
   const invalidColor = '#8b3a3a';
-  
+
   const fillColor = isInvalid ? invalidColor : isHovered || isValidDestination ? hoverColor : baseColor;
-  
+
   return (
-    <g 
+    <g
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -82,7 +82,7 @@ function GridCell({
         stroke={isHovered ? '#58A6FF' : 'none'}
         strokeWidth={isHovered ? 2 : 0}
       />
-      
+
       {/* Stud */}
       {!isBlocked && (
         <>
@@ -100,7 +100,7 @@ function GridCell({
           />
         </>
       )}
-      
+
       {/* Valid destination indicator */}
       {isValidDestination && (
         <circle
@@ -114,7 +114,7 @@ function GridCell({
           opacity={0.6}
         />
       )}
-      
+
       {/* Goal area indicator removed - shown in main overlay instead */}
     </g>
   );
@@ -146,16 +146,20 @@ function Piece2D({
   onMouseLeave,
 }: PieceProps) {
   const cells = useMemo(() => getPieceCells(piece), [piece]);
-  
+
   const glowColor = isSelected ? '#58A6FF' : '#ffffff';
   const glowOpacity = isSelected ? 0.5 : isHovered ? 0.3 : 0;
-  
+
+  // When not interactive, let mouse events pass through to the grid cells beneath
+  const shouldPassThrough = !interactive;
+
   return (
     <g
       onClick={interactive ? onClick : undefined}
       onMouseEnter={interactive ? onMouseEnter : undefined}
       onMouseLeave={interactive ? onMouseLeave : undefined}
       style={{ cursor: interactive ? 'pointer' : 'default' }}
+      pointerEvents={shouldPassThrough ? 'none' : undefined}
     >
       {/* Shadow when selected */}
       {isSelected && cells.map(([x, y], i) => (
@@ -169,7 +173,7 @@ function Piece2D({
           fill="rgba(0,0,0,0.3)"
         />
       ))}
-      
+
       {/* Piece cells */}
       {cells.map(([x, y], i) => (
         <g key={i}>
@@ -185,7 +189,7 @@ function Piece2D({
             strokeWidth={2}
             filter={isSelected ? 'url(#glow)' : undefined}
           />
-          
+
           {/* Stud on brick */}
           <circle
             cx={x * cellSize + cellSize / 2}
@@ -195,7 +199,7 @@ function Piece2D({
             stroke="rgba(255,255,255,0.25)"
             strokeWidth={1.5}
           />
-          
+
           {/* Stud highlight */}
           <circle
             cx={x * cellSize + cellSize / 2 - 2}
@@ -205,7 +209,7 @@ function Piece2D({
           />
         </g>
       ))}
-      
+
       {/* Selection indicator */}
       {isSelected && (
         <g>
@@ -219,7 +223,7 @@ function Piece2D({
             fontFamily="monospace"
             fontWeight="bold"
           >
-            {isSliderPuzzle 
+            {isSliderPuzzle
               ? (hasValidMoves ? 'Click destination' : 'No valid moves!')
               : 'R to rotate'
             }
@@ -249,12 +253,12 @@ function GhostPiece2D({
 }: GhostPieceProps) {
   const shapeDef = SHAPE_LIBRARY[shape];
   if (!shapeDef) return null;
-  
+
   const cells = useMemo(() => {
     const rotated = rotateShape(shapeDef.cells, rotation);
     return rotated.map(([dx, dy]) => [position.x + dx, position.y + dy] as Coordinate2D);
   }, [shapeDef, rotation, position]);
-  
+
   return (
     <g opacity={0.6} pointerEvents="none">
       {cells.map(([x, y], i) => (
@@ -296,21 +300,26 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
     rotatePreview,
     setHoveredCell,
   } = engine;
-  
+
   const [hoveredPieceId, setHoveredPieceId] = useState<string | null>(null);
-  
+
   const { width, height } = board.dimensions;
   const cellSize = viewMode === '2D_GRID' ? 50 : CELL_SIZE;
   const svgWidth = width * cellSize + PADDING * 2;
   const svgHeight = height * cellSize + PADDING * 2;
-  
-  // Get invalid cells from validation (but NOT goal cells - those are shown separately)
+
+  // Get invalid cells from validation (skip certain rules that shouldn't show as red errors)
   const invalidCells = useMemo(() => {
     const cells = new Set<string>();
     for (const result of validationResults) {
       // Skip GOAL_REACHED - goal area is shown with dotted border, not red background
       if (result.rule === 'GOAL_REACHED') continue;
-      
+      // Skip ALL_BOARD_SQUARES_MUST_BE_COVERED - uncovered cells are not "errors", 
+      // they're just cells that need to be filled. Showing all cells as red is confusing.
+      if (result.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED') continue;
+      // Skip PATTERN_MATCH - cells that need the correct color aren't errors, just incomplete
+      if (result.rule === 'PATTERN_MATCH') continue;
+
       if (!result.isValid && result.affectedCells) {
         for (const [x, y] of result.affectedCells) {
           cells.add(`${x},${y}`);
@@ -319,49 +328,50 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
     }
     return cells;
   }, [validationResults]);
-  
+
+
   // Get blocked cells
   const blockedCells = useMemo(() => {
     return new Set(board.blockedCells.map(([x, y]) => `${x},${y}`));
   }, [board.blockedCells]);
-  
+
   // Find selected piece (placed or inventory)
   const selectedPlacedPiece = useMemo(() => {
     return board.placedPieces.find(p => p.instanceId === selectedPieceId);
   }, [board.placedPieces, selectedPieceId]);
-  
+
   const selectedInventoryPiece = useMemo(() => {
     if (selectedPlacedPiece) return null;
     return puzzle?.inventory.find(p => p.id === selectedPieceId);
   }, [puzzle, selectedPieceId, selectedPlacedPiece]);
-  
+
   // Get valid slide destinations for selected placed piece
   // Shows ALL cells that would be covered by valid slide positions
   const validDestinations = useMemo(() => {
     if (!selectedPlacedPiece || config.movementRule !== 'SLIDING_ONLY') {
       return new Set<string>();
     }
-    
+
     const destinations = getValidSlideDestinations(board, selectedPlacedPiece);
     const shapeDef = SHAPE_LIBRARY[selectedPlacedPiece.shape];
-    
+
     if (!shapeDef) {
       return new Set(destinations.map(([x, y]) => `${x},${y}`));
     }
-    
+
     // Get all cells that would be covered by ANY valid destination
     const allValidCells = new Set<string>();
     const rotatedCells = rotateShape(shapeDef.cells, selectedPlacedPiece.rotation);
-    
+
     for (const [destX, destY] of destinations) {
       for (const [dx, dy] of rotatedCells) {
         allValidCells.add(`${destX + dx},${destY + dy}`);
       }
     }
-    
+
     return allValidCells;
   }, [selectedPlacedPiece, board, config.movementRule]);
-  
+
   // Keyboard handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -378,15 +388,15 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
         selectPiece(null);
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedPlacedPiece, selectedInventoryPiece, rotatePiece, rotatePreview, selectPiece, removePiece]);
-  
+
   // Cell click handler
   const handleCellClick = useCallback((x: number, y: number) => {
     if (blockedCells.has(`${x},${y}`)) return;
-    
+
     // If we have a placed piece selected, try to move it
     if (selectedPlacedPiece) {
       // Clicking on the piece's current position deselects it
@@ -396,22 +406,22 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
         selectPiece(null);
         return;
       }
-      
+
       // For slider puzzles, find which valid destination would cover the clicked cell
       if (config.movementRule === 'SLIDING_ONLY') {
         const validDests = getValidSlideDestinations(board, selectedPlacedPiece);
         const shapeDef = SHAPE_LIBRARY[selectedPlacedPiece.shape];
-        
+
         if (shapeDef) {
           const rotatedCells = rotateShape(shapeDef.cells, selectedPlacedPiece.rotation);
-          
+
           // Find a valid destination where the piece would cover the clicked cell
           const matchingDest = validDests.find(([destX, destY]) => {
-            return rotatedCells.some(([dx, dy]) => 
+            return rotatedCells.some(([dx, dy]) =>
               destX + dx === x && destY + dy === y
             );
           });
-          
+
           if (matchingDest) {
             movePiece(selectedPlacedPiece.instanceId, { x: matchingDest[0], y: matchingDest[1], z: 0 });
             selectPiece(null);
@@ -425,14 +435,14 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
       }
       return;
     }
-    
+
     // If we have an inventory piece selected, place it
     if (selectedInventoryPiece) {
       placePiece(selectedInventoryPiece.id, { x, y, z: 0 }, previewRotation);
       selectPiece(null);
     }
   }, [selectedPlacedPiece, selectedInventoryPiece, previewRotation, placePiece, movePiece, selectPiece, blockedCells, config.movementRule, board]);
-  
+
   // Piece click handler
   const handlePieceClick = useCallback((piece: PlacedPiece) => {
     if (selectedPieceId === piece.instanceId) {
@@ -441,26 +451,26 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
       selectPiece(piece.instanceId);
     }
   }, [selectedPieceId, selectPiece]);
-  
+
   // Check if ghost is valid
   const isGhostValid = useMemo(() => {
     if (!selectedInventoryPiece || !hoveredCell) return false;
-    
+
     const shapeDef = SHAPE_LIBRARY[selectedInventoryPiece.shape];
     if (!shapeDef) return false;
-    
+
     const rotatedCells = rotateShape(shapeDef.cells, previewRotation);
-    
+
     for (const [dx, dy] of rotatedCells) {
       const x = hoveredCell.x + dx;
       const y = hoveredCell.y + dy;
-      
+
       // Check bounds
       if (x < 0 || x >= width || y < 0 || y >= height) return false;
-      
+
       // Check blocked
       if (blockedCells.has(`${x},${y}`)) return false;
-      
+
       // Check overlap with placed pieces
       for (const placed of board.placedPieces) {
         const placedCells = getPieceCells(placed);
@@ -469,18 +479,18 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
         }
       }
     }
-    
+
     return true;
   }, [selectedInventoryPiece, hoveredCell, previewRotation, width, height, blockedCells, board.placedPieces]);
-  
+
   // Calculate goal area cells (for slider puzzles)
   const goalAreaCells = useMemo(() => {
     if (!puzzle?.goal?.cells) return new Set<string>();
-    
+
     // Goal cells are now explicitly defined
     return new Set(puzzle.goal.cells.map(([x, y]) => `${x},${y}`));
   }, [puzzle]);
-  
+
   if (!puzzle) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-editor-bg">
@@ -488,7 +498,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
       </div>
     );
   }
-  
+
   return (
     <div className={`w-full h-full flex items-center justify-center bg-editor-bg ${className}`}>
       <svg
@@ -506,15 +516,15 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          
+
           <pattern id="grid" width={cellSize} height={cellSize} patternUnits="userSpaceOnUse">
             <rect width={cellSize} height={cellSize} fill="none" stroke="#333" strokeWidth="0.5" />
           </pattern>
         </defs>
-        
+
         {/* Background */}
         <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="#0a0a0a" />
-        
+
         {/* Main board area */}
         <g transform={`translate(${PADDING}, ${PADDING})`}>
           {/* Board background */}
@@ -526,7 +536,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
             rx={8}
             fill="#1a1a1a"
           />
-          
+
           {/* Grid cells */}
           {Array.from({ length: width }, (_, x) =>
             Array.from({ length: height }, (_, y) => {
@@ -535,7 +545,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
               const isHovered = hoveredCell?.x === x && hoveredCell?.y === y;
               const isInvalid = invalidCells.has(key);
               const isValidDest = validDestinations.has(key);
-              
+
               return (
                 <GridCell
                   key={key}
@@ -553,19 +563,19 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
               );
             })
           )}
-          
+
           {/* Placed pieces */}
           {board.placedPieces.map(piece => {
             const isSelected = selectedPieceId === piece.instanceId;
             const isHovered = hoveredPieceId === piece.instanceId;
             // Pieces are interactive when no inventory piece is selected
             const isInteractive = !selectedInventoryPiece && !selectedPlacedPiece;
-            
+
             // Calculate if this piece has valid moves (for slider puzzles)
             const pieceValidMoves = isSelected && config.movementRule === 'SLIDING_ONLY'
               ? getValidSlideDestinations(board, piece)
               : [];
-            
+
             return (
               <Piece2D
                 key={piece.instanceId}
@@ -582,7 +592,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
               />
             );
           })}
-          
+
           {/* Ghost preview for inventory placement */}
           {selectedInventoryPiece && hoveredCell && (
             <GhostPiece2D
@@ -594,7 +604,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
               isValid={isGhostValid}
             />
           )}
-          
+
           {/* Goal area overlay (for slider puzzles) */}
           {puzzle.goal && (
             <g>
@@ -635,7 +645,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
             </g>
           )}
         </g>
-        
+
         {/* View mode indicator */}
         <text
           x={PADDING}
