@@ -133,6 +133,39 @@ interface PieceProps {
   onMouseLeave: () => void;
 }
 
+// Helper function to get outer edge segments for brick border rendering
+// Returns an array of line segments that form the outer boundary of the piece
+function getOuterEdgeSegments(cells: [number, number][], cellSize: number, yOffset: number = 0, outerInset: number = 2): {
+  x1: number; y1: number; x2: number; y2: number;
+}[] {
+  const cellSet = new Set(cells.map(([x, y]) => `${x},${y}`));
+  const segments: { x1: number; y1: number; x2: number; y2: number }[] = [];
+
+  for (const [x, y] of cells) {
+    const left = x * cellSize + outerInset;
+    const right = (x + 1) * cellSize - outerInset;
+    const top = y * cellSize + outerInset + yOffset;
+    const bottom = (y + 1) * cellSize - outerInset + yOffset;
+
+    // Only draw edges that face outward (no neighbor on that side)
+    if (!cellSet.has(`${x},${y - 1}`)) {
+      segments.push({ x1: left, y1: top, x2: right, y2: top }); // Top edge
+    }
+    if (!cellSet.has(`${x},${y + 1}`)) {
+      segments.push({ x1: left, y1: bottom, x2: right, y2: bottom }); // Bottom edge
+    }
+    if (!cellSet.has(`${x - 1},${y}`)) {
+      segments.push({ x1: left, y1: top, x2: left, y2: bottom }); // Left edge
+    }
+    if (!cellSet.has(`${x + 1},${y}`)) {
+      segments.push({ x1: right, y1: top, x2: right, y2: bottom }); // Right edge
+    }
+  }
+
+  return segments;
+}
+
+
 function Piece2D({
   piece,
   cellSize,
@@ -146,12 +179,32 @@ function Piece2D({
   onMouseLeave,
 }: PieceProps) {
   const cells = useMemo(() => getPieceCells(piece), [piece]);
+  const cellSet = useMemo(() => new Set(cells.map(([x, y]) => `${x},${y}`)), [cells]);
 
   const glowColor = isSelected ? '#58A6FF' : '#ffffff';
   const glowOpacity = isSelected ? 0.5 : isHovered ? 0.3 : 0;
 
+  // Get outer edge segments for border rendering
+  const outerEdges = useMemo(() => {
+    return getOuterEdgeSegments(cells, cellSize, isSelected ? -4 : 0, 2);
+  }, [cells, cellSize, isSelected]);
+
+  // Darker border color based on piece color for strong 3D effect
+  const borderColor = useMemo(() => {
+    const hex = piece.color.replace('#', '');
+    const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 80);
+    const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 80);
+    const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 80);
+    return `rgb(${r},${g},${b})`;
+  }, [piece.color]);
+
   // When not interactive, let mouse events pass through to the grid cells beneath
   const shouldPassThrough = !interactive;
+
+  // Check if a cell has a neighbor in a direction
+  const hasNeighbor = (x: number, y: number, dx: number, dy: number) => {
+    return cellSet.has(`${x + dx},${y + dy}`);
+  };
 
   return (
     <g
@@ -161,36 +214,78 @@ function Piece2D({
       style={{ cursor: interactive ? 'pointer' : 'default' }}
       pointerEvents={shouldPassThrough ? 'none' : undefined}
     >
-      {/* Shadow when selected */}
-      {isSelected && cells.map(([x, y], i) => (
-        <rect
-          key={`shadow-${i}`}
-          x={x * cellSize + CELL_GAP}
-          y={y * cellSize + CELL_GAP + 4}
-          width={cellSize - CELL_GAP * 2}
-          height={cellSize - CELL_GAP * 2}
-          rx={4}
-          fill="rgba(0,0,0,0.3)"
-        />
-      ))}
-
-      {/* Piece cells */}
-      {cells.map(([x, y], i) => (
-        <g key={i}>
-          {/* Main brick body */}
+      {/* Shadow when selected - draw shadow rectangles for each cell */}
+      {isSelected && cells.map(([x, y], i) => {
+        const hasLeft = hasNeighbor(x, y, -1, 0);
+        const hasRight = hasNeighbor(x, y, 1, 0);
+        const hasTop = hasNeighbor(x, y, 0, -1);
+        const hasBottom = hasNeighbor(x, y, 0, 1);
+        const inset = 2;
+        const left = hasLeft ? x * cellSize : x * cellSize + inset;
+        const right = hasRight ? (x + 1) * cellSize : (x + 1) * cellSize - inset;
+        const top = hasTop ? y * cellSize + 4 : y * cellSize + inset + 4;
+        const bottom = hasBottom ? (y + 1) * cellSize + 4 : (y + 1) * cellSize - inset + 4;
+        return (
           <rect
-            x={x * cellSize + CELL_GAP}
-            y={y * cellSize + CELL_GAP - (isSelected ? 4 : 0)}
-            width={cellSize - CELL_GAP * 2}
-            height={cellSize - CELL_GAP * 2}
-            rx={4}
+            key={`shadow-${i}`}
+            x={left}
+            y={top}
+            width={right - left}
+            height={bottom - top}
+            fill="rgba(0,0,0,0.3)"
+          />
+        );
+      })}
+
+      {/* Connected brick body - fills cells seamlessly with neighbors */}
+      {cells.map(([x, y], i) => {
+        const yOff = isSelected ? -4 : 0;
+        // Calculate rectangle that extends to meet neighbors (no gap between same-brick cells)
+        const hasLeft = hasNeighbor(x, y, -1, 0);
+        const hasRight = hasNeighbor(x, y, 1, 0);
+        const hasTop = hasNeighbor(x, y, 0, -1);
+        const hasBottom = hasNeighbor(x, y, 0, 1);
+
+        // Extend towards neighbors to fill gaps
+        const inset = 2; // Small inset for outer edges
+        const left = hasLeft ? x * cellSize : x * cellSize + inset;
+        const right = hasRight ? (x + 1) * cellSize : (x + 1) * cellSize - inset;
+        const top = hasTop ? y * cellSize + yOff : y * cellSize + inset + yOff;
+        const bottom = hasBottom ? (y + 1) * cellSize + yOff : (y + 1) * cellSize - inset + yOff;
+
+        return (
+          <rect
+            key={`body-${i}`}
+            x={left}
+            y={top}
+            width={right - left}
+            height={bottom - top}
             fill={piece.color}
-            stroke={glowOpacity > 0 ? glowColor : 'none'}
-            strokeWidth={2}
             filter={isSelected ? 'url(#glow)' : undefined}
           />
+        );
+      })}
 
-          {/* Stud on brick */}
+      {/* Strong outline around the entire brick shape - using individual line segments */}
+      <g pointerEvents="none">
+        {outerEdges.map((edge, i) => (
+          <line
+            key={`edge-${i}`}
+            x1={edge.x1}
+            y1={edge.y1}
+            x2={edge.x2}
+            y2={edge.y2}
+            stroke={isSelected || isHovered ? glowColor : borderColor}
+            strokeWidth={isSelected || isHovered ? 4 : 3}
+            strokeLinecap="square"
+            opacity={isSelected || isHovered ? glowOpacity + 0.6 : 1}
+          />
+        ))}
+      </g>
+
+      {/* Studs on each cell */}
+      {cells.map(([x, y], i) => (
+        <g key={`stud-${i}`}>
           <circle
             cx={x * cellSize + cellSize / 2}
             cy={y * cellSize + cellSize / 2 - (isSelected ? 4 : 0)}
@@ -209,6 +304,7 @@ function Piece2D({
           />
         </g>
       ))}
+
 
       {/* Selection indicator */}
       {isSelected && (
