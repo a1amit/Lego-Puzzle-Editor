@@ -459,6 +459,50 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
   }
 };
 
+export const SLIDER_PUZZLE_2: PuzzleDefinition = {
+  "puzzle_id": "klotski-red-donkey",
+  "title": "Klotski: Red Donkey",
+  "description": "The classic configuration (Huarong Dao). Help Cao Cao (Red Block) escape through the bottom exit!",
+  "viewMode": "2D_TOP_DOWN",
+
+  "board": {
+    "dimensions": { "width": 4, "height": 5, "depth": 1 },
+    "initial_state": [
+      { "id": "cao-cao", "cells": [[1,0],[2,0],[1,1],[2,1]], "color": "#D01012" },
+      { "id": "v1",      "cells": [[0,0],[0,1]],           "color": "#0055BF" },
+      { "id": "v2",      "cells": [[3,0],[3,1]],           "color": "#0055BF" },
+      { "id": "v3",      "cells": [[0,2],[0,3]],           "color": "#0055BF" },
+      { "id": "v4",      "cells": [[3,2],[3,3]],           "color": "#0055BF" },
+      { "id": "h1",      "cells": [[1,2],[2,2]],           "color": "#0055BF" },
+      { "id": "s1",      "cells": [[1,3]],                 "color": "#F5C300" },
+      { "id": "s2",      "cells": [[2,3]],                 "color": "#F5C300" },
+      { "id": "s3",      "cells": [[0,4]],                 "color": "#F5C300" },
+      { "id": "s4",      "cells": [[3,4]],                 "color": "#F5C300" }
+    ]
+  },
+
+  "inventory": [],
+
+  "goal": {
+    "targetPieceId": "cao-cao",
+    "cells": [[1,3],[2,3],[1,4],[2,4]]
+  },
+
+  "validation_rules": [
+    { "type": "GOAL",      "rule": "GOAL_REACHED" },
+    { "type": "MOVEMENT",  "rule": "SLIDING_ONLY" },
+    { "type": "ROTATION",  "rule": "NO_ROTATION" },
+    { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
+    { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+
+  "metadata": {
+    "author": "Traditional",
+    "difficulty": "expert",
+    "tags": ["slider", "2D", "klotski", "classic"]
+  }
+};
+  
 // ============================================
 // 2D SIMPLE GRID PUZZLE
 // ============================================
