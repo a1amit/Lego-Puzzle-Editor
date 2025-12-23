@@ -502,6 +502,52 @@ export const SLIDER_PUZZLE_2: PuzzleDefinition = {
     "tags": ["slider", "2D", "klotski", "classic"]
   }
 };
+
+export const SLIDER_PUZZLE_3: PuzzleDefinition =
+{
+  "puzzle_id": "klotski-crossway",
+  "title": "Klotski: Crossway",
+  "description": "A tricky variation. Navigate the crossway of blocks.",
+  "viewMode": "2D_TOP_DOWN",
+
+  "board": {
+    "dimensions": { "width": 4, "height": 5, "depth": 1 },
+    "initial_state": [
+      { "id": "b1", "cells": [[1,0],[2,0],[1,1],[2,1]], "color": "#D01012" },
+      { "id": "v1", "cells": [[0,0],[0,1]],           "color": "#0055BF" },
+      { "id": "v2", "cells": [[3,0],[3,1]],           "color": "#0055BF" },
+      { "id": "h1", "cells": [[0,2],[1,2]],           "color": "#0055BF" },
+      { "id": "h2", "cells": [[2,2],[3,2]],           "color": "#0055BF" },
+      { "id": "s1", "cells": [[0,3]],                 "color": "#F5C300" },
+      { "id": "s2", "cells": [[1,3]],                 "color": "#F5C300" },
+      { "id": "s3", "cells": [[2,3]],                 "color": "#F5C300" },
+      { "id": "s4", "cells": [[3,3]],                 "color": "#F5C300" },
+      { "id": "s5", "cells": [[0,4]],                 "color": "#F5C300" },
+      { "id": "s6", "cells": [[3,4]],                 "color": "#F5C300" }
+    ]
+  },
+
+  "inventory": [],
+
+  "goal": {
+    "targetPieceId": "b1",
+    "cells": [[1,3],[2,3],[1,4],[2,4]]
+  },
+
+  "validation_rules": [
+    { "type": "GOAL",      "rule": "GOAL_REACHED" },
+    { "type": "MOVEMENT",  "rule": "SLIDING_ONLY" },
+    { "type": "ROTATION",  "rule": "NO_ROTATION" },
+    { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
+    { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+
+  "metadata": {
+    "author": "Variant",
+    "difficulty": "medium",
+    "tags": ["slider", "2D", "klotski"]
+  }
+};
   
 // ============================================
 // 2D SIMPLE GRID PUZZLE
