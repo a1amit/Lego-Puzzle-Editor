@@ -458,7 +458,7 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
     tags: ["slider", "2D", "klotski"]
   }
 };
-
+//klotski-red-donkey
 export const SLIDER_PUZZLE_2: PuzzleDefinition = {
   "puzzle_id": "klotski-red-donkey",
   "title": "Klotski: Red Donkey",
