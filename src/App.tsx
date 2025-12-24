@@ -9,7 +9,7 @@ import { InstructionsModal } from './components/ui/InstructionsModal';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
 import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE } from './types/puzzle';
-import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY } from './data/klotski';
+import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
