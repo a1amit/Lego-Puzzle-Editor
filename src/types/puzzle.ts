@@ -459,7 +459,7 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
   }
 };
 //klotski-red-donkey
-export const SLIDER_PUZZLE_2: PuzzleDefinition = {
+export const KLOTSKI_RED_DONKEY: PuzzleDefinition = {
   "puzzle_id": "klotski-red-donkey",
   "title": "Klotski: Red Donkey",
   "description": "The classic configuration (Huarong Dao). Help Cao Cao (Red Block) escape through the bottom exit!",
@@ -503,7 +503,7 @@ export const SLIDER_PUZZLE_2: PuzzleDefinition = {
   }
 };
 
-export const SLIDER_PUZZLE_3: PuzzleDefinition =
+export const KLOTSKI_CROSSWAY: PuzzleDefinition =
 {
   "puzzle_id": "klotski-crossway",
   "title": "Klotski: Crossway",
