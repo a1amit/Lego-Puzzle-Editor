@@ -672,7 +672,7 @@ export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
 export const BINARY_PUZZLE_LEGO: PuzzleDefinition = {
   puzzle_id: "Binary-LEGO-01",
   title: "Binary Safe: LEGO",
-  description: "Build the future! Encode 'LEGO' in binary ASCII. L=76, E=69, G=71, O=79.",
+  description: "I start as many but become one, snap together to build worlds big and small, and break apart without falling",
   viewMode: "2D_TOP_DOWN",
   board: {
     dimensions: { width: 8, height: 4, depth: 1 },
