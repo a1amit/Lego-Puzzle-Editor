@@ -8,7 +8,7 @@ import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
-import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE } from './types/puzzle';
+import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_LEGO } from './types/puzzle';
 import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY } from './types/puzzle';
 
 // Lego Brick Icon for header
@@ -71,6 +71,8 @@ const SAMPLE_PUZZLES = [
   { id: 'klotski-crossway', label: 'Klotski: Crossway', puzzle: KLOTSKI_CROSSWAY, is3D: false },
   { id: 'grid', label: 'Grid Fill', puzzle: GRID_PUZZLE, is3D: false },
   { id: 'binary', label: 'Binary Safe', puzzle: BINARY_PUZZLE, is3D: false },
+  { id: 'binary-sos', label: 'Binary Safe: SOS', puzzle: BINARY_PUZZLE_SOS, is3D: false },
+  { id: 'binary-lego', label: 'Binary Safe: LEGO', puzzle: BINARY_PUZZLE_LEGO, is3D: false },
 ];
 
 type ViewMode = 'split' | 'editor' | 'preview';

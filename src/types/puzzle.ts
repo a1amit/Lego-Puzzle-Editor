@@ -630,6 +630,43 @@ export const BINARY_PUZZLE: PuzzleDefinition = {
   }
 };
 
-
+export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
+  puzzle_id: "Binary-SOS-01",
+  title: "Binary Safe: SOS",
+  description: "Send help! Encode 'SOS' in binary ASCII to unlock the distress beacon. S=83, O=79.",
+  viewMode: "2D_TOP_DOWN",
+  board: {
+    dimensions: { width: 8, height: 3, depth: 1 },
+    initial_state: []
+  },
+  inventory: [
+    { shape: "unit", color: "#1a1a1a", quantity: 12, id: "bit-0" },  // Black = 0
+    { shape: "unit", color: "#ffffff", quantity: 12, id: "bit-1" },  // White = 1
+  ],
+  target_pattern: {
+    // 'S' = 01010011 (83)
+    // 'O' = 01001111 (79)
+    rows: [
+      [0, 1, 0, 1, 0, 0, 1, 1],  // S
+      [0, 1, 0, 0, 1, 1, 1, 1],  // O
+      [0, 1, 0, 1, 0, 0, 1, 1],  // S
+    ],
+    color_mapping: {
+      "0": "#1a1a1a",  // Black
+      "1": "#ffffff",  // White
+    },
+  },
+  validation_rules: [
+    { type: "PATTERN", rule: "PATTERN_MATCH" },
+    { type: "ROTATION", rule: "NO_ROTATION" },
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+  metadata: {
+    author: "CS Escape Room",
+    difficulty: "easy",
+    tags: ["binary", "2D", "ASCII", "pattern"]
+  }
+};
 
 
