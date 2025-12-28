@@ -633,7 +633,7 @@ export const BINARY_PUZZLE: PuzzleDefinition = {
 export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
   puzzle_id: "Binary-SOS-01",
   title: "Binary Safe: SOS",
-  description: "Send help! Encode 'SOS' in binary ASCII to unlock the distress beacon. S=83, O=79.",
+  description: "A silent three-signal call sent when hope is running thin — what am I?",
   viewMode: "2D_TOP_DOWN",
   board: {
     dimensions: { width: 8, height: 3, depth: 1 },
