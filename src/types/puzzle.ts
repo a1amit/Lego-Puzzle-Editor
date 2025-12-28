@@ -640,8 +640,8 @@ export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
     initial_state: []
   },
   inventory: [
-    { shape: "unit", color: "#1a1a1a", quantity: 12, id: "bit-0" },  // Black = 0
-    { shape: "unit", color: "#ffffff", quantity: 12, id: "bit-1" },  // White = 1
+    { shape: "unit", color: "#1a1a1a", quantity: 11, id: "bit-0" },  // Black = 0
+    { shape: "unit", color: "#ffffff", quantity: 13, id: "bit-1" },  // White = 1
   ],
   target_pattern: {
     // 'S' = 01010011 (83)
