@@ -669,4 +669,45 @@ export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
   }
 };
 
+export const BINARY_PUZZLE_LEGO: PuzzleDefinition = {
+  puzzle_id: "Binary-LEGO-01",
+  title: "Binary Safe: LEGO",
+  description: "Build the future! Encode 'LEGO' in binary ASCII. L=76, E=69, G=71, O=79.",
+  viewMode: "2D_TOP_DOWN",
+  board: {
+    dimensions: { width: 8, height: 4, depth: 1 },
+    initial_state: []
+  },
+  inventory: [
+    { shape: "unit", color: "#1a1a1a", quantity: 20, id: "bit-0" },  // Black = 0
+    { shape: "unit", color: "#ffffff", quantity: 12, id: "bit-1" },  // White = 1
+  ],
+  target_pattern: {
+    // 'L' = 01001100 (76)
+    // 'E' = 01000101 (69)
+    // 'G' = 01000111 (71)
+    // 'O' = 01001111 (79)
+    rows: [
+      [0, 1, 0, 0, 1, 1, 0, 0],  // L
+      [0, 1, 0, 0, 0, 1, 0, 1],  // E
+      [0, 1, 0, 0, 0, 1, 1, 1],  // G
+      [0, 1, 0, 0, 1, 1, 1, 1],  // O
+    ],
+    color_mapping: {
+      "0": "#1a1a1a",  // Black
+      "1": "#ffffff",  // White
+    },
+  },
+  validation_rules: [
+    { type: "PATTERN", rule: "PATTERN_MATCH" },
+    { type: "ROTATION", rule: "NO_ROTATION" },
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+  metadata: {
+    author: "CS Escape Room",
+    difficulty: "medium",
+    tags: ["binary", "2D", "ASCII", "pattern"]
+  }
+};
 
