@@ -679,8 +679,8 @@ export const BINARY_PUZZLE_LEGO: PuzzleDefinition = {
     initial_state: []
   },
   inventory: [
-    { shape: "unit", color: "#1a1a1a", quantity: 20, id: "bit-0" },  // Black = 0
-    { shape: "unit", color: "#ffffff", quantity: 12, id: "bit-1" },  // White = 1
+    { shape: "unit", color: "#1a1a1a", quantity: 17, id: "bit-0" },  // Black = 0
+    { shape: "unit", color: "#ffffff", quantity: 15, id: "bit-1" },  // White = 1
   ],
   target_pattern: {
     // 'L' = 01001100 (76)
