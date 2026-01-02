@@ -388,17 +388,10 @@ const validatePatternMatch: ValidationFunction = (boardState, params) => {
   }
 
   if (mismatches.length > 0) {
-    const emptyCount = mismatches.filter(m => m.actual === null).length;
-    const wrongCount = mismatches.length - emptyCount;
-
-    let message = 'Pattern does not match: ';
-    if (emptyCount > 0) message += `${emptyCount} cell(s) empty`;
-    if (wrongCount > 0) message += `${emptyCount > 0 ? ', ' : ''}${wrongCount} cell(s) wrong color`;
-
     return {
       isValid: false,
       rule: 'PATTERN_MATCH',
-      message,
+      message: 'Pattern does not match - keep trying!',
       affectedCells,
     };
   }
