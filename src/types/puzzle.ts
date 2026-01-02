@@ -112,6 +112,7 @@ export const ValidationRuleTypes = [
   'ROTATION',
   'PATTERN',
   'GOAL',
+  'CONSTRAINT',
   'CUSTOM',
 ] as const;
 
@@ -449,6 +450,7 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
     { type: "GOAL", rule: "GOAL_REACHED" },
     { type: "MOVEMENT", rule: "SLIDING_ONLY" },
     { type: "ROTATION", rule: "NO_ROTATION" },
+    { type: "CONSTRAINT", rule: "NO_BRICK_REMOVAL" },
     { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
     { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
   ],
@@ -492,6 +494,7 @@ export const KLOTSKI_RED_DONKEY: PuzzleDefinition = {
     { "type": "GOAL", "rule": "GOAL_REACHED" },
     { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
     { "type": "ROTATION", "rule": "NO_ROTATION" },
+    { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
     { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
     { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
   ],
@@ -538,6 +541,7 @@ export const KLOTSKI_CROSSWAY: PuzzleDefinition =
     { "type": "GOAL", "rule": "GOAL_REACHED" },
     { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
     { "type": "ROTATION", "rule": "NO_ROTATION" },
+    { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
     { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
     { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
   ],
@@ -631,9 +635,9 @@ export const BINARY_PUZZLE: PuzzleDefinition = {
 };
 
 export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
-  puzzle_id: "Binary-SOS-01",
-  title: "Binary Safe: SOS",
-  description: "A silent three-signal call sent when hope is running thin — what am I?",
+  puzzle_id: "Binary-Deserted-Island-01",
+  title: "Binary Safe: Deserted Island",
+  description: "You're stranded on a deserted island and need to call for help! A rescue plane that only understands binary is flying overhead — spell out your distress signal!",
   viewMode: "2D_TOP_DOWN",
   board: {
     dimensions: { width: 8, height: 3, depth: 1 },
@@ -669,10 +673,10 @@ export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
   }
 };
 
-export const BINARY_PUZZLE_LEGO: PuzzleDefinition = {
-  puzzle_id: "Binary-LEGO-01",
-  title: "Binary Safe: LEGO",
-  description: "I start as many but become one, snap together to build worlds big and small, and break apart without falling. What am I?",
+export const BINARY_PUZZLE_BUILDING_BLOCKS: PuzzleDefinition = {
+  puzzle_id: "Binary-Building-Blocks-01",
+  title: "Binary Safe: Building Blocks",
+  description: "Countless pieces that snap into place, creating anything imagination allows. We break apart yet never truly break. Spell our name in binary to unlock the safe!",
   viewMode: "2D_TOP_DOWN",
   board: {
     dimensions: { width: 8, height: 4, depth: 1 },
