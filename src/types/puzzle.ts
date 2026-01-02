@@ -85,7 +85,39 @@ export const SHAPE_LIBRARY: Record<string, ShapeDefinition> = {
     name: 'domino',
     cells: [[0, 0], [1, 0]],
   },
+  // Tromino-I (3x1 horizontal)
+  'tromino-I': {
+    name: 'tromino-I',
+    cells: [[0, 0], [1, 0], [2, 0]],
+  },
+  // Cross/Plus Pentomino (height 3, width 3)
+  'plus': {
+    name: 'plus',
+    cells: [[1, 0], [1, 1], [1, 2], [0, 1], [2, 1]],
+  },
+  // Long L Pentomino (4 long + 1 tip)
+  'long-L-pentomino': {
+    name: 'long-L-pentomino',
+    cells: [[0, 1], [1, 1], [2, 1], [3, 1], [0, 0]],
+  },
+  // Corner Pentomino (3x3 L-shape)
+  'corner-pentomino': {
+    name: 'corner-pentomino',
+    cells: [[0, 2], [1, 2], [2, 2], [2, 1], [2, 0]],
+  },
+  // Stretched Z Pentomino (5 cells)
+  'stretched-Z-pentomino': {
+    name: 'stretched-Z-pentomino',
+    cells: [[1, 2], [2, 2], [1, 1], [0, 0], [1, 0]],
+  },
+  // U Pentomino (5 cells)
+  'U-pentomino': {
+    name: 'U-pentomino',
+    cells: [[0, 0], [1, 0], [1, 1], [0, 2], [1, 2]],
+  },
 };
+
+
 
 // ============================================
 // BRICK DEFINITIONS
@@ -319,6 +351,60 @@ export const DEFAULT_PUZZLE: PuzzleDefinition = {
     author: "CS Escape Room",
     difficulty: "medium",
     tags: ["tetromino", "coverage", "classic"]
+  }
+};
+
+// ============================================
+// COLORFUL COVERAGE PUZZLE (10x6 board with varied pieces)
+// ============================================
+
+/**
+ * Colorful Coverage Puzzle
+ * 
+ * A 10x6 board (60 cells) with 15 different colored pieces.
+ * Uses a mix of tetrominoes, squares, and dominoes.
+ * Total: 15 pieces × 4 cells = 60 cells (coverage)
+ */
+export const COLORFUL_COVERAGE_PUZZLE: PuzzleDefinition = {
+  puzzle_id: "Colorful-Coverage-01",
+  title: "Rainbow Bricks",
+  description: "Cover the entire board using all the colorful pieces. A challenging mix of different shapes!",
+  viewMode: "3D_ISOMETRIC",
+  board: {
+    dimensions: { width: 10, height: 6, depth: 1 },
+    initial_state: []
+  },
+  inventory: [
+    // Building piece by piece
+    { shape: "domino", color: "#FE8A18", quantity: 1, id: "piece-1" },     // 2-block I-shape (horizontal) - orange
+    { shape: "tromino-I", color: "#FE8A18", quantity: 1, id: "piece-2" },  // 3-block I-shape (horizontal) - orange
+    { shape: "unit", color: "#C9C9C9", quantity: 3, id: "piece-3" },       // Single brick - light gray (x3)
+    { shape: "tromino-I", color: "#5E5E5E", quantity: 1, id: "piece-4" },  // 3-block I-shape (can rotate to vertical) - gray
+    { shape: "domino", color: "#C9C9C9", quantity: 1, id: "piece-5" },     // 2-block I-shape - light gray
+    { shape: "domino", color: "#5E5E5E", quantity: 1, id: "piece-6" },     // 2-block I-shape - gray
+    { shape: "unit", color: "#A5CA18", quantity: 1, id: "piece-7" },       // Single brick - light green
+    { shape: "domino", color: "#A5CA18", quantity: 2, id: "piece-8" },     // 2-block I-shape - light green (x2)
+    { shape: "plus", color: "#6B5344", quantity: 1, id: "piece-9" },       // Cross shape - brown
+    { shape: "domino", color: "#0055BF", quantity: 2, id: "piece-10" },    // 2-block I-shape - deep blue (x2)
+    { shape: "unit", color: "#0055BF", quantity: 1, id: "piece-11" },      // Single brick - deep blue
+    { shape: "domino", color: "#E4CD9E", quantity: 2, id: "piece-12" },    // 2-block I-shape - mustard/tan (x2)
+    { shape: "unit", color: "#E4CD9E", quantity: 1, id: "piece-13" },      // Single brick - mustard/tan
+    { shape: "domino", color: "#FFFFFF", quantity: 2, id: "piece-14" },    // 2-block I-shape - white (x2)
+    { shape: "unit", color: "#FFFFFF", quantity: 1, id: "piece-15" },      // Single brick - white
+    { shape: "long-L-pentomino", color: "#287F46", quantity: 1, id: "piece-16" }, // Long L-shape (5 cells) - green
+    { shape: "corner-pentomino", color: "#F5CD2F", quantity: 1, id: "piece-17" }, // Corner L-shape (5 cells) - yellow
+    { shape: "stretched-Z-pentomino", color: "#D01012", quantity: 1, id: "piece-18" }, // Z-shape (5 cells) - red
+    { shape: "U-pentomino", color: "#05131D", quantity: 1, id: "piece-19" }, // U-shape (5 cells) - black
+  ],
+  validation_rules: [
+    { type: "COVERAGE", rule: "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+  metadata: {
+    author: "CS Escape Room",
+    difficulty: "hard",
+    tags: ["tetromino", "coverage", "colorful", "mixed"]
   }
 };
 
