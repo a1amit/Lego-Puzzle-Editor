@@ -37,6 +37,7 @@ import {
   containsBlockedCells,
   getValidSlideDestinations,
   generateInstanceId,
+  getPieceCells,
 } from './utils';
 import { ValidationRegistry } from '../validation/ValidationRegistry';
 import type { PuzzleDefinition, ValidationRule } from '../types/puzzle';
@@ -467,14 +468,32 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
 
     // Calculate new z-level
     let targetZ = destination.z;
+
+    // Check for overlaps with other pieces (excluding self and stacked pieces)
+    const boardWithoutMovingPiece = {
+      ...board,
+      placedPieces: board.placedPieces.filter(
+        p => !stackedIds.has(p.instanceId) && p.instanceId !== instanceId
+      ),
+    };
+
     if (config.allowStacking) {
-      const boardWithoutStacked = {
-        ...board,
-        placedPieces: board.placedPieces.filter(
-          p => !stackedIds.has(p.instanceId) && p.instanceId !== instanceId
-        ),
-      };
-      targetZ = calculateZLevel(boardWithoutStacked, targetCells, instanceId);
+      // With stacking allowed, calculate the appropriate z-level
+      targetZ = calculateZLevel(boardWithoutMovingPiece, targetCells, instanceId);
+    } else {
+      // Without stacking, check if any target cells are already occupied
+      const targetCellSet = new Set(targetCells.map(([x, y]) => `${x},${y}`));
+
+      for (const otherPiece of boardWithoutMovingPiece.placedPieces) {
+        const otherCells = getPieceCells(otherPiece);
+        for (const [ox, oy] of otherCells) {
+          if (targetCellSet.has(`${ox},${oy}`)) {
+            // Cell already occupied and stacking not allowed - block the move
+            return false;
+          }
+        }
+      }
+      targetZ = 0;
     }
 
     // Check depth limit
