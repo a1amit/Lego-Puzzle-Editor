@@ -9,9 +9,9 @@ interface InstructionsModalProps {
 function LegoBrick1x1({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="4" y="8" width="16" height="12" rx="1" fill={color} stroke={color} strokeWidth="1"/>
-      <rect x="8" y="4" width="8" height="6" rx="1" fill={color} stroke={color} strokeWidth="1"/>
-      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+      <rect x="4" y="8" width="16" height="12" rx="1" fill={color} stroke={color} strokeWidth="1" />
+      <rect x="8" y="4" width="8" height="6" rx="1" fill={color} stroke={color} strokeWidth="1" />
+      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
     </svg>
   );
 }
@@ -19,11 +19,11 @@ function LegoBrick1x1({ className = "w-4 h-4", color = "currentColor" }: { class
 function LegoBrick2x1({ className = "w-5 h-4", color = "currentColor" }: { className?: string; color?: string }) {
   return (
     <svg className={className} viewBox="0 0 32 24" fill="none">
-      <rect x="2" y="8" width="28" height="14" rx="1" fill={color} stroke={color} strokeWidth="1"/>
-      <ellipse cx="10" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
-      <ellipse cx="22" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
-      <rect x="6" y="2" width="8" height="8" rx="1" fill={color}/>
-      <rect x="18" y="2" width="8" height="8" rx="1" fill={color}/>
+      <rect x="2" y="8" width="28" height="14" rx="1" fill={color} stroke={color} strokeWidth="1" />
+      <ellipse cx="10" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
+      <ellipse cx="22" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
+      <rect x="6" y="2" width="8" height="8" rx="1" fill={color} />
+      <rect x="18" y="2" width="8" height="8" rx="1" fill={color} />
     </svg>
   );
 }
@@ -32,13 +32,13 @@ function LegoTBrick({ className = "w-5 h-5", color = "currentColor" }: { classNa
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
       {/* T-shape body */}
-      <rect x="2" y="4" width="20" height="8" rx="1" fill={color}/>
-      <rect x="8" y="10" width="8" height="10" rx="1" fill={color}/>
+      <rect x="2" y="4" width="20" height="8" rx="1" fill={color} />
+      <rect x="8" y="10" width="8" height="10" rx="1" fill={color} />
       {/* Studs */}
-      <ellipse cx="6" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
-      <ellipse cx="12" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
-      <ellipse cx="18" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
-      <ellipse cx="12" cy="16" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      <ellipse cx="6" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+      <ellipse cx="12" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+      <ellipse cx="18" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+      <ellipse cx="12" cy="16" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
     </svg>
   );
 }
@@ -47,12 +47,12 @@ function LegoStackIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
       {/* Bottom brick - blue */}
-      <rect x="2" y="14" width="20" height="8" rx="1" fill="#0055BF"/>
+      <rect x="2" y="14" width="20" height="8" rx="1" fill="#0055BF" />
       {/* Top brick - red */}
-      <rect x="5" y="6" width="14" height="8" rx="1" fill="#D01012"/>
+      <rect x="5" y="6" width="14" height="8" rx="1" fill="#D01012" />
       {/* Studs */}
-      <ellipse cx="8" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
-      <ellipse cx="16" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      <ellipse cx="8" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+      <ellipse cx="16" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
     </svg>
   );
 }
@@ -60,11 +60,11 @@ function LegoStackIcon({ className = "w-5 h-5" }: { className?: string }) {
 function LegoCheckIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="4" y="8" width="16" height="12" rx="1" fill="#287F46"/>
-      <rect x="7" y="4" width="10" height="6" rx="1" fill="#287F46"/>
-      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill="#287F46" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+      <rect x="4" y="8" width="16" height="12" rx="1" fill="#287F46" />
+      <rect x="7" y="4" width="10" height="6" rx="1" fill="#287F46" />
+      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill="#287F46" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
       {/* Checkmark */}
-      <path d="M8 14l3 3 5-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M8 14l3 3 5-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -72,11 +72,11 @@ function LegoCheckIcon({ className = "w-5 h-5" }: { className?: string }) {
 function LegoLightbulbIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="4" y="10" width="16" height="10" rx="1" fill="#F5CD2F"/>
-      <rect x="8" y="6" width="8" height="6" rx="1" fill="#F5CD2F"/>
-      <ellipse cx="12" cy="7" rx="3" ry="1.5" fill="#F5CD2F" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+      <rect x="4" y="10" width="16" height="10" rx="1" fill="#F5CD2F" />
+      <rect x="8" y="6" width="8" height="6" rx="1" fill="#F5CD2F" />
+      <ellipse cx="12" cy="7" rx="3" ry="1.5" fill="#F5CD2F" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
       {/* Light rays */}
-      <path d="M12 2v2M18 4l-1.5 1.5M6 4l1.5 1.5" stroke="#F5CD2F" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M12 2v2M18 4l-1.5 1.5M6 4l1.5 1.5" stroke="#F5CD2F" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -85,16 +85,16 @@ function LegoRocketIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
       {/* Rocket body - brick style */}
-      <rect x="8" y="6" width="8" height="14" rx="1" fill="#D01012"/>
+      <rect x="8" y="6" width="8" height="14" rx="1" fill="#D01012" />
       {/* Nose cone */}
-      <path d="M8 6L12 2L16 6" fill="#D01012"/>
+      <path d="M8 6L12 2L16 6" fill="#D01012" />
       {/* Fins */}
-      <path d="M8 16L4 20V16" fill="#0055BF"/>
-      <path d="M16 16L20 20V16" fill="#0055BF"/>
+      <path d="M8 16L4 20V16" fill="#0055BF" />
+      <path d="M16 16L20 20V16" fill="#0055BF" />
       {/* Window/stud */}
-      <ellipse cx="12" cy="10" rx="2" ry="1.5" fill="#D01012" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5"/>
+      <ellipse cx="12" cy="10" rx="2" ry="1.5" fill="#D01012" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" />
       {/* Flame */}
-      <path d="M10 20L12 24L14 20" fill="#F5CD2F"/>
+      <path d="M10 20L12 24L14 20" fill="#F5CD2F" />
     </svg>
   );
 }
@@ -163,7 +163,7 @@ function OverviewTab() {
       </div>
 
       <p className="text-gray-300">
-        The Virtual Lego Puzzle Editor lets you create custom puzzles using a JSON-based format. 
+        The Virtual Lego Puzzle Editor lets you create custom puzzles using a JSON-based format.
         Each puzzle defines a board, inventory of bricks, and validation rules.
       </p>
 
@@ -265,10 +265,10 @@ function OverviewTab() {
           <span className="text-gray-400">Deselect current brick</span>
         </div>
       </div>
-      
+
       <h4 className="text-white font-display font-semibold mt-6">JSON Structure</h4>
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`{
+        {`{
   "puzzle_id": "unique-id",
   "title": "Puzzle Name",
   "description": "Instructions for the player",
@@ -335,7 +335,7 @@ function ShapesTab() {
 
       <h4 className="text-white font-display font-semibold mt-6">Inventory Item Format (for 3D puzzles)</h4>
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`{
+        {`{
   "id": "brick-1",        // Unique identifier
   "shape": "T-tetromino", // Shape name from above
   "color": "#D01012",     // Hex color code
@@ -348,7 +348,7 @@ function ShapesTab() {
         For slider puzzles, pieces are defined by the exact cells they cover in <code className="text-editor-accent">initial_state</code>:
       </p>
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`"initial_state": [
+        {`"initial_state": [
   {
     "id": "red-block",
     "cells": [[1,0], [2,0], [1,1], [2,1]],  // 2x2 block
@@ -420,6 +420,11 @@ function ValidationTab() {
       type: 'GOAL',
       desc: 'Check if the target piece has reached the goal cells. Used as win condition for slider puzzles.',
     },
+    {
+      name: 'NO_BRICK_REMOVAL',
+      type: 'CONSTRAINT',
+      desc: 'Prevents deleting/removing pieces from the board. Used for slider puzzles where pieces should only slide, not be deleted.',
+    },
   ];
 
   const getTypeColor = (type: string) => {
@@ -431,6 +436,7 @@ function ValidationTab() {
       case 'ROTATION': return 'bg-orange-500/20 text-orange-300';
       case 'PATTERN': return 'bg-cyan-500/20 text-cyan-300';
       case 'GOAL': return 'bg-red-500/20 text-red-300';
+      case 'CONSTRAINT': return 'bg-pink-500/20 text-pink-300';
       default: return 'bg-gray-500/20 text-gray-300';
     }
   };
@@ -457,7 +463,7 @@ function ValidationTab() {
 
       <h4 className="text-white font-display font-semibold mt-6">Rule Format (Coverage Puzzle)</h4>
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`"validation_rules": [
+        {`"validation_rules": [
   { "type": "COVERAGE", "rule": "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
   { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
   { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
@@ -466,9 +472,10 @@ function ValidationTab() {
 
       <h4 className="text-white font-display font-semibold mt-6">Rule Format (Slider Puzzle)</h4>
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`"validation_rules": [
+        {`"validation_rules": [
   { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
   { "type": "ROTATION", "rule": "NO_ROTATION" },
+  { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
   { "type": "GOAL", "rule": "GOAL_REACHED" }
 ]`}
       </pre>
@@ -487,7 +494,7 @@ function SliderTab() {
           <div className="flex-1">
             <h4 className="text-white font-display font-bold text-lg mb-2">Klotski-Style Slider Puzzles</h4>
             <p className="text-gray-300 text-sm">
-              Slider puzzles have pre-placed pieces that can only <strong>slide</strong> horizontally or vertically. 
+              Slider puzzles have pre-placed pieces that can only <strong>slide</strong> horizontally or vertically.
               The goal is to move a target piece to a specific position (like a red 2×2 block to an exit).
             </p>
           </div>
@@ -523,7 +530,7 @@ function SliderTab() {
         The <code className="text-editor-accent">goal</code> property defines the win condition — which piece must cover which cells:
       </p>
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`"goal": {
+        {`"goal": {
   "targetPieceId": "goal",          // ID of the piece to move
   "cells": [[1,4], [2,4], [1,5], [2,5]]  // Cells it must cover to win
 }`}
@@ -531,7 +538,7 @@ function SliderTab() {
 
       <h4 className="text-white font-display font-semibold mt-6">Example: Minimal Slider</h4>
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`{
+        {`{
   "puzzle_id": "mini-slider",
   "title": "Mini Slider",
   "description": "Slide the red block to the bottom",
@@ -556,6 +563,7 @@ function SliderTab() {
   "validation_rules": [
     { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
     { "type": "ROTATION", "rule": "NO_ROTATION" },
+    { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
     { "type": "GOAL", "rule": "GOAL_REACHED" }
   ],
   "goal": {
@@ -601,7 +609,7 @@ function ExamplesTab() {
           Player must cover every cell on an 8×4 board (32 cells) using 8 T-tetrominoes (4 cells each).
         </p>
         <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`{
+          {`{
   "puzzle_id": "t-puzzle",
   "title": "T-Time",
   "description": "Cover the entire board with T pieces",
@@ -634,7 +642,7 @@ function ExamplesTab() {
           Player must place all bricks on a larger board. Empty cells allowed.
         </p>
         <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`{
+          {`{
   "puzzle_id": "tetris-pack",
   "title": "Tetris Pack",
   "viewMode": "3D_ISOMETRIC",
@@ -662,7 +670,7 @@ function ExamplesTab() {
           Klotski-style puzzle. Slide the red 2×2 block to the goal position at the bottom.
         </p>
         <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-{`{
+          {`{
   "puzzle_id": "Slider-01",
   "title": "Klotski Classic",
   "viewMode": "2D_TOP_DOWN",
@@ -680,6 +688,7 @@ function ExamplesTab() {
   "validation_rules": [
     { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
     { "type": "ROTATION", "rule": "NO_ROTATION" },
+    { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
     { "type": "GOAL", "rule": "GOAL_REACHED" }
   ],
   "goal": {
@@ -730,11 +739,11 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div className="relative bg-editor-sidebar border border-editor-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
@@ -764,11 +773,10 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-display transition-all flex items-center gap-2 ${
-                activeTab === tab.id
-                  ? 'bg-editor-accent text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-display transition-all flex items-center gap-2 ${activeTab === tab.id
+                ? 'bg-editor-accent text-white'
+                : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
+                }`}
             >
               {tab.icon}
               {tab.label}

@@ -8,7 +8,7 @@ import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
-import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE } from './types/puzzle';
+import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS } from './types/puzzle';
 import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY } from './types/puzzle';
 
 // Lego Brick Icon for header
@@ -63,14 +63,111 @@ function LegoLogo({ className = "w-8 h-8" }: { className?: string }) {
   );
 }
 
-const SAMPLE_PUZZLES = [
-  { id: 'coverage', label: 'T-Time (Coverage)', puzzle: DEFAULT_PUZZLE, is3D: true },
-  { id: 'fit-all', label: 'Tetris Pack (Fit All)', puzzle: FIT_ALL_PUZZLE, is3D: true },
-  { id: 'slider', label: 'Klotski Classic (Trail)', puzzle: SLIDER_PUZZLE, is3D: false },
-  { id: 'klotski-red-donkey', label: 'Klotski: Red Donkey', puzzle: KLOTSKI_RED_DONKEY, is3D: false },
-  { id: 'klotski-crossway', label: 'Klotski: Crossway', puzzle: KLOTSKI_CROSSWAY, is3D: false },
-  { id: 'grid', label: 'Grid Fill', puzzle: GRID_PUZZLE, is3D: false },
-  { id: 'binary', label: 'Binary Safe', puzzle: BINARY_PUZZLE, is3D: false },
+// Category icons as SVG components
+function CategoryIcon({ type, color, className = "w-5 h-5" }: { type: string; color: string; className?: string }) {
+  switch (type) {
+    case 'coverage':
+      // 3x3 grid icon
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="5" height="5" rx="1" fill={color} />
+          <rect x="9.5" y="3" width="5" height="5" rx="1" fill={color} opacity="0.7" />
+          <rect x="16" y="3" width="5" height="5" rx="1" fill={color} />
+          <rect x="3" y="9.5" width="5" height="5" rx="1" fill={color} opacity="0.7" />
+          <rect x="9.5" y="9.5" width="5" height="5" rx="1" fill={color} opacity="0.5" />
+          <rect x="16" y="9.5" width="5" height="5" rx="1" fill={color} opacity="0.7" />
+          <rect x="3" y="16" width="5" height="5" rx="1" fill={color} />
+          <rect x="9.5" y="16" width="5" height="5" rx="1" fill={color} opacity="0.7" />
+          <rect x="16" y="16" width="5" height="5" rx="1" fill={color} />
+        </svg>
+      );
+    case 'fit-all':
+      // Tetris-like blocks icon
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="8" height="8" rx="1" fill={color} />
+          <rect x="13" y="3" width="8" height="8" rx="1" fill={color} opacity="0.7" />
+          <rect x="3" y="13" width="8" height="8" rx="1" fill={color} opacity="0.7" />
+          <rect x="13" y="13" width="8" height="8" rx="1" fill={color} />
+        </svg>
+      );
+    case 'slider':
+      // Sliding blocks icon
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="2" width="9" height="9" rx="1" fill={color} />
+          <rect x="13" y="2" width="9" height="4" rx="1" fill={color} opacity="0.6" />
+          <rect x="13" y="8" width="4" height="6" rx="1" fill={color} opacity="0.7" />
+          <rect x="2" y="13" width="4" height="9" rx="1" fill={color} opacity="0.7" />
+          <rect x="8" y="13" width="6" height="4" rx="1" fill={color} opacity="0.6" />
+          <rect x="8" y="19" width="4" height="3" rx="1" fill={color} opacity="0.5" />
+          <rect x="16" y="16" width="6" height="6" rx="1" fill={color} opacity="0.5" />
+        </svg>
+      );
+    case 'binary':
+      // Binary 0/1 icon
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="4" width="5" height="7" rx="1" fill={color} opacity="0.5" />
+          <rect x="9" y="4" width="5" height="7" rx="1" fill={color} />
+          <rect x="2" y="13" width="5" height="7" rx="1" fill={color} />
+          <rect x="9" y="13" width="5" height="7" rx="1" fill={color} opacity="0.5" />
+          <rect x="16" y="4" width="5" height="7" rx="1" fill={color} opacity="0.5" />
+          <rect x="16" y="13" width="5" height="7" rx="1" fill={color} />
+        </svg>
+      );
+    default:
+      return <LegoBrickIcon className={className} color={color} />;
+  }
+}
+
+// Puzzle item type
+interface PuzzleItem {
+  id: string;
+  label: string;
+  puzzle: typeof DEFAULT_PUZZLE;
+  is3D: boolean;
+}
+
+// Grouped puzzle categories for the dropdown menu
+const PUZZLE_CATEGORIES: { category: string; color: string; iconType: string; puzzles: PuzzleItem[] }[] = [
+  {
+    category: 'Coverage',
+    color: '#D01012',
+    iconType: 'coverage',
+    puzzles: [
+      { id: 'coverage', label: 'T-Time', puzzle: DEFAULT_PUZZLE, is3D: true },
+      { id: 'grid', label: 'Grid Fill', puzzle: GRID_PUZZLE, is3D: false },
+    ],
+  },
+  {
+    category: 'Fit All',
+    color: '#287F46',
+    iconType: 'fit-all',
+    puzzles: [
+      { id: 'fit-all', label: 'Tetris Pack', puzzle: FIT_ALL_PUZZLE, is3D: true },
+    ],
+  },
+  {
+    category: 'Slider / Klotski',
+    color: '#FE8A18',
+    iconType: 'slider',
+    puzzles: [
+      { id: 'slider', label: 'Klotski Classic', puzzle: SLIDER_PUZZLE, is3D: false },
+      { id: 'klotski-red-donkey', label: 'Red Donkey', puzzle: KLOTSKI_RED_DONKEY, is3D: false },
+      { id: 'klotski-crossway', label: 'Crossway', puzzle: KLOTSKI_CROSSWAY, is3D: false },
+    ],
+  },
+  {
+    category: 'Binary Safe',
+    color: '#00BCD4',
+    iconType: 'binary',
+    puzzles: [
+      { id: 'binary', label: 'Greeting', puzzle: BINARY_PUZZLE, is3D: false },
+      { id: 'binary-deserted-island', label: 'Deserted Island', puzzle: BINARY_PUZZLE_SOS, is3D: false },
+      { id: 'binary-building-blocks', label: 'Building Blocks', puzzle: BINARY_PUZZLE_BUILDING_BLOCKS, is3D: false },
+    ],
+  },
 ];
 
 type ViewMode = 'split' | 'editor' | 'preview';
@@ -79,11 +176,35 @@ function Header() {
   const { puzzle, isComplete, setPuzzle, resetPuzzle } = usePuzzleStore();
   const [showPuzzleMenu, setShowPuzzleMenu] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
 
   const handlePuzzleSelect = (selectedPuzzle: typeof DEFAULT_PUZZLE) => {
     setPuzzle(selectedPuzzle);
     resetPuzzle();
     setShowPuzzleMenu(false);
+    setExpandedCategories(new Set());
+  };
+
+  // Check if current puzzle is in a category
+  const getCurrentCategory = () => {
+    for (const cat of PUZZLE_CATEGORIES) {
+      if (cat.puzzles.some(p => p.puzzle.puzzle_id === puzzle?.puzzle_id)) {
+        return cat.category;
+      }
+    }
+    return null;
   };
 
   return (
@@ -118,7 +239,7 @@ function Header() {
 
           {/* Dropdown menu */}
           {showPuzzleMenu && (
-            <div className="absolute top-full left-4 mt-1 w-72 bg-editor-sidebar border border-editor-border rounded-lg shadow-xl z-50 overflow-hidden">
+            <div className="absolute top-full left-4 mt-1 w-80 max-h-[70vh] overflow-y-auto bg-editor-sidebar border border-editor-border rounded-lg shadow-xl z-50">
               {/* New Puzzle section */}
               <div className="p-2 border-b border-editor-border bg-editor-accent/10">
                 <span className="text-xs text-editor-accent uppercase tracking-wide font-semibold">Create New</span>
@@ -140,77 +261,86 @@ function Header() {
                   <div className="font-display font-medium text-white text-sm">
                     Blank Puzzle
                   </div>
-                  <div className="text-xs text-gray-400 mt-0.5">
-                    Start with a minimal template and build your own puzzle
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="px-1.5 py-0.5 text-xs rounded bg-purple-500/20 text-purple-300">
-                      Template
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      6×4 board • 1 piece
-                    </span>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    6×4 board • 1 piece
                   </div>
                 </div>
               </button>
 
-              {/* Sample Puzzles section */}
+              {/* Sample Puzzles by Category */}
               <div className="p-2 border-b border-editor-border bg-editor-border/20">
                 <span className="text-xs text-gray-400 uppercase tracking-wide">Sample Puzzles</span>
               </div>
-              {SAMPLE_PUZZLES.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handlePuzzleSelect(item.puzzle)}
-                  className={`w-full px-4 py-3 text-left hover:bg-editor-border/30 transition-colors flex items-start gap-3 ${puzzle?.puzzle_id === item.puzzle.puzzle_id ? 'bg-editor-accent/10' : ''
-                    }`}
-                >
-                  {/* Lego brick icon */}
-                  <div className="flex-shrink-0 mt-0.5">
-                    <LegoBrickIcon
-                      className="w-5 h-5"
-                      color={item.puzzle.inventory[0]?.color || '#D01012'}
-                    />
+
+              {PUZZLE_CATEGORIES.map((cat) => {
+                const isCurrentCategory = getCurrentCategory() === cat.category;
+                const isExpanded = expandedCategories.has(cat.category);
+
+                return (
+                  <div key={cat.category}>
+                    {/* Category header - click to expand */}
+                    <button
+                      onClick={() => toggleCategory(cat.category)}
+                      className={`w-full px-4 py-3.5 text-left flex items-center gap-4 transition-colors ${isExpanded ? 'bg-editor-border/40' : isCurrentCategory ? 'bg-editor-accent/10' : 'hover:bg-editor-border/20'
+                        }`}
+                    >
+                      <CategoryIcon type={cat.iconType} color={cat.color} className="w-6 h-6" />
+                      <div className="flex-1">
+                        <div className="font-display font-medium text-white text-sm flex items-center gap-2">
+                          {cat.category}
+                          <span className="text-xs text-gray-500">({cat.puzzles.length})</span>
+                        </div>
+                      </div>
+                      <svg
+                        className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+
+                    {/* Expanded puzzles list */}
+                    {isExpanded && (
+                      <div className="bg-editor-bg/50 border-l-2 ml-4" style={{ borderColor: cat.color }}>
+                        {cat.puzzles.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => handlePuzzleSelect(item.puzzle)}
+                            className={`w-full px-4 py-2.5 text-left hover:bg-editor-border/30 transition-colors flex items-start gap-3 ${puzzle?.puzzle_id === item.puzzle.puzzle_id ? 'bg-editor-accent/10' : ''
+                              }`}
+                          >
+                            <div className="flex-shrink-0 mt-0.5">
+                              <LegoBrickIcon
+                                className="w-4 h-4"
+                                color={item.puzzle.inventory[0]?.color || cat.color}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-display font-medium text-white text-sm flex items-center gap-2">
+                                <span className="truncate">{item.label}</span>
+                                <span className={`flex-shrink-0 px-1.5 py-0.5 text-[10px] rounded ${item.is3D ? 'bg-purple-500/20 text-purple-300' : 'bg-cyan-500/20 text-cyan-300'
+                                  }`}>
+                                  {item.is3D ? '3D' : '2D'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {item.puzzle.board.dimensions.width}×{item.puzzle.board.dimensions.height} board
+                              </div>
+                            </div>
+                            {puzzle?.puzzle_id === item.puzzle.puzzle_id && (
+                              <svg className="w-4 h-4 text-editor-accent flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1">
-                    <div className="font-display font-medium text-white text-sm flex items-center gap-2">
-                      {item.label}
-                      {/* 2D/3D Badge */}
-                      <span className={`px-1.5 py-0.5 text-[10px] rounded ${item.is3D
-                        ? 'bg-purple-500/20 text-purple-300'
-                        : 'bg-cyan-500/20 text-cyan-300'
-                        }`}>
-                        {item.is3D ? '3D' : '2D'}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {item.puzzle.description}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className={`px-1.5 py-0.5 text-xs rounded ${item.puzzle.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')
-                        ? 'bg-lego-blue/20 text-blue-300'
-                        : item.puzzle.validation_rules.some(r => r.rule === 'SLIDING_ONLY')
-                          ? 'bg-orange-500/20 text-orange-300'
-                          : 'bg-lego-green/20 text-green-300'
-                        }`}>
-                        {item.puzzle.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')
-                          ? 'Coverage'
-                          : item.puzzle.validation_rules.some(r => r.rule === 'SLIDING_ONLY')
-                            ? 'Slider'
-                            : 'Fit All'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {item.puzzle.inventory.length} pieces • {item.puzzle.board.dimensions.width}×{item.puzzle.board.dimensions.height} board
-                      </span>
-                    </div>
-                  </div>
-                  {puzzle?.puzzle_id === item.puzzle.puzzle_id && (
-                    <svg className="w-5 h-5 text-editor-accent flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

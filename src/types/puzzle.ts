@@ -112,6 +112,7 @@ export const ValidationRuleTypes = [
   'ROTATION',
   'PATTERN',
   'GOAL',
+  'CONSTRAINT',
   'CUSTOM',
 ] as const;
 
@@ -449,6 +450,7 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
     { type: "GOAL", rule: "GOAL_REACHED" },
     { type: "MOVEMENT", rule: "SLIDING_ONLY" },
     { type: "ROTATION", rule: "NO_ROTATION" },
+    { type: "CONSTRAINT", rule: "NO_BRICK_REMOVAL" },
     { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
     { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
   ],
@@ -468,16 +470,16 @@ export const KLOTSKI_RED_DONKEY: PuzzleDefinition = {
   "board": {
     "dimensions": { "width": 4, "height": 5, "depth": 1 },
     "initial_state": [
-      { "id": "cao-cao", "cells": [[1,0],[2,0],[1,1],[2,1]], "color": "#D01012" },
-      { "id": "v1",      "cells": [[0,0],[0,1]],           "color": "#0055BF" },
-      { "id": "v2",      "cells": [[3,0],[3,1]],           "color": "#0055BF" },
-      { "id": "v3",      "cells": [[0,2],[0,3]],           "color": "#0055BF" },
-      { "id": "v4",      "cells": [[3,2],[3,3]],           "color": "#0055BF" },
-      { "id": "h1",      "cells": [[1,2],[2,2]],           "color": "#0055BF" },
-      { "id": "s1",      "cells": [[1,3]],                 "color": "#F5C300" },
-      { "id": "s2",      "cells": [[2,3]],                 "color": "#F5C300" },
-      { "id": "s3",      "cells": [[0,4]],                 "color": "#F5C300" },
-      { "id": "s4",      "cells": [[3,4]],                 "color": "#F5C300" }
+      { "id": "cao-cao", "cells": [[1, 0], [2, 0], [1, 1], [2, 1]], "color": "#D01012" },
+      { "id": "v1", "cells": [[0, 0], [0, 1]], "color": "#0055BF" },
+      { "id": "v2", "cells": [[3, 0], [3, 1]], "color": "#0055BF" },
+      { "id": "v3", "cells": [[0, 2], [0, 3]], "color": "#0055BF" },
+      { "id": "v4", "cells": [[3, 2], [3, 3]], "color": "#0055BF" },
+      { "id": "h1", "cells": [[1, 2], [2, 2]], "color": "#0055BF" },
+      { "id": "s1", "cells": [[1, 3]], "color": "#F5C300" },
+      { "id": "s2", "cells": [[2, 3]], "color": "#F5C300" },
+      { "id": "s3", "cells": [[0, 4]], "color": "#F5C300" },
+      { "id": "s4", "cells": [[3, 4]], "color": "#F5C300" }
     ]
   },
 
@@ -485,13 +487,14 @@ export const KLOTSKI_RED_DONKEY: PuzzleDefinition = {
 
   "goal": {
     "targetPieceId": "cao-cao",
-    "cells": [[1,3],[2,3],[1,4],[2,4]]
+    "cells": [[1, 3], [2, 3], [1, 4], [2, 4]]
   },
 
   "validation_rules": [
-    { "type": "GOAL",      "rule": "GOAL_REACHED" },
-    { "type": "MOVEMENT",  "rule": "SLIDING_ONLY" },
-    { "type": "ROTATION",  "rule": "NO_ROTATION" },
+    { "type": "GOAL", "rule": "GOAL_REACHED" },
+    { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
+    { "type": "ROTATION", "rule": "NO_ROTATION" },
+    { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
     { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
     { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
   ],
@@ -513,17 +516,17 @@ export const KLOTSKI_CROSSWAY: PuzzleDefinition =
   "board": {
     "dimensions": { "width": 4, "height": 5, "depth": 1 },
     "initial_state": [
-      { "id": "b1", "cells": [[1,0],[2,0],[1,1],[2,1]], "color": "#D01012" },
-      { "id": "v1", "cells": [[0,0],[0,1]],           "color": "#0055BF" },
-      { "id": "v2", "cells": [[3,0],[3,1]],           "color": "#0055BF" },
-      { "id": "h1", "cells": [[0,2],[1,2]],           "color": "#0055BF" },
-      { "id": "h2", "cells": [[2,2],[3,2]],           "color": "#0055BF" },
-      { "id": "s1", "cells": [[0,3]],                 "color": "#F5C300" },
-      { "id": "s2", "cells": [[1,3]],                 "color": "#F5C300" },
-      { "id": "s3", "cells": [[2,3]],                 "color": "#F5C300" },
-      { "id": "s4", "cells": [[3,3]],                 "color": "#F5C300" },
-      { "id": "s5", "cells": [[0,4]],                 "color": "#F5C300" },
-      { "id": "s6", "cells": [[3,4]],                 "color": "#F5C300" }
+      { "id": "b1", "cells": [[1, 0], [2, 0], [1, 1], [2, 1]], "color": "#D01012" },
+      { "id": "v1", "cells": [[0, 0], [0, 1]], "color": "#0055BF" },
+      { "id": "v2", "cells": [[3, 0], [3, 1]], "color": "#0055BF" },
+      { "id": "h1", "cells": [[0, 2], [1, 2]], "color": "#0055BF" },
+      { "id": "h2", "cells": [[2, 2], [3, 2]], "color": "#0055BF" },
+      { "id": "s1", "cells": [[0, 3]], "color": "#F5C300" },
+      { "id": "s2", "cells": [[1, 3]], "color": "#F5C300" },
+      { "id": "s3", "cells": [[2, 3]], "color": "#F5C300" },
+      { "id": "s4", "cells": [[3, 3]], "color": "#F5C300" },
+      { "id": "s5", "cells": [[0, 4]], "color": "#F5C300" },
+      { "id": "s6", "cells": [[3, 4]], "color": "#F5C300" }
     ]
   },
 
@@ -531,13 +534,14 @@ export const KLOTSKI_CROSSWAY: PuzzleDefinition =
 
   "goal": {
     "targetPieceId": "b1",
-    "cells": [[1,3],[2,3],[1,4],[2,4]]
+    "cells": [[1, 3], [2, 3], [1, 4], [2, 4]]
   },
 
   "validation_rules": [
-    { "type": "GOAL",      "rule": "GOAL_REACHED" },
-    { "type": "MOVEMENT",  "rule": "SLIDING_ONLY" },
-    { "type": "ROTATION",  "rule": "NO_ROTATION" },
+    { "type": "GOAL", "rule": "GOAL_REACHED" },
+    { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
+    { "type": "ROTATION", "rule": "NO_ROTATION" },
+    { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
     { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
     { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
   ],
@@ -548,7 +552,7 @@ export const KLOTSKI_CROSSWAY: PuzzleDefinition =
     "tags": ["slider", "2D", "klotski"]
   }
 };
-  
+
 // ============================================
 // 2D SIMPLE GRID PUZZLE
 // ============================================
@@ -627,6 +631,87 @@ export const BINARY_PUZZLE: PuzzleDefinition = {
     author: "CS Escape Room",
     difficulty: "medium",
     tags: ["binary", "2D", "ASCII", "pattern", "encoding"]
+  }
+};
+
+export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
+  puzzle_id: "Binary-Deserted-Island-01",
+  title: "Binary Safe: Deserted Island",
+  description: "You're stranded on a deserted island and need to call for help! A rescue plane that only understands binary is flying overhead — spell out your distress signal!",
+  viewMode: "2D_TOP_DOWN",
+  board: {
+    dimensions: { width: 8, height: 3, depth: 1 },
+    initial_state: []
+  },
+  inventory: [
+    { shape: "unit", color: "#1a1a1a", quantity: 11, id: "bit-0" },  // Black = 0
+    { shape: "unit", color: "#ffffff", quantity: 13, id: "bit-1" },  // White = 1
+  ],
+  target_pattern: {
+    // 'S' = 01010011 (83)
+    // 'O' = 01001111 (79)
+    rows: [
+      [0, 1, 0, 1, 0, 0, 1, 1],  // S
+      [0, 1, 0, 0, 1, 1, 1, 1],  // O
+      [0, 1, 0, 1, 0, 0, 1, 1],  // S
+    ],
+    color_mapping: {
+      "0": "#1a1a1a",  // Black
+      "1": "#ffffff",  // White
+    },
+  },
+  validation_rules: [
+    { type: "PATTERN", rule: "PATTERN_MATCH" },
+    { type: "ROTATION", rule: "NO_ROTATION" },
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+  metadata: {
+    author: "CS Escape Room",
+    difficulty: "easy",
+    tags: ["binary", "2D", "ASCII", "pattern"]
+  }
+};
+
+export const BINARY_PUZZLE_BUILDING_BLOCKS: PuzzleDefinition = {
+  puzzle_id: "Binary-Building-Blocks-01",
+  title: "Binary Safe: Building Blocks",
+  description: "Countless pieces that snap into place, creating anything imagination allows. We break apart yet never truly break. Spell our name in binary to unlock the safe!",
+  viewMode: "2D_TOP_DOWN",
+  board: {
+    dimensions: { width: 8, height: 4, depth: 1 },
+    initial_state: []
+  },
+  inventory: [
+    { shape: "unit", color: "#1a1a1a", quantity: 17, id: "bit-0" },  // Black = 0
+    { shape: "unit", color: "#ffffff", quantity: 15, id: "bit-1" },  // White = 1
+  ],
+  target_pattern: {
+    // 'L' = 01001100 (76)
+    // 'E' = 01000101 (69)
+    // 'G' = 01000111 (71)
+    // 'O' = 01001111 (79)
+    rows: [
+      [0, 1, 0, 0, 1, 1, 0, 0],  // L
+      [0, 1, 0, 0, 0, 1, 0, 1],  // E
+      [0, 1, 0, 0, 0, 1, 1, 1],  // G
+      [0, 1, 0, 0, 1, 1, 1, 1],  // O
+    ],
+    color_mapping: {
+      "0": "#1a1a1a",  // Black
+      "1": "#ffffff",  // White
+    },
+  },
+  validation_rules: [
+    { type: "PATTERN", rule: "PATTERN_MATCH" },
+    { type: "ROTATION", rule: "NO_ROTATION" },
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+  metadata: {
+    author: "CS Escape Room",
+    difficulty: "medium",
+    tags: ["binary", "2D", "ASCII", "pattern"]
   }
 };
 
