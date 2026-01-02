@@ -458,7 +458,7 @@ function DragDropManager() {
     : undefined;
 
   // Get goal cells from puzzle definition (for slider puzzles)
-  const goalCells = puzzle?.goal?.cells as [number, number][] | undefined;
+  const goalCells = (puzzle?.goal?.hideGoalVisualization ? undefined : puzzle?.goal?.cells) as [number, number][] | undefined;
 
   return (
     <group onContextMenu={handleCanvasContextMenu as any}>

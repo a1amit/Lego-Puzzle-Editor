@@ -27,6 +27,7 @@ interface PuzzleStore {
   // Validation
   validationResults: ValidationResult[];
   isComplete: boolean;
+  moveCount: number;
 
   // Selection & Interaction
   selectedBrickId: string | null;
@@ -284,6 +285,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
 
   validationResults: [],
   isComplete: false,
+  moveCount: 0,
 
   selectedBrickId: null,
   previewRotation: 0,
@@ -298,6 +300,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       inventoryState: createInitialInventory(puzzle),
       validationResults: [],
       isComplete: false,
+      moveCount: 0,
       selectedBrickId: null,
       previewRotation: 0,
     });
@@ -518,6 +521,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
         ),
       },
       inventoryState: newInventory,
+      moveCount: get().moveCount + 1,
     });
 
     get().validate();
@@ -570,6 +574,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       inventoryState: createInitialInventory(puzzle),
       validationResults: [],
       isComplete: false,
+      moveCount: 0,
       selectedBrickId: null,
       previewRotation: 0,
     });
@@ -599,6 +604,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
           params: {
             ...rule.params,
             targetPieceId: puzzle.goal.targetPieceId,
+            targetPieceIds: puzzle.goal.targetPieceIds,
+            allowAnyPiece: puzzle.goal.allowAnyPiece,
             goalCells: puzzle.goal.cells,
           },
         };
@@ -613,6 +620,17 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
             rows: puzzle.target_pattern.rows,
             color_mapping: puzzle.target_pattern.color_mapping,
             allow_empty_cells: puzzle.target_pattern.allow_empty_cells,
+          },
+        };
+      }
+
+      // Add current moves data for MAX_MOVES rule
+      if (rule.rule === 'MAX_MOVES') {
+        return {
+          ...rule,
+          params: {
+            ...rule.params,
+            currentMoves: get().moveCount,
           },
         };
       }

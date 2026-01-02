@@ -144,9 +144,17 @@ export function LegoBoard({
 
   // Create goal cells set
   const goalCellSet = useMemo(() => {
-    if (!goalCells) return new Set<string>();
-    return new Set(goalCells.map(([x, y]) => `${x},${y}`));
-  }, [goalCells]);
+    // Check if we should hide the goal (from store if available)
+    if (store.puzzle?.goal?.hideGoalVisualization) {
+      return new Set<string>();
+    }
+
+    // Use prop if provided, otherwise fallback to store puzzle goal
+    const cells = goalCells ?? store.puzzle?.goal?.cells;
+
+    if (!cells) return new Set<string>();
+    return new Set(cells.map(([x, y]) => `${x},${y}`));
+  }, [goalCells, store.puzzle]);
 
   // Generate cells
   const cells = useMemo(() => {

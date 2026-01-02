@@ -176,16 +176,12 @@ function OverviewTab() {
       </h4>
       <div className="bg-black/30 rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-blue-500/30 rounded text-blue-300 font-mono text-xs">3D_ISOMETRIC</span>
+          <span className="px-2 py-1 bg-blue-500/30 rounded text-blue-300 font-mono text-xs">3D</span>
           <span className="text-gray-400">Interactive 3D view with rotation & zoom (default)</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-green-500/30 rounded text-green-300 font-mono text-xs">2D_TOP_DOWN</span>
+          <span className="px-2 py-1 bg-green-500/30 rounded text-green-300 font-mono text-xs">2D</span>
           <span className="text-gray-400">Flat 2D grid view for slider & grid puzzles</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-purple-500/30 rounded text-purple-300 font-mono text-xs">2D_GRID</span>
-          <span className="text-gray-400">Alternative 2D grid view</span>
         </div>
       </div>
 
@@ -272,7 +268,7 @@ function OverviewTab() {
   "puzzle_id": "unique-id",
   "title": "Puzzle Name",
   "description": "Instructions for the player",
-  "viewMode": "3D_ISOMETRIC",  // or "2D_TOP_DOWN"
+  "viewMode": "3D",  // or "2D"
   "board": {
     "dimensions": { "width": 8, "height": 4, "depth": 1 },
     "initial_state": [],        // Pre-placed pieces
@@ -431,6 +427,11 @@ function ValidationTab() {
       type: 'CONSTRAINT',
       desc: 'Prevents deleting/removing pieces from the board. Used for slider puzzles where pieces should only slide, not be deleted.',
     },
+    {
+      name: 'MAX_MOVES',
+      type: 'MAX_MOVES',
+      desc: 'Limits the maximum number of moves allowed to solve the puzzle. Useful for brain teasers.',
+    },
   ];
 
   const getTypeColor = (type: string) => {
@@ -443,6 +444,7 @@ function ValidationTab() {
       case 'PATTERN': return 'bg-cyan-500/20 text-cyan-300';
       case 'GOAL': return 'bg-red-500/20 text-red-300';
       case 'CONSTRAINT': return 'bg-pink-500/20 text-pink-300';
+      case 'MAX_MOVES': return 'bg-red-500/20 text-red-300';
       default: return 'bg-gray-500/20 text-gray-300';
     }
   };
@@ -511,7 +513,7 @@ function SliderTab() {
       <div className="bg-black/30 rounded-lg p-4 space-y-3">
         <div className="flex items-start gap-3 text-sm">
           <span className="px-2 py-1 bg-blue-500/30 rounded text-blue-300 font-mono text-xs shrink-0">viewMode</span>
-          <span className="text-gray-400">Set to <code className="text-editor-accent">"2D_TOP_DOWN"</code> for flat 2D rendering</span>
+          <span className="text-gray-400">Set to <code className="text-editor-accent">"2D"</code> for flat 2D rendering</span>
         </div>
         <div className="flex items-start gap-3 text-sm">
           <span className="px-2 py-1 bg-green-500/30 rounded text-green-300 font-mono text-xs shrink-0">initial_state</span>
@@ -537,8 +539,20 @@ function SliderTab() {
       </p>
       <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
         {`"goal": {
-  "targetPieceId": "goal",          // ID of the piece to move
-  "cells": [[1,4], [2,4], [1,5], [2,5]]  // Cells it must cover to win
+  // Option 1: Specific piece
+  "targetPieceId": "goal",
+  
+  // Option 2: Multiple allowed pieces (NEW)
+  "targetPieceIds": ["p1", "p2"],
+  
+  // Option 3: Any piece (NEW)
+  "allowAnyPiece": true,
+
+  // Required: Target cells to cover
+  "cells": [[1,4], [2,4], [1,5], [2,5]],
+
+  // Optional: Hide default visualization (NEW)
+  "hideGoalVisualization": true
 }`}
       </pre>
 
@@ -548,7 +562,7 @@ function SliderTab() {
   "puzzle_id": "mini-slider",
   "title": "Mini Slider",
   "description": "Slide the red block to the bottom",
-  "viewMode": "2D_TOP_DOWN",
+  "viewMode": "2D",
   "board": {
     "dimensions": { "width": 4, "height": 5, "depth": 1 },
     "initial_state": [
@@ -602,7 +616,7 @@ function SliderTab() {
           <span className="text-gray-400">Move the target piece to cover all goal cells to win!</span>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 
@@ -651,7 +665,7 @@ function ExamplesTab() {
           {`{
   "puzzle_id": "tetris-pack",
   "title": "Tetris Pack",
-  "viewMode": "3D_ISOMETRIC",
+  "viewMode": "3D",
   "board": {
     "dimensions": { "width": 10, "height": 4, "depth": 1 },
     "initial_state": []
@@ -679,7 +693,7 @@ function ExamplesTab() {
           {`{
   "puzzle_id": "Slider-01",
   "title": "Klotski Classic",
-  "viewMode": "2D_TOP_DOWN",
+  "viewMode": "2D",
   "board": {
     "dimensions": { "width": 4, "height": 5, "depth": 1 },
     "initial_state": [
@@ -700,6 +714,35 @@ function ExamplesTab() {
   "goal": {
     "targetPieceId": "goal",
     "cells": [[1,4],[2,4],[1,5],[2,5]]
+  }
+}`}
+        </pre>
+      </div>
+
+      <div>
+        <h4 className="text-white font-display font-semibold mb-2">Brain Teaser (Pen Challenge)</h4>
+        <p className="text-gray-400 text-sm mb-3">
+          A puzzle with limited moves and hidden goal.
+        </p>
+        <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+          {`{
+  "puzzle_id": "pen-challenge",
+  "title": "Pen Challenge",
+  "viewMode": "3D",
+  "board": {
+    "dimensions": { "width": 13, "height": 4, "depth": 1 },
+    "initial_state": [...]
+  },
+  "inventory": [], // Pieces defined in initial_state
+  "validation_rules": [
+    { "type": "MAX_MOVES", "rule": "MAX_MOVES", "params": { "maxMoves": 1 } },
+    { "type": "GOAL", "rule": "GOAL_REACHED" },
+    { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" }
+  ],
+  "goal": {
+    "targetPieceIds": ["pen-9"],
+    "cells": [[1,0], [1,1], [1,2], [1,3]],
+    "hideGoalVisualization": true
   }
 }`}
         </pre>

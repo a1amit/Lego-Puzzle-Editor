@@ -6,9 +6,8 @@
  * usePuzzleEngine hook and passes the state to the appropriate renderer.
  * 
  * Supported View Modes:
- * - 3D_ISOMETRIC: Full 3D view with Three.js
- * - 2D_TOP_DOWN: 2D flat view, top-down perspective
- * - 2D_GRID: Simple grid view
+ * - 3D: Full 3D view with Three.js
+ * - 2D: 2D grid view
  */
 
 import { Suspense, lazy } from 'react';
@@ -54,32 +53,31 @@ interface PuzzleRendererProps {
   className?: string;
 }
 
-export function PuzzleRenderer({ 
-  engine, 
+export function PuzzleRenderer({
+  engine,
   viewModeOverride,
-  className = '' 
+  className = ''
 }: PuzzleRendererProps) {
   // Determine the view mode
-  const viewMode: ViewMode = viewModeOverride ?? engine.config.viewMode ?? '3D_ISOMETRIC';
-  
+  const viewMode: ViewMode = viewModeOverride ?? engine.config.viewMode ?? '3D';
+
   // Select the appropriate renderer based on view mode
   const renderContent = () => {
     switch (viewMode) {
-      case '3D_ISOMETRIC':
+      case '3D':
         return (
           <Suspense fallback={<LoadingFallback />}>
             <Renderer3D engine={engine} className={className} />
           </Suspense>
         );
-      
-      case '2D_TOP_DOWN':
-      case '2D_GRID':
+
+      case '2D':
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <Renderer2D engine={engine} className={className} viewMode={viewMode} />
+            <Renderer2D engine={engine} className={className} />
           </Suspense>
         );
-      
+
       default:
         return (
           <div className="w-full h-full flex items-center justify-center bg-editor-bg">
@@ -88,7 +86,7 @@ export function PuzzleRenderer({
         );
     }
   };
-  
+
   return (
     <div className={`w-full h-full ${className}`}>
       {renderContent()}
@@ -108,14 +106,14 @@ interface ViewModeIndicatorProps {
 export function ViewModeIndicator({ viewMode, className = '' }: ViewModeIndicatorProps) {
   const getIcon = () => {
     switch (viewMode) {
-      case '3D_ISOMETRIC':
+      case '3D':
         return (
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M12 3v18M3 12h18M12 3l9 9-9 9-9-9 9-9z" />
           </svg>
         );
-      case '2D_TOP_DOWN':
+      case '2D':
         return (
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={2} />
@@ -125,26 +123,16 @@ export function ViewModeIndicator({ viewMode, className = '' }: ViewModeIndicato
             <line x1="15" y1="3" x2="15" y2="21" strokeWidth={2} />
           </svg>
         );
-      case '2D_GRID':
-        return (
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <rect x="3" y="3" width="7" height="7" strokeWidth={2} />
-            <rect x="14" y="3" width="7" height="7" strokeWidth={2} />
-            <rect x="3" y="14" width="7" height="7" strokeWidth={2} />
-            <rect x="14" y="14" width="7" height="7" strokeWidth={2} />
-          </svg>
-        );
     }
   };
-  
+
   const getLabel = () => {
     switch (viewMode) {
-      case '3D_ISOMETRIC': return '3D Isometric';
-      case '2D_TOP_DOWN': return '2D Top-Down';
-      case '2D_GRID': return '2D Grid';
+      case '3D': return '3D';
+      case '2D': return '2D';
     }
   };
-  
+
   return (
     <div className={`flex items-center gap-2 px-2 py-1 rounded bg-editor-border/30 ${className}`}>
       {getIcon()}

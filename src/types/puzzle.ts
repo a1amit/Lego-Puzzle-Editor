@@ -6,11 +6,10 @@ import { z } from 'zod';
 
 /**
  * View modes determine how the puzzle is rendered
- * - 3D_ISOMETRIC: Full 3D with stacking support (default)
- * - 2D_TOP_DOWN: 2D flat view, top-down
- * - 2D_GRID: Simple grid view
+ * - 3D: Full 3D with stacking support (default)
+ * - 2D: 2D grid view
  */
-export const ViewModeSchema = z.enum(['3D_ISOMETRIC', '2D_TOP_DOWN', '2D_GRID']);
+export const ViewModeSchema = z.enum(['3D', '2D']);
 export type ViewMode = z.infer<typeof ViewModeSchema>;
 
 /**
@@ -115,6 +114,11 @@ export const SHAPE_LIBRARY: Record<string, ShapeDefinition> = {
     name: 'U-pentomino',
     cells: [[0, 0], [1, 0], [1, 1], [0, 2], [1, 2]],
   },
+  // Vertical I-tetromino (1x4 vertical piece - for pen challenge)
+  'I-tetromino-v': {
+    name: 'I-tetromino-v',
+    cells: [[0, 0], [0, 1], [0, 2], [0, 3]],
+  },
 };
 
 
@@ -141,6 +145,7 @@ export const ShapeNameSchema = z.enum([
   'corner-pentomino',
   'stretched-Z-pentomino',
   'U-pentomino',
+  'I-tetromino-v',
 ] as const);
 
 export type ShapeName = z.infer<typeof ShapeNameSchema>;
@@ -167,6 +172,7 @@ export const ValidationRuleTypes = [
   'PATTERN',
   'GOAL',
   'CONSTRAINT',
+  'MAX_MOVES',
   'CUSTOM',
 ] as const;
 
@@ -237,13 +243,19 @@ export type Board = z.infer<typeof BoardSchema>;
 
 /** Goal for slider puzzles - defines exactly which cells the target piece must cover */
 export const GoalPositionSchema = z.object({
-  /** ID of the piece that must reach the goal */
-  targetPieceId: z.string(),
+  /** ID of a single piece that must reach the goal (for Klotski) */
+  targetPieceId: z.string().optional(),
+  /** IDs of pieces that can reach the goal (any one of them) */
+  targetPieceIds: z.array(z.string()).optional(),
+  /** If true, any piece on the board can reach the goal */
+  allowAnyPiece: z.boolean().optional(),
   /** 
    * Exactly which cells the piece must cover to win.
    * Example: [[1,3], [2,3], [1,4], [2,4]] means cover those 4 cells
    */
   cells: z.array(z.tuple([z.number(), z.number()])),
+  /** If true, the goal area will not be rendered (useful for "secret" goals) */
+  hideGoalVisualization: z.boolean().optional(),
 });
 
 export type GoalPosition = z.infer<typeof GoalPositionSchema>;
@@ -280,7 +292,7 @@ export const PuzzleDefinitionSchema = z.object({
   title: z.string(),
   description: z.string(),
   /** View mode determines how the puzzle is rendered (3D or 2D) */
-  viewMode: ViewModeSchema.default('3D_ISOMETRIC'),
+  viewMode: ViewModeSchema.default('3D'),
   board: BoardSchema,
   inventory: z.array(BrickSchema),
   /** Goal position for slider puzzles */
@@ -349,7 +361,7 @@ export const DEFAULT_PUZZLE: PuzzleDefinition = {
   puzzle_id: "T-Puzzle-01",
   title: "T-Time",
   description: "Use all 8 'T' shaped bricks to perfectly cover the 8x4 board.",
-  viewMode: "3D_ISOMETRIC",
+  viewMode: "3D",
   board: {
     dimensions: { width: 8, height: 4, depth: 1 },
     initial_state: []
@@ -391,7 +403,7 @@ export const COLORFUL_COVERAGE_PUZZLE: PuzzleDefinition = {
   puzzle_id: "Colorful-Coverage-01",
   title: "Rainbow Bricks",
   description: "Cover the entire board using all the colorful pieces. A challenging mix of different shapes!",
-  viewMode: "3D_ISOMETRIC",
+  viewMode: "3D",
   board: {
     dimensions: { width: 10, height: 6, depth: 1 },
     initial_state: []
@@ -438,7 +450,7 @@ export const BLANK_PUZZLE: PuzzleDefinition = {
   puzzle_id: "new-puzzle",
   title: "My New Puzzle",
   description: "Describe your puzzle here",
-  viewMode: "3D_ISOMETRIC",
+  viewMode: "3D",
   board: {
     dimensions: { width: 6, height: 4, depth: 1 },
     initial_state: []
@@ -465,7 +477,7 @@ export const FIT_ALL_PUZZLE: PuzzleDefinition = {
   puzzle_id: "Fit-All-01",
   title: "Tetris Pack",
   description: "Fit all 7 tetromino pieces onto the 10x4 board. No overlapping allowed!",
-  viewMode: "3D_ISOMETRIC",
+  viewMode: "3D",
   board: {
     dimensions: { width: 10, height: 4, depth: 1 },
     initial_state: []
@@ -519,7 +531,7 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
   puzzle_id: "Slider-01",
   title: "Klotski Classic",
   description: "Slide the blocks to move the RED 2×2 piece to the bottom center exit. Click a piece, then click where to slide it.",
-  viewMode: "2D_TOP_DOWN",
+  viewMode: "2D",
   board: {
     dimensions: { width: 4, height: 5, depth: 1 },
     // Cell-based piece definitions - explicitly list which cells each piece covers!
@@ -573,7 +585,7 @@ export const KLOTSKI_RED_DONKEY: PuzzleDefinition = {
   "puzzle_id": "klotski-red-donkey",
   "title": "Klotski: Red Donkey",
   "description": "The classic configuration (Huarong Dao). Help Cao Cao (Red Block) escape through the bottom exit!",
-  "viewMode": "2D_TOP_DOWN",
+  "viewMode": "2D",
 
   "board": {
     "dimensions": { "width": 4, "height": 5, "depth": 1 },
@@ -619,7 +631,7 @@ export const KLOTSKI_CROSSWAY: PuzzleDefinition =
   "puzzle_id": "klotski-crossway",
   "title": "Klotski: Crossway",
   "description": "A tricky variation. Navigate the crossway of blocks.",
-  "viewMode": "2D_TOP_DOWN",
+  "viewMode": "2D",
 
   "board": {
     "dimensions": { "width": 4, "height": 5, "depth": 1 },
@@ -669,7 +681,7 @@ export const GRID_PUZZLE: PuzzleDefinition = {
   puzzle_id: "Grid-01",
   title: "Grid Fill",
   description: "Fill the 4x4 grid using the available pieces. A simple 2D puzzle to demonstrate the grid view mode.",
-  viewMode: "2D_GRID",
+  viewMode: "2D",
   board: {
     dimensions: { width: 4, height: 4, depth: 1 },
     initial_state: []
@@ -709,7 +721,7 @@ export const BINARY_PUZZLE: PuzzleDefinition = {
   puzzle_id: "Binary-01",
   title: "Binary Safe",
   description: "Crack the code! Place black (0) and white (1) bricks to spell the secret password in binary ASCII. Hint: The password is a 2-letter greeting.",
-  viewMode: "2D_TOP_DOWN",
+  viewMode: "2D",
   board: {
     dimensions: { width: 8, height: 2, depth: 1 },
     initial_state: []
@@ -746,7 +758,7 @@ export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
   puzzle_id: "Binary-Deserted-Island-01",
   title: "Binary Safe: Deserted Island",
   description: "You're stranded on a deserted island and need to call for help! A rescue plane that only understands binary is flying overhead — spell out your distress signal!",
-  viewMode: "2D_TOP_DOWN",
+  viewMode: "2D",
   board: {
     dimensions: { width: 8, height: 3, depth: 1 },
     initial_state: []
@@ -785,7 +797,7 @@ export const BINARY_PUZZLE_BUILDING_BLOCKS: PuzzleDefinition = {
   puzzle_id: "Binary-Building-Blocks-01",
   title: "Binary Safe: Building Blocks",
   description: "Countless pieces that snap into place, creating anything imagination allows. We break apart yet never truly break. Spell our name in binary to unlock the safe!",
-  viewMode: "2D_TOP_DOWN",
+  viewMode: "2D",
   board: {
     dimensions: { width: 8, height: 4, depth: 1 },
     initial_state: []
@@ -820,6 +832,74 @@ export const BINARY_PUZZLE_BUILDING_BLOCKS: PuzzleDefinition = {
     author: "CS Escape Room",
     difficulty: "medium",
     tags: ["binary", "2D", "ASCII", "pattern"]
+  }
+};
+
+/**
+ * Pen Challenge Puzzle
+ * 
+ * The classic brain teaser: Pens (vertical I-shaped bricks) are arranged
+ * in groups of 1, 2, 3, 4 (left to right). Move exactly ONE pen (blue) to 
+ * the empty space next to the pink pen, creating the reversed order 4-3-2-1.
+ * 
+ * Layout: Pink(1) | gap | Orange(2) | gap | Green(3) | gap | Blue(4)
+ * Goal: Move one blue pen to column 1 (next to pink)
+ * 
+ * Uses MAX_MOVES validation with params.maxMoves = 1
+ */
+export const PEN_CHALLENGE_PUZZLE: PuzzleDefinition = {
+  puzzle_id: "Pen-Challenge-01",
+  title: "Pen Challenge",
+  description: "The pens show 1-2-3-4. Move exactly ONE pen to reverse the order to 4-3-2-1! Move the blue pen next to the pink pen.",
+  viewMode: "2D",
+  board: {
+    dimensions: { width: 13, height: 4, depth: 1 },
+    initial_state: [
+      // Group "1": 1 pink pen (column 0)
+      { id: "pen-1", cells: [[0, 0], [0, 1], [0, 2], [0, 3]], color: "#E91E63" },
+
+      // Column 1 is EMPTY - this is the goal position for one blue pen!
+
+      // Group "2": 2 orange pens (columns 2-3, shifted left by 1)
+      { id: "pen-2", cells: [[2, 0], [2, 1], [2, 2], [2, 3]], color: "#FF9800" },
+      { id: "pen-3", cells: [[3, 0], [3, 1], [3, 2], [3, 3]], color: "#FF9800" },
+
+      // Column 4 is empty (gap)
+
+      // Group "3": 3 green pens (columns 5-7, shifted left by 1)
+      { id: "pen-4", cells: [[5, 0], [5, 1], [5, 2], [5, 3]], color: "#4CAF50" },
+      { id: "pen-5", cells: [[6, 0], [6, 1], [6, 2], [6, 3]], color: "#4CAF50" },
+      { id: "pen-6", cells: [[7, 0], [7, 1], [7, 2], [7, 3]], color: "#4CAF50" },
+
+      // Column 8 is empty (gap)
+
+      // Group "4": 4 blue pens (columns 9-12, shifted left by 1)
+      { id: "pen-7", cells: [[9, 0], [9, 1], [9, 2], [9, 3]], color: "#2196F3" },
+      { id: "pen-8", cells: [[10, 0], [10, 1], [10, 2], [10, 3]], color: "#2196F3" },
+      { id: "pen-9", cells: [[11, 0], [11, 1], [11, 2], [11, 3]], color: "#2196F3" },
+      { id: "pen-10", cells: [[12, 0], [12, 1], [12, 2], [12, 3]], color: "#2196F3" },
+    ]
+  },
+  inventory: [],
+  // Goal: Only pen-9 can be placed at column 1 (next to pink) to win
+  // This uses targetPieceIds to specify exactly which piece(s) can complete the goal
+  goal: {
+    targetPieceIds: ["pen-9"], // Only pen-9 can complete the goal
+    cells: [[1, 0], [1, 1], [1, 2], [1, 3]], // Column 1, all 4 rows
+    hideGoalVisualization: true,
+  },
+  validation_rules: [
+    { type: "MAX_MOVES", rule: "MAX_MOVES", params: { maxMoves: 1 } },
+    { type: "GOAL", rule: "GOAL_REACHED" },
+    { type: "ROTATION", rule: "NO_ROTATION" },
+    { type: "CONSTRAINT", rule: "NO_BRICK_REMOVAL" },
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+  metadata: {
+    author: "CS Escape Room",
+    difficulty: "easy",
+    tags: ["brain-teaser", "2D", "visual-puzzle", "pen-challenge"]
   }
 };
 
