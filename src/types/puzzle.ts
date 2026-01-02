@@ -123,9 +123,31 @@ export const SHAPE_LIBRARY: Record<string, ShapeDefinition> = {
 // BRICK DEFINITIONS
 // ============================================
 
+// Create an enum of all available shape names from SHAPE_LIBRARY
+export const ShapeNameSchema = z.enum([
+  'T-tetromino',
+  'I-tetromino',
+  'L-tetromino',
+  'O-tetromino',
+  'S-tetromino',
+  'Z-tetromino',
+  'J-tetromino',
+  'unit',
+  'domino',
+  'domino-v',
+  'tromino-I',
+  'plus',
+  'long-L-pentomino',
+  'corner-pentomino',
+  'stretched-Z-pentomino',
+  'U-pentomino',
+] as const);
+
+export type ShapeName = z.infer<typeof ShapeNameSchema>;
+
 export const BrickSchema = z.object({
   id: z.string(),
-  shape: z.string(), // References SHAPE_LIBRARY or custom shape
+  shape: ShapeNameSchema, // References SHAPE_LIBRARY shapes
   color: z.string(),
   quantity: z.number().int().positive().default(1),
 });

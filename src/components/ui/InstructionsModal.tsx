@@ -313,6 +313,12 @@ function ShapesTab() {
     { name: 'unit', cells: '[[0,0]]', desc: 'Single cell (1 cell)' },
     { name: 'domino', cells: '[[0,0],[1,0]]', desc: 'Two cells horizontal (2 cells)' },
     { name: 'domino-v', cells: '[[0,0],[0,1]]', desc: 'Two cells vertical (2 cells)' },
+    { name: 'tromino-I', cells: '[[0,0],[1,0],[2,0]]', desc: 'Three cells horizontal (3 cells)' },
+    { name: 'plus', cells: '[[1,0],[1,1],[1,2],[0,1],[2,1]]', desc: 'Cross shape (5 cells)' },
+    { name: 'long-L-pentomino', cells: '[[0,1],[1,1],[2,1],[3,1],[0,0]]', desc: 'Long L shape (5 cells)' },
+    { name: 'corner-pentomino', cells: '[[0,2],[1,2],[2,2],[2,1],[2,0]]', desc: 'Corner shape (5 cells)' },
+    { name: 'stretched-Z-pentomino', cells: '[[1,2],[2,2],[1,1],[0,0],[1,0]]', desc: 'Stretched Z shape (5 cells)' },
+    { name: 'U-pentomino', cells: '[[0,0],[1,0],[1,1],[0,2],[1,2]]', desc: 'U shape (5 cells)' },
   ];
 
   return (
