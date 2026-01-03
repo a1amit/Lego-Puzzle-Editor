@@ -256,6 +256,12 @@ export const GoalPositionSchema = z.object({
   cells: z.array(z.tuple([z.number(), z.number()])),
   /** If true, the goal area will not be rendered (useful for "secret" goals) */
   hideGoalVisualization: z.boolean().optional(),
+  /** 
+   * If true, all pieces NOT in targetPieceId/targetPieceIds must remain in their 
+   * original positions for the goal to be considered reached.
+   * Useful for puzzles where only one specific piece should be moved.
+   */
+  requireOtherPiecesStationary: z.boolean().optional(),
 });
 
 export type GoalPosition = z.infer<typeof GoalPositionSchema>;
@@ -887,6 +893,7 @@ export const PEN_CHALLENGE_PUZZLE: PuzzleDefinition = {
     targetPieceIds: ["pen-9"], // Only pen-9 can complete the goal
     cells: [[1, 0], [1, 1], [1, 2], [1, 3]], // Column 1, all 4 rows
     hideGoalVisualization: true,
+    requireOtherPiecesStationary: true, // All other pens must stay in their original positions
   },
   validation_rules: [
     { type: "MAX_MOVES", rule: "MAX_MOVES", params: { maxMoves: 1 } },

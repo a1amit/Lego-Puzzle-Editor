@@ -409,12 +409,15 @@ const validatePatternMatch: ValidationFunction = (boardState, params) => {
  *   - { targetPieceId: string, goalCells: [number, number][] } - Single specific piece (Klotski)
  *   - { targetPieceIds: string[], goalCells: [number, number][] } - Any piece from list
  *   - { allowAnyPiece: true, goalCells: [number, number][] } - Any piece on the board
+ *   - { requireOtherPiecesStationary: true, initialPositions: [...] } - Other pieces must stay in place
  */
 const validateGoalReached: ValidationFunction = (boardState, params) => {
   const targetPieceId = params?.targetPieceId as string | undefined;
   const targetPieceIds = params?.targetPieceIds as string[] | undefined;
   const allowAnyPiece = params?.allowAnyPiece as boolean | undefined;
   const goalCells = params?.goalCells as [number, number][] | undefined;
+  const requireOtherPiecesStationary = params?.requireOtherPiecesStationary as boolean | undefined;
+  const initialPositions = params?.initialPositions as Array<{ id: string; cells: [number, number][] }> | undefined;
 
   if (!goalCells || goalCells.length === 0) {
     return {
@@ -426,7 +429,16 @@ const validateGoalReached: ValidationFunction = (boardState, params) => {
 
   const goalCellSet = new Set(goalCells.map(([x, y]) => `${x},${y}`));
 
-  // Determine which pieces to check
+  // Determine which pieces are allowed to move (target pieces)
+  const allowedToMoveIds = new Set<string>();
+  if (targetPieceIds) {
+    targetPieceIds.forEach(id => allowedToMoveIds.add(id));
+  }
+  if (targetPieceId) {
+    allowedToMoveIds.add(targetPieceId);
+  }
+
+  // Determine which pieces to check for goal
   let candidatePieces: typeof boardState.placedBricks;
 
   if (allowAnyPiece) {
@@ -447,6 +459,7 @@ const validateGoalReached: ValidationFunction = (boardState, params) => {
   }
 
   // Check if ANY of the candidate pieces is at the goal
+  let goalReached = false;
   for (const piece of candidatePieces) {
     const shapeDef = SHAPE_LIBRARY[piece.shape];
     if (!shapeDef) continue;
@@ -464,12 +477,63 @@ const validateGoalReached: ValidationFunction = (boardState, params) => {
       [...pieceCellSet].every(cell => goalCellSet.has(cell));
 
     if (isAtGoal) {
-      return {
-        isValid: true,
-        rule: 'GOAL_REACHED',
-        message: '🎉 Goal reached! Puzzle solved!',
-      };
+      goalReached = true;
+      break;
     }
+  }
+
+  // If requireOtherPiecesStationary is set, check that non-target pieces haven't moved
+  if (goalReached && requireOtherPiecesStationary && initialPositions) {
+    for (const initial of initialPositions) {
+      // Skip pieces that are allowed to move
+      if (allowedToMoveIds.has(initial.id)) continue;
+
+      // Find this piece on the board
+      const currentPiece = boardState.placedBricks.find(b => b.id === initial.id);
+
+      if (!currentPiece) {
+        // Piece was removed - violation (but show cryptic message)
+        return {
+          isValid: false,
+          rule: 'GOAL_REACHED',
+          message: 'Something is not quite right... Think again!',
+        };
+      }
+
+      // Get current cells from the piece
+      const shapeDef = SHAPE_LIBRARY[currentPiece.shape];
+      if (!shapeDef) continue;
+
+      const rotatedCells = rotateShape(shapeDef.cells, currentPiece.rotation || 0);
+      const currentCells = rotatedCells.map(([dx, dy]) => [
+        currentPiece.position.x + dx,
+        currentPiece.position.y + dy,
+      ] as [number, number]);
+
+      // Check if all cells match (order doesn't matter)
+      const initialSet = new Set(initial.cells.map(([x, y]) => `${x},${y}`));
+      const currentSet = new Set(currentCells.map(([x, y]) => `${x},${y}`));
+
+      const allMatch = currentSet.size === initialSet.size &&
+        [...currentSet].every(cell => initialSet.has(cell));
+
+      if (!allMatch) {
+        // Piece moved from original position - show cryptic message
+        return {
+          isValid: false,
+          rule: 'GOAL_REACHED',
+          message: 'Something is not quite right... Think again!',
+        };
+      }
+    }
+  }
+
+  if (goalReached) {
+    return {
+      isValid: true,
+      rule: 'GOAL_REACHED',
+      message: '🎉 Goal reached! Puzzle solved!',
+    };
   }
 
   // No piece at goal - show which cells need to be covered

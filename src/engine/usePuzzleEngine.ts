@@ -250,6 +250,14 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
 
       // Add goal cells data for GOAL_REACHED rule (slider puzzles)
       if (rule.rule === 'GOAL_REACHED' && puzzle.goal) {
+        // Extract initial positions for stationary check if needed
+        let initialPositions: Array<{ id: string; cells: [number, number][] }> | undefined;
+        if (puzzle.goal.requireOtherPiecesStationary && puzzle.board.initial_state) {
+          initialPositions = puzzle.board.initial_state
+            .filter((p): p is { id: string; cells: [number, number][]; color: string } => 'cells' in p && 'id' in p)
+            .map(p => ({ id: p.id, cells: p.cells }));
+        }
+
         return {
           ...rule,
           params: {
@@ -258,6 +266,8 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
             targetPieceIds: puzzle.goal.targetPieceIds,
             allowAnyPiece: puzzle.goal.allowAnyPiece,
             goalCells: puzzle.goal.cells,
+            requireOtherPiecesStationary: puzzle.goal.requireOtherPiecesStationary,
+            initialPositions,
           },
         };
       }
