@@ -55,7 +55,7 @@ function GridCell({
   onMouseEnter,
   onMouseLeave,
 }: GridCellProps) {
-  const baseColor = isBlocked ? '#3a3a3a' : '#2a2a2a';
+  const baseColor = isBlocked ? '#4a4a4a' : '#5a5a5a';
   const hoverColor = isValidDestination ? '#4a8f4a' : '#4a6fa5';
   const invalidColor = '#8b3a3a';
 
