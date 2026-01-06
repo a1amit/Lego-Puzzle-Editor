@@ -55,7 +55,7 @@ function GridCell({
   onMouseEnter,
   onMouseLeave,
 }: GridCellProps) {
-  const baseColor = isBlocked ? '#3a3a3a' : '#2a2a2a';
+  const baseColor = isBlocked ? '#3a3a3a' : '#8c8686ff';
   const hoverColor = isValidDestination ? '#4a8f4a' : '#4a6fa5';
   const invalidColor = '#8b3a3a';
 
@@ -680,7 +680,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
             width={width * cellSize + 8}
             height={height * cellSize + 8}
             rx={8}
-            fill="#1a1a1a"
+            fill="#ffffff"
           />
 
           {/* Grid cells */}
