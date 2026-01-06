@@ -575,8 +575,16 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     // If we have an inventory piece selected, place it
     if (selectedInventoryPiece) {
       console.log('[Renderer2D] Placing inventory piece');
+      // Check remaining count BEFORE placing - if more than 1 remains, keep selected for continuous placement
+      const remainingCount = engine.inventory.get(selectedInventoryPiece.id) ?? 0;
+      const keepSelected = remainingCount > 1;
+
       placePiece(selectedInventoryPiece.id, { x, y, z: 0 }, previewRotation);
-      selectPiece(null);
+
+      // Only deselect if this was the last brick of this type
+      if (!keepSelected) {
+        selectPiece(null);
+      }
     }
   }, [selectedPlacedPiece, selectedInventoryPiece, previewRotation, placePiece, movePiece, selectPiece, blockedCells, config.movementRule, board]);
 
