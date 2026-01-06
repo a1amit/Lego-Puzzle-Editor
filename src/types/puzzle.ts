@@ -862,7 +862,7 @@ export const PEN_CHALLENGE_PUZZLE: PuzzleDefinition = {
     dimensions: { width: 13, height: 4, depth: 1 },
     initial_state: [
       // Group "1": 1 pink pen (column 0)
-      { id: "pen-1", cells: [[0, 0], [0, 1], [0, 2], [0, 3]], color: "#E91E63" },
+      { id: "pen-1", cells: [[0, 0], [0, 1], [0, 2], [0, 3]], color: "#d7fa87ff" },
 
       // Column 1 is EMPTY - this is the goal position for one blue pen!
 
