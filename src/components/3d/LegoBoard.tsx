@@ -43,14 +43,14 @@ function BoardCell({
   highlightColor?: string;
   isGoal?: boolean;
 }) {
-  const baseColor = isBlocked ? '#4a4a4a' : isGoal ? '#3d3020' : '#2a2a2a';
+  const baseColor = isBlocked ? '#4a4a4a' : isGoal ? '#3d3020' : '#404040';
   const studColor = isBlocked ? '#3a3a3a' : isGoal ? '#4d4030' : '#333333';
 
   return (
     <group position={[x * CELL_SIZE, 0, y * CELL_SIZE]}>
       {/* Cell base */}
       <mesh position={[0.5, -BOARD_DEPTH / 2, 0.5]} receiveShadow>
-        <boxGeometry args={[CELL_SIZE - 0.02, BOARD_DEPTH, CELL_SIZE - 0.02]} />
+        <boxGeometry args={[CELL_SIZE - 0.08, BOARD_DEPTH, CELL_SIZE - 0.08]} />
         <meshStandardMaterial
           color={isHighlighted ? (highlightColor || '#4a6fa5') : baseColor}
           roughness={0.7}
@@ -241,13 +241,13 @@ export function LegoBoard({
         receiveShadow
       >
         <boxGeometry args={[width + 0.2, 0.2, height + 0.2]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={0.8} metalness={0.1} />
+        <meshStandardMaterial color="#ffffff" roughness={0.8} metalness={0.1} />
       </mesh>
 
       {/* Board rim */}
       <mesh position={[width / 2, -BOARD_DEPTH / 2, height / 2]}>
         <boxGeometry args={[width + 0.3, BOARD_DEPTH + 0.1, height + 0.3]} />
-        <meshStandardMaterial color="#222222" roughness={0.7} metalness={0.2} />
+        <meshStandardMaterial color="#ffffff" roughness={0.7} metalness={0.2} />
       </mesh>
 
       {/* Individual cells */}
