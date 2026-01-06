@@ -867,23 +867,23 @@ export const PEN_CHALLENGE_PUZZLE: PuzzleDefinition = {
       // Column 1 is EMPTY - this is the goal position for one blue pen!
 
       // Group "2": 2 orange pens (columns 2-3, shifted left by 1)
-      { id: "pen-2", cells: [[2, 0], [2, 1], [2, 2], [2, 3]], color: "#FF9800" },
-      { id: "pen-3", cells: [[3, 0], [3, 1], [3, 2], [3, 3]], color: "#FF9800" },
+      { id: "pen-2", cells: [[2, 0], [2, 1], [2, 2], [2, 3]], color: "#d7fa87ff" },
+      { id: "pen-3", cells: [[3, 0], [3, 1], [3, 2], [3, 3]], color: "#d7fa87ff" },
 
       // Column 4 is empty (gap)
 
       // Group "3": 3 green pens (columns 5-7, shifted left by 1)
-      { id: "pen-4", cells: [[5, 0], [5, 1], [5, 2], [5, 3]], color: "#4CAF50" },
-      { id: "pen-5", cells: [[6, 0], [6, 1], [6, 2], [6, 3]], color: "#4CAF50" },
-      { id: "pen-6", cells: [[7, 0], [7, 1], [7, 2], [7, 3]], color: "#4CAF50" },
+      { id: "pen-4", cells: [[5, 0], [5, 1], [5, 2], [5, 3]], color: "#d7fa87ff" },
+      { id: "pen-5", cells: [[6, 0], [6, 1], [6, 2], [6, 3]], color: "#d7fa87ff" },
+      { id: "pen-6", cells: [[7, 0], [7, 1], [7, 2], [7, 3]], color: "#d7fa87ff" },
 
       // Column 8 is empty (gap)
 
       // Group "4": 4 blue pens (columns 9-12, shifted left by 1)
-      { id: "pen-7", cells: [[9, 0], [9, 1], [9, 2], [9, 3]], color: "#2196F3" },
-      { id: "pen-8", cells: [[10, 0], [10, 1], [10, 2], [10, 3]], color: "#2196F3" },
-      { id: "pen-9", cells: [[11, 0], [11, 1], [11, 2], [11, 3]], color: "#2196F3" },
-      { id: "pen-10", cells: [[12, 0], [12, 1], [12, 2], [12, 3]], color: "#2196F3" },
+      { id: "pen-7", cells: [[9, 0], [9, 1], [9, 2], [9, 3]], color: "#d7fa87ff" },
+      { id: "pen-8", cells: [[10, 0], [10, 1], [10, 2], [10, 3]], color: "#d7fa87ff" },
+      { id: "pen-9", cells: [[11, 0], [11, 1], [11, 2], [11, 3]], color: "#d7fa87ff" },
+      { id: "pen-10", cells: [[12, 0], [12, 1], [12, 2], [12, 3]], color: "#d7fa87ff" },
     ]
   },
   inventory: [],
