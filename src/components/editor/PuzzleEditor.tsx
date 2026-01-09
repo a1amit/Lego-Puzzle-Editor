@@ -128,7 +128,7 @@ const puzzleJsonSchema = {
         properties: {
           type: {
             type: 'string',
-            enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'ROTATION', 'PATTERN', 'GOAL', 'CUSTOM'],
+            enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'ROTATION', 'PATTERN', 'GOAL', 'CONSTRAINT', 'MAX_MOVES', 'CUSTOM'],
           },
           rule: {
             type: 'string',
@@ -144,6 +144,7 @@ const puzzleJsonSchema = {
               'NO_BRICK_REMOVAL',
               'PATTERN_MATCH',
               'GOAL_REACHED',
+              'MAX_MOVES',
             ],
           },
           params: { type: 'object' },
@@ -152,9 +153,9 @@ const puzzleJsonSchema = {
     },
     viewMode: {
       type: 'string',
-      enum: ['3D_ISOMETRIC', '2D_TOP_DOWN', '2D_GRID'],
+      enum: ['3D', '2D'],
       description: 'How to render the puzzle (3D or 2D)',
-      default: '3D_ISOMETRIC',
+      default: '3D',
     },
     goal: {
       type: 'object',
@@ -163,6 +164,19 @@ const puzzleJsonSchema = {
         targetPieceId: {
           type: 'string',
           description: 'ID of the piece that must reach the goal',
+        },
+        targetPieceIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of piece IDs (any one can satisfy the goal)',
+        },
+        allowAnyPiece: {
+          type: 'boolean',
+          description: 'If true, any piece on the board can satisfy the goal',
+        },
+        hideGoalVisualization: {
+          type: 'boolean',
+          description: 'If true, the goal area will not be rendered',
         },
         cells: {
           type: 'array',
@@ -175,7 +189,7 @@ const puzzleJsonSchema = {
           },
         },
       },
-      required: ['targetPieceId', 'cells'],
+      required: ['cells'],
     },
     target_pattern: {
       type: 'object',

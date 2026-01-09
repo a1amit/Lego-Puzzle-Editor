@@ -407,6 +407,10 @@ function DragDropManager() {
 
     // If we have an inventory brick selected, place it with the preview rotation
     if (selectedInventoryBrick) {
+      // Check inventory count BEFORE placing - if more than 1 remains, keep selected for continuous placement
+      const remainingCount = usePuzzleStore.getState().inventoryState.get(selectedInventoryBrick.id) ?? 0;
+      const keepSelected = remainingCount > 1;
+
       placeBrick({
         id: selectedInventoryBrick.id,
         instanceId: '',
@@ -416,7 +420,11 @@ function DragDropManager() {
         rotation: previewRotation, // Use the preview rotation!
         z: 0, // Will be recalculated in placeBrick, but required by type
       });
-      selectBrick(null);
+
+      // Only deselect if this was the last brick of this type
+      if (!keepSelected) {
+        selectBrick(null);
+      }
     }
   }, [selectedPlacedBrick, selectedInventoryBrick, previewRotation, moveBrick, placeBrick, selectBrick]);
 
@@ -458,7 +466,7 @@ function DragDropManager() {
     : undefined;
 
   // Get goal cells from puzzle definition (for slider puzzles)
-  const goalCells = puzzle?.goal?.cells as [number, number][] | undefined;
+  const goalCells = (puzzle?.goal?.hideGoalVisualization ? undefined : puzzle?.goal?.cells) as [number, number][] | undefined;
 
   return (
     <group onContextMenu={handleCanvasContextMenu as any}>

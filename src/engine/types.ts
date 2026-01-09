@@ -26,9 +26,8 @@ export type Coordinate2D = [number, number];
 // ============================================
 
 export const ViewModes = [
-  '3D_ISOMETRIC',    // Full 3D with stacking support
-  '2D_TOP_DOWN',     // 2D flat view, top-down
-  '2D_GRID',         // Simple grid view
+  '3D',     // Full 3D with stacking support
+  '2D',     // 2D grid view
 ] as const;
 
 export type ViewMode = typeof ViewModes[number];
@@ -101,6 +100,7 @@ export interface EngineState {
   hoveredCell: { x: number; y: number } | null;
   validationResults: EngineValidationResult[];
   isComplete: boolean;
+  moveCount: number;
 }
 
 // ============================================
@@ -113,15 +113,15 @@ export interface EngineActions {
   removePiece: (instanceId: string) => void;
   movePiece: (instanceId: string, destination: Coordinate3D) => boolean;
   rotatePiece: (instanceId: string) => void;
-  
+
   // Selection
   selectPiece: (pieceId: string | null) => void;
   rotatePreview: () => void;
   setHoveredCell: (cell: { x: number; y: number } | null) => void;
-  
+
   // Validation
   validateBoard: () => EngineValidationResult[];
-  
+
   // Reset
   resetBoard: () => void;
 }

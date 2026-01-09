@@ -180,7 +180,7 @@ function deriveConfig(puzzle: PuzzleDefinition | null, viewModeOverride?: ViewMo
   // Extract viewMode from puzzle or use override/default
   const viewMode: ViewMode = viewModeOverride ??
     (puzzle as any)?.viewMode ??
-    '3D_ISOMETRIC';
+    '3D';
 
   // Extract movement rule from validation_rules
   const movementRule: MovementRule = puzzle?.validation_rules?.find(
@@ -217,6 +217,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   const [inventory, setInventory] = useState<InventoryState>(() => createInitialInventory(initialPuzzle));
   const [validationResults, setValidationResults] = useState<EngineValidationResult[]>([]);
   const [isComplete, setIsComplete] = useState(false);
+  const [moveCount, setMoveCount] = useState(0);
 
   // Selection state
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
@@ -249,12 +250,24 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
 
       // Add goal cells data for GOAL_REACHED rule (slider puzzles)
       if (rule.rule === 'GOAL_REACHED' && puzzle.goal) {
+        // Extract initial positions for stationary check if needed
+        let initialPositions: Array<{ id: string; cells: [number, number][] }> | undefined;
+        if (puzzle.goal.requireOtherPiecesStationary && puzzle.board.initial_state) {
+          initialPositions = puzzle.board.initial_state
+            .filter((p): p is { id: string; cells: [number, number][]; color: string } => 'cells' in p && 'id' in p)
+            .map(p => ({ id: p.id, cells: p.cells }));
+        }
+
         return {
           ...rule,
           params: {
             ...rule.params,
             targetPieceId: puzzle.goal.targetPieceId,
+            targetPieceIds: puzzle.goal.targetPieceIds,
+            allowAnyPiece: puzzle.goal.allowAnyPiece,
             goalCells: puzzle.goal.cells,
+            requireOtherPiecesStationary: puzzle.goal.requireOtherPiecesStationary,
+            initialPositions,
           },
         };
       }
@@ -269,6 +282,17 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
             rows: targetPattern.rows,
             color_mapping: targetPattern.color_mapping,
             allow_empty_cells: targetPattern.allow_empty_cells,
+          },
+        };
+      }
+
+      // Add currentMoves data for MAX_MOVES rule
+      if (rule.rule === 'MAX_MOVES') {
+        return {
+          ...rule,
+          params: {
+            ...rule.params,
+            currentMoves: moveCount,
           },
         };
       }
@@ -294,7 +318,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     const results = ValidationRegistry.validate(validationBoard, rulesWithParams);
     setValidationResults(results);
     setIsComplete(ValidationRegistry.isAllValid(results));
-  }, [puzzle, board]); // Re-run whenever puzzle or board changes
+  }, [puzzle, board, moveCount]); // Re-run whenever puzzle, board, or moveCount changes
 
   // ============================================
   // PIECE PLACEMENT
@@ -524,6 +548,8 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
         return newInventory;
       });
     }
+    // Increment move count for successful moves
+    setMoveCount(prev => prev + 1);
 
     // Validation runs automatically via useEffect when board changes
     return true;
@@ -596,6 +622,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     setIsComplete(false);
     setSelectedPieceId(null);
     setPreviewRotation(0);
+    setMoveCount(0);
   }, [puzzle]);
 
   const loadPuzzle = useCallback((newPuzzle: PuzzleDefinition) => {
@@ -606,6 +633,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     setIsComplete(false);
     setSelectedPieceId(null);
     setPreviewRotation(0);
+    setMoveCount(0);
   }, []);
 
   // ============================================
@@ -623,6 +651,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     hoveredCell,
     validationResults,
     isComplete,
+    moveCount,
 
     // Actions
     placePiece,

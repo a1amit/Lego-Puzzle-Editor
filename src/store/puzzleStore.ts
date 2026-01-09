@@ -27,6 +27,7 @@ interface PuzzleStore {
   // Validation
   validationResults: ValidationResult[];
   isComplete: boolean;
+  moveCount: number;
 
   // Selection & Interaction
   selectedBrickId: string | null;
@@ -284,6 +285,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
 
   validationResults: [],
   isComplete: false,
+  moveCount: 0,
 
   selectedBrickId: null,
   previewRotation: 0,
@@ -298,6 +300,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       inventoryState: createInitialInventory(puzzle),
       validationResults: [],
       isComplete: false,
+      moveCount: 0,
       selectedBrickId: null,
       previewRotation: 0,
     });
@@ -518,6 +521,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
         ),
       },
       inventoryState: newInventory,
+      moveCount: get().moveCount + 1,
     });
 
     get().validate();
@@ -570,6 +574,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       inventoryState: createInitialInventory(puzzle),
       validationResults: [],
       isComplete: false,
+      moveCount: 0,
       selectedBrickId: null,
       previewRotation: 0,
     });
@@ -594,12 +599,24 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
 
       // Add goal cells data for GOAL_REACHED rule (slider puzzles)
       if (rule.rule === 'GOAL_REACHED' && puzzle.goal) {
+        // Extract initial positions for stationary check if needed
+        let initialPositions: Array<{ id: string; cells: [number, number][] }> | undefined;
+        if (puzzle.goal.requireOtherPiecesStationary && puzzle.board.initial_state) {
+          initialPositions = puzzle.board.initial_state
+            .filter((p): p is { id: string; cells: [number, number][]; color: string } => 'cells' in p && 'id' in p)
+            .map(p => ({ id: p.id, cells: p.cells }));
+        }
+
         return {
           ...rule,
           params: {
             ...rule.params,
             targetPieceId: puzzle.goal.targetPieceId,
+            targetPieceIds: puzzle.goal.targetPieceIds,
+            allowAnyPiece: puzzle.goal.allowAnyPiece,
             goalCells: puzzle.goal.cells,
+            requireOtherPiecesStationary: puzzle.goal.requireOtherPiecesStationary,
+            initialPositions,
           },
         };
       }
@@ -613,6 +630,17 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
             rows: puzzle.target_pattern.rows,
             color_mapping: puzzle.target_pattern.color_mapping,
             allow_empty_cells: puzzle.target_pattern.allow_empty_cells,
+          },
+        };
+      }
+
+      // Add current moves data for MAX_MOVES rule
+      if (rule.rule === 'MAX_MOVES') {
+        return {
+          ...rule,
+          params: {
+            ...rule.params,
+            currentMoves: get().moveCount,
           },
         };
       }

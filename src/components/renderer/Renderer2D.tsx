@@ -3,10 +3,6 @@
  * 
  * Renders puzzles in a 2D view using SVG. This renderer is completely
  * independent of Three.js and works purely with the engine state.
- * 
- * Supports:
- * - 2D_TOP_DOWN: Clean top-down view with piece shadows
- * - 2D_GRID: Simple grid view with minimal styling
  */
 
 import { useMemo, useCallback, useEffect, useState } from 'react';
@@ -16,7 +12,6 @@ import { SHAPE_LIBRARY } from '../../types/puzzle';
 
 interface Renderer2DProps {
   engine: UsePuzzleEngineReturn;
-  viewMode: '2D_TOP_DOWN' | '2D_GRID';
   className?: string;
 }
 
@@ -60,7 +55,7 @@ function GridCell({
   onMouseEnter,
   onMouseLeave,
 }: GridCellProps) {
-  const baseColor = isBlocked ? '#3a3a3a' : '#2a2a2a';
+  const baseColor = isBlocked ? '#4a4a4a' : '#5a5a5a';
   const hoverColor = isValidDestination ? '#4a8f4a' : '#4a6fa5';
   const invalidColor = '#8b3a3a';
 
@@ -311,6 +306,18 @@ function Piece2D({
       {/* Selection indicator */}
       {isSelected && (
         <g>
+          {/* Piece ID label - prominently displayed for puzzle designers */}
+          <text
+            x={cells[0][0] * cellSize + cellSize / 2}
+            y={cells[0][1] * cellSize - 22}
+            textAnchor="middle"
+            fill="#fbbf24"
+            fontSize="11"
+            fontFamily="monospace"
+            fontWeight="bold"
+          >
+            ID: {piece.id}
+          </text>
           {/* Hint text */}
           <text
             x={cells[0][0] * cellSize + cellSize / 2}
@@ -323,7 +330,7 @@ function Piece2D({
           >
             {isSliderPuzzle
               ? (hasValidMoves ? 'Click destination' : 'No valid moves!')
-              : 'R to rotate'
+              : 'Click to move'
             }
           </text>
         </g>
@@ -381,7 +388,7 @@ function GhostPiece2D({
 // MAIN RENDERER
 // ============================================
 
-export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps) {
+export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   const {
     puzzle,
     config,
@@ -402,7 +409,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
   const [hoveredPieceId, setHoveredPieceId] = useState<string | null>(null);
 
   const { width, height } = board.dimensions;
-  const cellSize = viewMode === '2D_GRID' ? 50 : CELL_SIZE;
+  const cellSize = CELL_SIZE;
   const svgWidth = width * cellSize + PADDING * 2;
   const svgHeight = height * cellSize + PADDING * 2;
 
@@ -493,7 +500,12 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
 
   // Cell click handler
   const handleCellClick = useCallback((x: number, y: number) => {
-    if (blockedCells.has(`${x},${y}`)) return;
+    console.log('[Renderer2D] Cell clicked:', { x, y, selectedPlacedPiece: selectedPlacedPiece?.instanceId, movementRule: config.movementRule });
+
+    if (blockedCells.has(`${x},${y}`)) {
+      console.log('[Renderer2D] Cell is blocked');
+      return;
+    }
 
     // If we have a placed piece selected, try to move it
     if (selectedPlacedPiece) {
@@ -501,12 +513,14 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
       const currentCells = getPieceCells(selectedPlacedPiece);
       const clickedOnSelf = currentCells.some(([cx, cy]) => cx === x && cy === y);
       if (clickedOnSelf) {
+        console.log('[Renderer2D] Clicked on self, deselecting');
         selectPiece(null);
         return;
       }
 
       // For slider puzzles, find which valid destination would cover the clicked cell
       if (config.movementRule === 'SLIDING_ONLY') {
+        console.log('[Renderer2D] Slider mode - checking valid destinations');
         const validDests = getValidSlideDestinations(board, selectedPlacedPiece);
         const shapeDef = SHAPE_LIBRARY[selectedPlacedPiece.shape];
 
@@ -521,14 +535,38 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
           });
 
           if (matchingDest) {
+            console.log('[Renderer2D] Moving piece to valid destination:', matchingDest);
             movePiece(selectedPlacedPiece.instanceId, { x: matchingDest[0], y: matchingDest[1], z: 0 });
             selectPiece(null);
             return;
           }
         }
       } else {
-        // Free placement mode - move to clicked position
-        movePiece(selectedPlacedPiece.instanceId, { x, y, z: 0 });
+        // Free placement mode - move to clicked column
+        // For pieces with height, we need to position at y=0 of the target column
+        // to ensure the piece fits within bounds
+        const shapeDef = SHAPE_LIBRARY[selectedPlacedPiece.shape];
+        if (shapeDef) {
+          // Calculate the piece's shape bounds
+          const rotatedCells = rotateShape(shapeDef.cells, selectedPlacedPiece.rotation);
+          const minY = Math.min(...rotatedCells.map(([, dy]) => dy));
+
+          // Adjust y position so the piece starts at row 0 regardless of where clicked
+          const adjustedY = 0 - minY;
+
+          console.log('[Renderer2D] Free placement mode - moving piece to column:', x, 'at y:', adjustedY);
+          const success = movePiece(selectedPlacedPiece.instanceId, { x, y: adjustedY, z: 0 });
+          console.log('[Renderer2D] Move result:', success);
+          if (!success) {
+            // If move failed, deselect anyway to give feedback
+            console.log('[Renderer2D] Move failed - possibly overlap or out of bounds');
+          }
+        } else {
+          // Fallback for pieces without shapes
+          console.log('[Renderer2D] Free placement mode - moving piece to:', { x, y });
+          const success = movePiece(selectedPlacedPiece.instanceId, { x, y, z: 0 });
+          console.log('[Renderer2D] Move result:', success);
+        }
         selectPiece(null);
       }
       return;
@@ -536,13 +574,23 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
 
     // If we have an inventory piece selected, place it
     if (selectedInventoryPiece) {
+      console.log('[Renderer2D] Placing inventory piece');
+      // Check remaining count BEFORE placing - if more than 1 remains, keep selected for continuous placement
+      const remainingCount = engine.inventory.get(selectedInventoryPiece.id) ?? 0;
+      const keepSelected = remainingCount > 1;
+
       placePiece(selectedInventoryPiece.id, { x, y, z: 0 }, previewRotation);
-      selectPiece(null);
+
+      // Only deselect if this was the last brick of this type
+      if (!keepSelected) {
+        selectPiece(null);
+      }
     }
   }, [selectedPlacedPiece, selectedInventoryPiece, previewRotation, placePiece, movePiece, selectPiece, blockedCells, config.movementRule, board]);
 
   // Piece click handler
   const handlePieceClick = useCallback((piece: PlacedPiece) => {
+    console.log('[Renderer2D] Piece clicked:', piece.instanceId, 'current selection:', selectedPieceId);
     if (selectedPieceId === piece.instanceId) {
       selectPiece(null);
     } else {
@@ -662,11 +710,11 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
             })
           )}
 
-          {/* Placed pieces */}
           {board.placedPieces.map(piece => {
             const isSelected = selectedPieceId === piece.instanceId;
             const isHovered = hoveredPieceId === piece.instanceId;
-            // Pieces are interactive when no inventory piece is selected
+            // Pieces are only interactive when NO piece is selected (so we can click to select one)
+            // Once a piece is selected, all pieces become non-interactive so grid cells receive clicks
             const isInteractive = !selectedInventoryPiece && !selectedPlacedPiece;
 
             // Calculate if this piece has valid moves (for slider puzzles)
@@ -704,7 +752,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
           )}
 
           {/* Goal area overlay (for slider puzzles) */}
-          {puzzle.goal && (
+          {puzzle.goal && !puzzle.goal.hideGoalVisualization && (
             <g>
               {/* Goal position indicator */}
               {Array.from(goalAreaCells).map((key) => {
@@ -752,7 +800,7 @@ export function Renderer2D({ engine, viewMode, className = '' }: Renderer2DProps
           fontSize="10"
           fontFamily="monospace"
         >
-          {viewMode === '2D_TOP_DOWN' ? '2D Top-Down' : '2D Grid'} View
+          2D View
           {puzzle.goal && ' • Slider Puzzle'}
         </text>
       </svg>

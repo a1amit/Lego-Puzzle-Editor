@@ -43,8 +43,8 @@ function BoardCell({
   highlightColor?: string;
   isGoal?: boolean;
 }) {
-  const baseColor = isBlocked ? '#4a4a4a' : isGoal ? '#3d3020' : '#2a2a2a';
-  const studColor = isBlocked ? '#3a3a3a' : isGoal ? '#4d4030' : '#333333';
+  const baseColor = isBlocked ? '#4a4a4a' : isGoal ? '#5d5020' : '#FFFFFF';
+  const studColor = isBlocked ? '#4a4a4a' : isGoal ? '#6d6030' : '#E0E0E0';
 
   return (
     <group position={[x * CELL_SIZE, 0, y * CELL_SIZE]}>
@@ -144,9 +144,17 @@ export function LegoBoard({
 
   // Create goal cells set
   const goalCellSet = useMemo(() => {
-    if (!goalCells) return new Set<string>();
-    return new Set(goalCells.map(([x, y]) => `${x},${y}`));
-  }, [goalCells]);
+    // Check if we should hide the goal (from store if available)
+    if (store.puzzle?.goal?.hideGoalVisualization) {
+      return new Set<string>();
+    }
+
+    // Use prop if provided, otherwise fallback to store puzzle goal
+    const cells = goalCells ?? store.puzzle?.goal?.cells;
+
+    if (!cells) return new Set<string>();
+    return new Set(cells.map(([x, y]) => `${x},${y}`));
+  }, [goalCells, store.puzzle]);
 
   // Generate cells
   const cells = useMemo(() => {

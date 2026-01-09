@@ -6,10 +6,11 @@ import { PuzzleRenderer, ViewModeIndicator } from './components/renderer';
 import { InventoryPanel } from './components/ui/InventoryPanel';
 import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
+import { CongratulationsPopup } from './components/ui/CongratulationsPopup';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
 import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS, COLORFUL_COVERAGE_PUZZLE } from './types/puzzle';
-import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY } from './types/puzzle';
+import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
@@ -116,6 +117,16 @@ function CategoryIcon({ type, color, className = "w-5 h-5" }: { type: string; co
           <rect x="16" y="13" width="5" height="7" rx="1" fill={color} />
         </svg>
       );
+    case 'brain-teaser':
+      // Light bulb/brain teaser icon
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="10" r="6" fill={color} opacity="0.8" />
+          <rect x="9" y="16" width="6" height="3" rx="1" fill={color} />
+          <rect x="10" y="19" width="4" height="2" rx="0.5" fill={color} opacity="0.7" />
+          <path d="M12 2v2M18.5 5.5l-1.5 1.5M20 12h-2M5.5 5.5l1.5 1.5M4 12h2" stroke={color} strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
     default:
       return <LegoBrickIcon className={className} color={color} />;
   }
@@ -167,6 +178,14 @@ const PUZZLE_CATEGORIES: { category: string; color: string; iconType: string; pu
       { id: 'binary', label: 'Greeting', puzzle: BINARY_PUZZLE, is3D: false },
       { id: 'binary-deserted-island', label: 'Deserted Island', puzzle: BINARY_PUZZLE_SOS, is3D: false },
       { id: 'binary-building-blocks', label: 'Building Blocks', puzzle: BINARY_PUZZLE_BUILDING_BLOCKS, is3D: false },
+    ],
+  },
+  {
+    category: 'Brain Teasers',
+    color: '#9C27B0',
+    iconType: 'brain-teaser',
+    puzzles: [
+      { id: 'pen-challenge', label: 'Pen Challenge', puzzle: PEN_CHALLENGE_PUZZLE, is3D: false },
     ],
   },
 ];
@@ -389,9 +408,9 @@ function EditorPanel() {
 }
 
 function PreviewPanel() {
-  const { puzzle } = usePuzzleStore();
-  const viewMode = puzzle?.viewMode ?? '3D_ISOMETRIC';
-  const is2D = viewMode === '2D_TOP_DOWN' || viewMode === '2D_GRID';
+  const { puzzle, isComplete: storeIsComplete, resetPuzzle } = usePuzzleStore();
+  const viewMode = puzzle?.viewMode ?? '3D';
+  const is2D = viewMode === '2D';
 
   // Use the engine hook for 2D puzzles (view-agnostic architecture)
   const engine = usePuzzleEngine({ puzzle: null }); // Start empty
@@ -403,42 +422,81 @@ function PreviewPanel() {
     }
   }, [puzzle, is2D]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Track completion state - use engine for 2D, store for 3D
+  const isComplete = is2D ? engine.isComplete : storeIsComplete;
+
+  // State for showing congratulations popup
+  const [showCongrats, setShowCongrats] = useState(false);
+  const [prevComplete, setPrevComplete] = useState(false);
+
+  // Detect transition from incomplete to complete
+  useEffect(() => {
+    if (isComplete && !prevComplete) {
+      // Puzzle just became complete - show congratulations!
+      setShowCongrats(true);
+    }
+    setPrevComplete(isComplete);
+  }, [isComplete, prevComplete]);
+
+  const handlePlayAgain = () => {
+    setShowCongrats(false);
+    if (is2D) {
+      engine.resetBoard();
+    } else {
+      resetPuzzle();
+    }
+  };
+
+  const handleCloseCongrats = () => {
+    setShowCongrats(false);
+  };
+
   return (
-    <ResizablePanels
-      direction="horizontal"
-      defaultSize={75}
-      minSize={40}
-      maxSize={90}
-    >
-      {/* Puzzle Scene - switches between 2D and 3D */}
-      <div className="h-full bg-editor-bg relative">
-        {is2D ? (
-          // 2D puzzles use the new view-agnostic PuzzleRenderer
-          <PuzzleRenderer engine={engine} />
-        ) : (
-          // 3D puzzles use the existing PuzzleScene (with store)
-          <PuzzleScene />
-        )}
+    <>
+      <ResizablePanels
+        direction="horizontal"
+        defaultSize={75}
+        minSize={40}
+        maxSize={90}
+      >
+        {/* Puzzle Scene - switches between 2D and 3D */}
+        <div className="h-full bg-editor-bg relative">
+          {is2D ? (
+            // 2D puzzles use the new view-agnostic PuzzleRenderer
+            <PuzzleRenderer engine={engine} />
+          ) : (
+            // 3D puzzles use the existing PuzzleScene (with store)
+            <PuzzleScene />
+          )}
 
-        {/* View mode badge */}
-        <div className="absolute top-3 right-3 z-10">
-          <ViewModeIndicator viewMode={viewMode} />
+          {/* View mode badge */}
+          <div className="absolute top-3 right-3 z-10">
+            <ViewModeIndicator viewMode={viewMode} />
+          </div>
         </div>
-      </div>
 
-      {/* Side panels - Inventory & Validation */}
-      <div className="h-full bg-editor-sidebar border-l border-editor-border">
-        <ResizablePanels
-          direction="vertical"
-          defaultSize={60}
-          minSize={20}
-          maxSize={85}
-        >
-          <InventoryPanel className="h-full" engine={is2D ? engine : undefined} />
-          <ValidationPanel className="h-full" engine={is2D ? engine : undefined} />
-        </ResizablePanels>
-      </div>
-    </ResizablePanels>
+        {/* Side panels - Inventory & Validation */}
+        <div className="h-full bg-editor-sidebar border-l border-editor-border">
+          <ResizablePanels
+            direction="vertical"
+            defaultSize={60}
+            minSize={20}
+            maxSize={85}
+          >
+            <InventoryPanel className="h-full" engine={is2D ? engine : undefined} />
+            <ValidationPanel className="h-full" engine={is2D ? engine : undefined} />
+          </ResizablePanels>
+        </div>
+      </ResizablePanels>
+
+      {/* Congratulations popup - only in preview panel */}
+      <CongratulationsPopup
+        isVisible={showCongrats}
+        onClose={handleCloseCongrats}
+        onPlayAgain={handlePlayAgain}
+        puzzleTitle={puzzle?.title}
+      />
+    </>
   );
 }
 
