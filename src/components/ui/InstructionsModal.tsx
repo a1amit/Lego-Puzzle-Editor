@@ -99,7 +99,7 @@ function LegoRocketIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
-type TabId = 'overview' | 'shapes' | 'validation' | 'slider' | 'examples';
+type TabId = 'overview' | 'shapes' | 'validation' | 'slider' | 'nonogram' | 'examples';
 
 interface TabDef {
   id: TabId;
@@ -112,6 +112,7 @@ const TABS: TabDef[] = [
   { id: 'shapes', label: 'Shapes', icon: <LegoTBrick className="w-4 h-4" color="#D01012" /> },
   { id: 'validation', label: 'Validation', icon: <LegoCheckIcon className="w-4 h-4" /> },
   { id: 'slider', label: 'Slider Puzzles', icon: <LegoBrick2x1 className="w-4 h-3" color="#D01012" /> },
+  { id: 'nonogram', label: 'Nonogram', icon: <LegoBrick1x1 className="w-4 h-4" color="#10B981" /> },
   { id: 'examples', label: 'Examples', icon: <LegoLightbulbIcon className="w-4 h-4" /> },
 ];
 
@@ -156,6 +157,10 @@ function OverviewTab() {
               <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-lg flex items-center gap-1.5">
                 <LegoBrick1x1 className="w-3 h-3" color="#A78BFA" />
                 Grid Fill — 2D Coverage puzzle
+              </span>
+              <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-xs rounded-lg flex items-center gap-1.5">
+                <LegoBrick1x1 className="w-3 h-3" color="#10B981" />
+                Nonogram — 2D Logic puzzle
               </span>
             </div>
           </div>
@@ -415,12 +420,25 @@ function ValidationTab() {
     {
       name: 'PATTERN_MATCH',
       type: 'PATTERN',
-      desc: 'Check if placed pieces match a target pattern. Used for Binary encoding, RLE art, and pixel art puzzles.',
+      desc: 'Check if placed pieces match a target pattern. Used for Binary encoding, Nonogram, and pixel art puzzles.',
+      paramDetails: [
+        { name: 'rows', tooltip: '2D array defining the pattern grid. Each cell contains a value that maps to a color.' },
+        { name: 'color_mapping', tooltip: 'Object mapping pattern values to hex colors. E.g., {"1": "#05131D"} maps "1" to black.' },
+        { name: 'allow_empty_cells?', tooltip: 'If true, cells in the pattern can be empty. Default is false (all mapped cells must have bricks).' },
+        { name: 'reject_unmapped_target_colors?', tooltip: 'If true, rejects any color from color_mapping placed in cells NOT defined in the mapping. Used for Nonogram.' },
+      ],
     },
     {
       name: 'GOAL_REACHED',
       type: 'GOAL',
       desc: 'Check if the target piece has reached the goal cells. Used as win condition for slider puzzles.',
+      paramDetails: [
+        { name: 'targetPieceId', tooltip: 'ID of the single piece that must reach the goal cells.' },
+        { name: 'targetPieceIds', tooltip: 'Array of piece IDs — any one of these reaching the goal wins.' },
+        { name: 'allowAnyPiece', tooltip: 'If true, any piece on the board can trigger the win condition.' },
+        { name: 'cells', tooltip: 'Array of [x,y] coordinates defining the goal area that must be covered.' },
+        { name: 'hideGoalVisualization?', tooltip: 'If true, hides the default goal overlay/markers. Useful for puzzles where the goal is secret.' },
+      ],
     },
     {
       name: 'NO_BRICK_REMOVAL',
@@ -431,6 +449,9 @@ function ValidationTab() {
       name: 'MAX_MOVES',
       type: 'MAX_MOVES',
       desc: 'Limits the maximum number of moves allowed to solve the puzzle. Useful for brain teasers.',
+      paramDetails: [
+        { name: 'maxMoves', tooltip: 'Maximum number of moves allowed. Exceeding this fails the puzzle.' },
+      ],
     },
   ];
 
@@ -465,6 +486,21 @@ function ValidationTab() {
             </div>
             <code className="text-editor-accent font-display text-sm">{rule.name}</code>
             <p className="text-gray-400 text-sm mt-1">{rule.desc}</p>
+            {rule.paramDetails && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <span className="text-gray-500 text-xs">Params:</span>
+                {rule.paramDetails.map((param, idx) => (
+                  <span key={idx} className="relative group">
+                    <code className="text-cyan-400 text-xs cursor-help px-1.5 py-0.5 bg-cyan-500/10 rounded hover:bg-cyan-500/20 transition-colors">
+                      {param.name}
+                    </code>
+                    <span className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 border border-gray-700 rounded-lg text-xs text-gray-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
+                      {param.tooltip}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -617,6 +653,143 @@ function SliderTab() {
         </div>
       </div>
     </div >
+  );
+}
+
+function NonogramTab() {
+  return (
+    <div className="space-y-6">
+      <div className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 rounded-xl p-5">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/30 flex items-center justify-center flex-shrink-0">
+            <LegoBrick1x1 className="w-8 h-8" color="#10B981" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-white font-display font-bold text-lg mb-2">Nonogram (Picross) Puzzles</h4>
+            <p className="text-gray-300 text-sm">
+              Nonogram puzzles display number hints on the left and top of the grid. Players must fill cells according to the clues.
+              <strong> Black bricks</strong> mark filled cells, <strong>red bricks</strong> mark definitely empty cells.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h4 className="text-white font-display font-semibold">Key Components</h4>
+      <div className="bg-black/30 rounded-lg p-4 space-y-3">
+        <div className="flex items-start gap-3 text-sm">
+          <span className="px-2 py-1 bg-emerald-500/30 rounded text-emerald-300 font-mono text-xs shrink-0">nonogram_hints</span>
+          <span className="text-gray-400">Defines row and column number hints displayed around the grid.</span>
+        </div>
+        <div className="flex items-start gap-3 text-sm">
+          <span className="px-2 py-1 bg-cyan-500/30 rounded text-cyan-300 font-mono text-xs shrink-0">target_pattern</span>
+          <span className="text-gray-400">Defines the solution pattern. Uses PATTERN_MATCH validation.</span>
+        </div>
+        <div className="flex items-start gap-3 text-sm">
+          <span className="px-2 py-1 bg-yellow-500/30 rounded text-yellow-300 font-mono text-xs shrink-0">reject_unmapped_target_colors</span>
+          <span className="text-gray-400">Rejects colors from color_mapping placed in cells not defined in the mapping (e.g., black in "0" cells).</span>
+        </div>
+        <div className="flex items-start gap-3 text-sm">
+          <span className="px-2 py-1 bg-blue-500/30 rounded text-blue-300 font-mono text-xs shrink-0">viewMode: "2D"</span>
+          <span className="text-gray-400">Nonogram puzzles use 2D view for best experience.</span>
+        </div>
+        <div className="flex items-start gap-3 text-sm">
+          <span className="px-2 py-1 bg-gray-500/30 rounded text-gray-300 font-mono text-xs shrink-0">unit bricks</span>
+          <span className="text-gray-400">Use single-cell unit bricks for placing marks.</span>
+        </div>
+      </div>
+
+      <h4 className="text-white font-display font-semibold mt-6">Nonogram Hints Format</h4>
+      <p className="text-gray-400 text-sm mb-3">
+        Define the hints as arrays of numbers for each row and column:
+      </p>
+      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+        {`"nonogram_hints": {
+  "rows": [
+    [4],          // Row 0: 4 consecutive filled cells
+    [1, 1],       // Row 1: two separate single cells
+    [2, 1],       // Row 2: group of 2, then group of 1
+    [3],          // Row 3: 3 consecutive cells
+    [1, 2]        // Row 4: single, then pair
+  ],
+  "columns": [
+    [1, 1],       // Col 0: two separate singles
+    [1, 2],       // Col 1: single, then pair
+    [5],          // Col 2: all 5 cells filled
+    [1, 2],       // Col 3: single, then pair
+    [2]           // Col 4: pair
+  ]
+}`}
+      </pre>
+
+      <h4 className="text-white font-display font-semibold mt-6">Target Pattern Format</h4>
+      <p className="text-gray-400 text-sm mb-3">
+        Define which cells must have black bricks to win. Use <code className="text-editor-accent">1</code> for filled,
+        <code className="text-editor-accent">0</code> for empty (ignored by validation):
+      </p>
+      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+        {`"target_pattern": {
+  "rows": [
+    [1, 1, 1, 1, 0],  // Row 0: filled at cols 0-3
+    [0, 0, 1, 0, 1],  // Row 1: filled at cols 2, 4
+    [0, 1, 1, 0, 1],  // Row 2: filled at cols 1, 2, 4
+    [0, 1, 1, 1, 0],  // Row 3: filled at cols 1-3
+    [1, 0, 1, 1, 0]   // Row 4: filled at cols 0, 2, 3
+  ],
+  "color_mapping": {
+    "1": "#05131D"    // Black = filled cells
+  }
+}`}
+      </pre>
+
+      <h4 className="text-white font-display font-semibold mt-6">Full Example</h4>
+      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+        {`{
+  "puzzle_id": "Nonogram-01",
+  "title": "Nonogram: Cross",
+  "description": "Fill cells according to the number hints",
+  "viewMode": "2D",
+  "board": {
+    "dimensions": { "width": 5, "height": 5, "depth": 1 },
+    "initial_state": []
+  },
+  "inventory": [
+    { "shape": "unit", "color": "#05131D", "quantity": 25, "id": "filled" },
+    { "shape": "unit", "color": "#D01012", "quantity": 25, "id": "marked" }
+  ],
+  "nonogram_hints": {
+    "rows": [[4], [1,1], [2,1], [3], [1,2]],
+    "columns": [[1,1], [1,2], [5], [1,2], [2]]
+  },
+  "target_pattern": {
+    "rows": [
+      [1,1,1,1,0], [0,0,1,0,1], [0,1,1,0,1],
+      [0,1,1,1,0], [1,0,1,1,0]
+    ],
+    "color_mapping": { "1": "#05131D" }
+  },
+  "validation_rules": [
+    { "type": "PATTERN", "rule": "PATTERN_MATCH", "params": { "reject_unmapped_target_colors": true } },
+    { "type": "ROTATION", "rule": "NO_ROTATION" },
+    { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
+    { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
+  ]
+}`}
+      </pre>
+
+      <div className="bg-editor-accent/10 border border-editor-accent/30 rounded-lg p-4 mt-4">
+        <h4 className="text-editor-accent font-display font-semibold mb-2 flex items-center gap-2">
+          <LegoLightbulbIcon className="w-5 h-5" />
+          Tips
+        </h4>
+        <ul className="text-gray-300 text-sm space-y-1 list-disc list-inside">
+          <li>Row hints appear on the <strong>left</strong> side of the grid</li>
+          <li>Column hints appear on the <strong>top</strong> of the grid</li>
+          <li>Numbers indicate consecutive groups of filled cells</li>
+          <li>Red bricks are optional helpers — only black bricks are validated</li>
+          <li>The hint array order matches grid order (top-to-bottom, left-to-right)</li>
+        </ul>
+      </div>
+    </div>
   );
 }
 
@@ -839,6 +1012,7 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
           {activeTab === 'shapes' && <ShapesTab />}
           {activeTab === 'validation' && <ValidationTab />}
           {activeTab === 'slider' && <SliderTab />}
+          {activeTab === 'nonogram' && <NonogramTab />}
           {activeTab === 'examples' && <ExamplesTab />}
         </div>
 

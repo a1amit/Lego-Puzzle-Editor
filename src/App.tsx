@@ -10,7 +10,7 @@ import { CongratulationsPopup } from './components/ui/CongratulationsPopup';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
 import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS, COLORFUL_COVERAGE_PUZZLE } from './types/puzzle';
-import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE } from './types/puzzle';
+import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE, NONOGRAM_PUZZLE } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
@@ -186,6 +186,14 @@ const PUZZLE_CATEGORIES: { category: string; color: string; iconType: string; pu
     iconType: 'brain-teaser',
     puzzles: [
       { id: 'pen-challenge', label: 'Pen Challenge', puzzle: PEN_CHALLENGE_PUZZLE, is3D: false },
+    ],
+  },
+  {
+    category: 'Logic Puzzles',
+    color: '#10B981',
+    iconType: 'coverage',
+    puzzles: [
+      { id: 'nonogram', label: 'Nonogram: Cross', puzzle: NONOGRAM_PUZZLE, is3D: false },
     ],
   },
 ];

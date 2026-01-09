@@ -12,6 +12,7 @@ A **sustainable platform** for CS Escape Room puzzles built with React, Three.js
 - **Interactive Controls**: Click-to-select, drag-to-place, right-click-to-rotate
 - **Grid Snapping**: Bricks automatically snap to integer board coordinates
 - **Real-time Validation**: Visual feedback for valid/invalid placements
+- **2D/3D Views**: Switch between 2D grid view and 3D perspective
 
 ### Creator IDE
 - **Monaco Editor**: Full VS Code editing experience with JSON syntax highlighting
@@ -22,10 +23,19 @@ A **sustainable platform** for CS Escape Room puzzles built with React, Three.js
 ### Validation Engine
 - **Strategy Pattern**: Extensible `ValidationRegistry` for custom rules
 - **Built-in Rules**:
-  - `ALL_BOARD_SQUARES_MUST_BE_COVERED`
-  - `NO_BRICK_OVERLAP`
-  - `NO_BRICKS_OUT_OF_BOUNDS`
-  - `NO_BLOCKED_CELLS`
+  - `ALL_BOARD_SQUARES_MUST_BE_COVERED` - Coverage puzzles
+  - `NO_BRICK_OVERLAP` - Prevent overlapping pieces
+  - `NO_BRICKS_OUT_OF_BOUNDS` - Keep pieces on board
+  - `NO_BLOCKED_CELLS` - Respect blocked areas
+  - `GOAL_REACHED` - Slider/Klotski puzzles
+  - `PATTERN_MATCH` - Binary Safe & Nonogram puzzles
+  - `MAX_MOVES` - Move-limited puzzles
+
+### Puzzle Types
+- **Coverage**: Fill the entire board with pieces
+- **Slider/Klotski**: Slide pieces to reach a goal position
+- **Binary Safe**: Create binary ASCII patterns
+- **Nonogram/Picross**: Fill cells according to row/column number hints
 
 ## 🚀 Quick Start
 

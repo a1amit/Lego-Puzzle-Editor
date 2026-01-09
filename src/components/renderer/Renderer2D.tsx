@@ -9,6 +9,7 @@ import { useMemo, useCallback, useEffect, useState } from 'react';
 import type { UsePuzzleEngineReturn, PlacedPiece, Coordinate2D } from '../../engine';
 import { rotateShape, getPieceCells, getValidSlideDestinations } from '../../engine';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
+import type { NonogramHints } from '../../types/puzzle';
 
 interface Renderer2DProps {
   engine: UsePuzzleEngineReturn;
@@ -25,6 +26,11 @@ const PADDING = 20;
 const STUD_RADIUS = 8;
 const BRICK_OUTER_INSET = 2; // Inset from cell edges for brick body and borders
 const SELECTION_Y_OFFSET = 4; // Vertical lift when brick is selected
+
+// Nonogram hint display constants
+const HINT_CELL_SIZE = 24; // Smaller cells for Nonogram hints
+const HINT_FONT_SIZE = 14;
+const HINT_GAP = 4; // Gap between hint numbers
 
 // ============================================
 // HELPER COMPONENTS
@@ -385,6 +391,114 @@ function GhostPiece2D({
 }
 
 // ============================================
+// NONOGRAM HINTS COMPONENT
+// ============================================
+
+interface NonogramHintsProps {
+  hints: NonogramHints;
+  cellSize: number;
+  boardWidth: number;
+  boardHeight: number;
+  hintsLeftWidth: number;
+  hintsTopHeight: number;
+}
+
+/**
+ * Renders row and column hints for Nonogram puzzles.
+ * Row hints appear on the left side, column hints appear on top.
+ */
+function NonogramHintsDisplay({
+  hints,
+  cellSize,
+  boardWidth,
+  boardHeight,
+  hintsLeftWidth,
+  hintsTopHeight,
+}: NonogramHintsProps) {
+  // Render row hints (left side of board)
+  const rowHints = hints.rows.map((row, rowIndex) => {
+    const y = hintsTopHeight + rowIndex * cellSize + cellSize / 2;
+
+    return (
+      <g key={`row-${rowIndex}`}>
+        {row.map((num, numIndex) => {
+          // Position from right to left, ending at board edge
+          const x = hintsLeftWidth - (row.length - numIndex) * HINT_CELL_SIZE + HINT_CELL_SIZE / 2;
+          return (
+            <text
+              key={`row-${rowIndex}-${numIndex}`}
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#e0e0e0"
+              fontSize={HINT_FONT_SIZE}
+              fontFamily="monospace"
+              fontWeight="bold"
+            >
+              {num}
+            </text>
+          );
+        })}
+      </g>
+    );
+  });
+
+  // Render column hints (top of board)
+  const colHints = hints.columns.map((col, colIndex) => {
+    const x = hintsLeftWidth + colIndex * cellSize + cellSize / 2;
+
+    return (
+      <g key={`col-${colIndex}`}>
+        {col.map((num, numIndex) => {
+          // Position from bottom to top, ending at board edge
+          const y = hintsTopHeight - (col.length - numIndex) * HINT_CELL_SIZE + HINT_CELL_SIZE / 2;
+          return (
+            <text
+              key={`col-${colIndex}-${numIndex}`}
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#e0e0e0"
+              fontSize={HINT_FONT_SIZE}
+              fontFamily="monospace"
+              fontWeight="bold"
+            >
+              {num}
+            </text>
+          );
+        })}
+      </g>
+    );
+  });
+
+  return (
+    <g>
+      {/* Background for hints area */}
+      <rect
+        x={0}
+        y={hintsTopHeight}
+        width={hintsLeftWidth - HINT_GAP}
+        height={boardHeight * cellSize}
+        fill="#1a1a1a"
+        rx={4}
+      />
+      <rect
+        x={hintsLeftWidth}
+        y={0}
+        width={boardWidth * cellSize}
+        height={hintsTopHeight - HINT_GAP}
+        fill="#1a1a1a"
+        rx={4}
+      />
+      {rowHints}
+      {colHints}
+    </g>
+  );
+}
+
+// ============================================
 // MAIN RENDERER
 // ============================================
 
@@ -410,8 +524,21 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
 
   const { width, height } = board.dimensions;
   const cellSize = CELL_SIZE;
-  const svgWidth = width * cellSize + PADDING * 2;
-  const svgHeight = height * cellSize + PADDING * 2;
+
+  // Calculate Nonogram hint area dimensions
+  const nonogramHints = puzzle?.nonogram_hints;
+  const maxRowHints = nonogramHints
+    ? Math.max(...nonogramHints.rows.map(r => r.length), 1)
+    : 0;
+  const maxColHints = nonogramHints
+    ? Math.max(...nonogramHints.columns.map(c => c.length), 1)
+    : 0;
+  const hintsLeftWidth = maxRowHints * HINT_CELL_SIZE;
+  const hintsTopHeight = maxColHints * HINT_CELL_SIZE;
+
+  // Adjust SVG size to include hints area
+  const svgWidth = hintsLeftWidth + width * cellSize + PADDING * 2;
+  const svgHeight = hintsTopHeight + height * cellSize + PADDING * 2;
 
   // Get invalid cells from validation (skip certain rules that shouldn't show as red errors)
   const invalidCells = useMemo(() => {
@@ -671,8 +798,22 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
         {/* Background */}
         <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="#0a0a0a" />
 
-        {/* Main board area */}
-        <g transform={`translate(${PADDING}, ${PADDING})`}>
+        {/* Nonogram hints (if puzzle has them) */}
+        {nonogramHints && (
+          <g transform={`translate(${PADDING}, ${PADDING})`}>
+            <NonogramHintsDisplay
+              hints={nonogramHints}
+              cellSize={cellSize}
+              boardWidth={width}
+              boardHeight={height}
+              hintsLeftWidth={hintsLeftWidth}
+              hintsTopHeight={hintsTopHeight}
+            />
+          </g>
+        )}
+
+        {/* Main board area - offset by hints dimensions */}
+        <g transform={`translate(${PADDING + hintsLeftWidth}, ${PADDING + hintsTopHeight})`}>
           {/* Board background */}
           <rect
             x={-4}
