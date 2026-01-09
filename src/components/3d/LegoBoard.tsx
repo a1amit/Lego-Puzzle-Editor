@@ -43,8 +43,8 @@ function BoardCell({
   highlightColor?: string;
   isGoal?: boolean;
 }) {
-  const baseColor = isBlocked ? '#4a4a4a' : isGoal ? '#5d5020' : '#5a5a5a';
-  const studColor = isBlocked ? '#4a4a4a' : isGoal ? '#6d6030' : '#4a4a4a';
+  const baseColor = isBlocked ? '#4a4a4a' : isGoal ? '#5d5020' : '#FFFFFF';
+  const studColor = isBlocked ? '#4a4a4a' : isGoal ? '#6d6030' : '#E0E0E0';
 
   return (
     <group position={[x * CELL_SIZE, 0, y * CELL_SIZE]}>
