@@ -137,7 +137,6 @@ function NonogramHints3D({ hints }: NonogramHints3DProps) {
           color="#e0e0e0"
           anchorX="center"
           anchorY="middle"
-          font="/fonts/inter-bold.woff"
         >
           {num}
         </Text>
@@ -161,7 +160,6 @@ function NonogramHints3D({ hints }: NonogramHints3DProps) {
           color="#e0e0e0"
           anchorX="center"
           anchorY="middle"
-          font="/fonts/inter-bold.woff"
         >
           {num}
         </Text>
