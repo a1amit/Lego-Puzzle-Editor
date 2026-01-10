@@ -669,30 +669,38 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
           }
         }
       } else {
-        // Free placement mode - move to clicked column
-        // For pieces with height, we need to position at y=0 of the target column
-        // to ensure the piece fits within bounds
+        // Free placement mode - calculate anchor so clicked cell is covered by the piece
         const shapeDef = SHAPE_LIBRARY[selectedPlacedPiece.shape];
         if (shapeDef) {
-          // Calculate the piece's shape bounds
           const rotatedCells = rotateShape(shapeDef.cells, selectedPlacedPiece.rotation);
-          const minY = Math.min(...rotatedCells.map(([, dy]) => dy));
 
-          // Adjust y position so the piece starts at row 0 regardless of where clicked
-          const adjustedY = 0 - minY;
+          // Calculate shape bounds (how far the shape extends from its anchor)
+          const minDx = Math.min(...rotatedCells.map(([dx]) => dx));
+          const maxDx = Math.max(...rotatedCells.map(([dx]) => dx));
+          const minDy = Math.min(...rotatedCells.map(([, dy]) => dy));
+          const maxDy = Math.max(...rotatedCells.map(([, dy]) => dy));
 
-          console.log('[Renderer2D] Free placement mode - moving piece to column:', x, 'at y:', adjustedY);
-          const success = movePiece(selectedPlacedPiece.instanceId, { x, y: adjustedY, z: 0 });
+          // Calculate anchor so clicked cell would be covered
+          // But constrain to valid board positions
+          let anchorX = x - minDx;
+          let anchorY = y - minDy;
+
+          // Constrain anchor so piece stays within bounds
+          // Max anchor X: board.width - shape width
+          // Max anchor Y: board.height - shape height
+          anchorX = Math.max(-minDx, Math.min(anchorX, board.dimensions.width - 1 - maxDx));
+          anchorY = Math.max(-minDy, Math.min(anchorY, board.dimensions.height - 1 - maxDy));
+
+          console.log('[Renderer2D] Free placement mode - moving piece to anchor:', { x: anchorX, y: anchorY, clickedCell: { x, y } });
+          const success = movePiece(selectedPlacedPiece.instanceId, { x: anchorX, y: anchorY, z: 0 });
           console.log('[Renderer2D] Move result:', success);
           if (!success) {
-            // If move failed, deselect anyway to give feedback
             console.log('[Renderer2D] Move failed - possibly overlap or out of bounds');
           }
         } else {
           // Fallback for pieces without shapes
           console.log('[Renderer2D] Free placement mode - moving piece to:', { x, y });
-          const success = movePiece(selectedPlacedPiece.instanceId, { x, y, z: 0 });
-          console.log('[Renderer2D] Move result:', success);
+          movePiece(selectedPlacedPiece.instanceId, { x, y, z: 0 });
         }
         selectPiece(null);
       }
