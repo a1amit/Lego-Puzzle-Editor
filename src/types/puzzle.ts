@@ -1004,3 +1004,178 @@ export const NONOGRAM_PUZZLE: PuzzleDefinition = {
   }
 };
 
+export const NONOGRAM_PUZZLE_2: PuzzleDefinition = {
+  "puzzle_id": "Nonogram-02",
+  "title": "Nonogram: Cross",
+  "description": "Fill in the black squares according to the number clues. Numbers indicate consecutive filled cells in each row/column. Use red bricks to mark cells that should stay empty.",
+  "viewMode": "2D",
+  "board": {
+    "dimensions": {
+      "width": 10,
+      "height": 10,
+      "depth": 1
+    },
+    "initial_state": []
+  },
+  "inventory": [
+    {
+      "shape": "unit",
+      "color": "#05131D",
+      "quantity": 100,
+      "id": "filled"
+    },
+    {
+      "shape": "unit",
+      "color": "#D01012",
+      "quantity": 100,
+      "id": "marked"
+    }
+  ],
+  "nonogram_hints": {
+    "rows": [
+                [
+                  1,
+                  3,
+                  1,
+                  1
+                ],
+                [
+                  2,
+                  3,
+                  1
+                ],
+                [
+                  1,
+                  2,
+                  4
+                ],
+                [
+                  5
+                ],
+                [
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  3,
+                  1,
+                  3
+                ],
+                [
+                  2,
+                  7
+                ],
+                [
+                  2,
+                  1,
+                  2
+                ],
+                [
+                  6,
+                  1
+                ],
+                [
+                  1,
+                  2,
+                  1
+                ]
+    ],
+    "columns": [
+      [
+        3,
+        1,
+        1,
+        2
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        1,
+        1,
+        1,2
+      ],
+      [
+        7,
+        1
+      ],
+      [
+        5,
+        4
+      ],
+      [
+        1,
+        1,
+        2,2
+      ],
+      [
+        1,
+        2,1
+      ],
+      [
+        1,
+        5
+      ],
+      [
+        1,
+        1,3,1
+      ],
+      [
+        2,
+        2
+      ]
+    ]
+  },
+  "target_pattern": {
+    "rows": [
+      [1,0,1,1,1,0,1,0,1,0],
+      [1,1,0,1,1,1,0,0,0,1],
+      [1,0,0,1,1,0,1,1,1,1],
+      [0,0,1,1,1,1,1,0,0,0],
+      [1,0,0,1,1,0,0,1,0,0],
+      [0,1,1,1,0,1,0,1,1,1],
+      [1,1,0,1,1,1,1,1,1,1],
+      [0,1,1,0,1,0,0,1,1,0],
+      [1,1,1,1,1,1,0,1,0,0],
+      [1,0,0,0,1,1,0,0,1,0]
+
+    ],
+    "color_mapping": {
+      "1": "#05131D"
+    }
+  },
+  "validation_rules": [
+    {
+      "type": "PATTERN",
+      "rule": "PATTERN_MATCH",
+      "params": {
+        "reject_unmapped_target_colors": true
+      }
+    },
+    {
+      "type": "ROTATION",
+      "rule": "NO_ROTATION"
+    },
+    {
+      "type": "PLACEMENT",
+      "rule": "NO_BRICK_OVERLAP"
+    },
+    {
+      "type": "PLACEMENT",
+      "rule": "NO_BRICKS_OUT_OF_BOUNDS"
+    }
+  ],
+  "metadata": {
+    "author": "CS Escape Room",
+    "difficulty": "medium",
+    "tags": [
+      "nonogram",
+      "2D",
+      "logic",
+      "picross"
+    ]
+  }
+};
+
