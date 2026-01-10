@@ -11,7 +11,7 @@ import { ChatPanel, LegoHelperIcon } from './components/ui/ChatPanel';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
 import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS, COLORFUL_COVERAGE_PUZZLE } from './types/puzzle';
-import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE, NONOGRAM_PUZZLE } from './types/puzzle';
+import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE, NONOGRAM_PUZZLE, NONOGRAM_PUZZLE_2 } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
@@ -195,6 +195,7 @@ const PUZZLE_CATEGORIES: { category: string; color: string; iconType: string; pu
     iconType: 'coverage',
     puzzles: [
       { id: 'nonogram', label: 'Nonogram: Cross', puzzle: NONOGRAM_PUZZLE, is3D: false },
+      { id: 'nonogram-2', label: 'Nonogram: Cross', puzzle: NONOGRAM_PUZZLE_2, is3D: false },
     ],
   },
 ];
