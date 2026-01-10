@@ -195,7 +195,7 @@ const PUZZLE_CATEGORIES: { category: string; color: string; iconType: string; pu
     iconType: 'coverage',
     puzzles: [
       { id: 'nonogram', label: 'Nonogram: Cross', puzzle: NONOGRAM_PUZZLE, is3D: false },
-      { id: 'nonogram-2', label: 'Nonogram2: Cross', puzzle: NONOGRAM_PUZZLE_2, is3D: false },
+      { id: 'nonogram-2', label: 'Nonogram: Cross', puzzle: NONOGRAM_PUZZLE_2, is3D: false },
     ],
   },
 ];
