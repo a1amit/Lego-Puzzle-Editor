@@ -293,6 +293,31 @@ export const TargetPatternSchema = z.object({
 
 export type TargetPattern = z.infer<typeof TargetPatternSchema>;
 
+// ============================================
+// NONOGRAM HINTS (for Nonogram/Picross puzzles)
+// ============================================
+
+/**
+ * Defines the row and column hints for Nonogram puzzles.
+ * Numbers indicate consecutive groups of filled cells.
+ */
+export const NonogramHintsSchema = z.object({
+  /** 
+   * Row hints - array of arrays, each inner array contains 
+   * consecutive group sizes for that row (displayed on left side).
+   * Example: [[1,1,1], [4], [1,1]] for 3 rows
+   */
+  rows: z.array(z.array(z.number())),
+  /** 
+   * Column hints - array of arrays, each inner array contains 
+   * consecutive group sizes for that column (displayed on top).
+   * Example: [[1], [1,1], [2,2]] for 3 columns
+   */
+  columns: z.array(z.array(z.number())),
+});
+
+export type NonogramHints = z.infer<typeof NonogramHintsSchema>;
+
 export const PuzzleDefinitionSchema = z.object({
   puzzle_id: z.string(),
   title: z.string(),
@@ -305,6 +330,8 @@ export const PuzzleDefinitionSchema = z.object({
   goal: GoalPositionSchema.optional(),
   /** Target pattern for pattern-matching puzzles (Binary, RLE, etc.) */
   target_pattern: TargetPatternSchema.optional(),
+  /** Nonogram hints for Nonogram/Picross puzzles */
+  nonogram_hints: NonogramHintsSchema.optional(),
   validation_rules: z.array(ValidationRuleSchema),
   /** Optional custom shape definitions */
   custom_shapes: z.record(z.string(), ShapeDefinitionSchema).optional(),
@@ -907,6 +934,73 @@ export const PEN_CHALLENGE_PUZZLE: PuzzleDefinition = {
     author: "CS Escape Room",
     difficulty: "easy",
     tags: ["brain-teaser", "2D", "visual-puzzle", "pen-challenge"]
+  }
+};
+
+// ============================================
+// NONOGRAM PUZZLE (Picross-style logic puzzle)
+// ============================================
+
+/**
+ * Nonogram Puzzle - Fill in the grid based on number clues
+ * 
+ * A 5x5 grid with row hints on the left and column hints on top.
+ * Players place black unit bricks on filled cells and optionally
+ * red unit bricks to mark cells that should remain empty.
+ * 
+ * The pattern forms a cross/diamond shape.
+ */
+export const NONOGRAM_PUZZLE: PuzzleDefinition = {
+  puzzle_id: "Nonogram-01",
+  title: "Nonogram: Cross",
+  description: "Fill in the black squares according to the number clues. Numbers indicate consecutive filled cells in each row/column. Use red bricks to mark cells that should stay empty.",
+  viewMode: "2D",
+  board: {
+    dimensions: { width: 5, height: 5, depth: 1 },
+    initial_state: []
+  },
+  inventory: [
+    { shape: "unit", color: "#05131D", quantity: 25, id: "filled" },
+    { shape: "unit", color: "#D01012", quantity: 25, id: "marked" },
+  ],
+  nonogram_hints: {
+    rows: [
+      [4],
+      [1, 1],
+      [2, 1],
+      [3],
+      [1, 2],
+    ],
+    columns: [
+      [1, 1],
+      [1, 2],
+      [5],
+      [1, 2],
+      [2],
+    ],
+  },
+  target_pattern: {
+    rows: [
+      [1, 1, 1, 1, 0],
+      [0, 0, 1, 0, 1],
+      [0, 1, 1, 0, 1],
+      [0, 1, 1, 1, 0],
+      [1, 0, 1, 1, 0],
+    ],
+    color_mapping: {
+      "1": "#05131D",
+    },
+  },
+  validation_rules: [
+    { type: "PATTERN", rule: "PATTERN_MATCH", params: { reject_unmapped_target_colors: true } },
+    { type: "ROTATION", rule: "NO_ROTATION" },
+    { type: "PLACEMENT", rule: "NO_BRICK_OVERLAP" },
+    { type: "PLACEMENT", rule: "NO_BRICKS_OUT_OF_BOUNDS" }
+  ],
+  metadata: {
+    author: "CS Escape Room",
+    difficulty: "easy",
+    tags: ["nonogram", "2D", "logic", "picross"]
   }
 };
 

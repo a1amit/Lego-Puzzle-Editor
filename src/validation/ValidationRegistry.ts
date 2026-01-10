@@ -322,12 +322,17 @@ const validateAllBricksMustBeUsed: ValidationFunction = (boardState, params) => 
 
 /**
  * Check if placed pieces match a target pattern (for Binary, RLE, and pattern puzzles)
- * Params should contain: { rows: (number|string)[][], color_mapping: Record<string, string>, allow_empty_cells?: boolean }
+ * Params should contain: 
+ *   - rows: (number|string)[][] - The pattern grid
+ *   - color_mapping: Record<string, string> - Map values to expected colors
+ *   - allow_empty_cells?: boolean - If true, empty cells pass validation
+ *   - reject_unmapped_target_colors?: boolean - If true, target colors placed in cells NOT in the mapping fail (for Nonogram)
  */
 const validatePatternMatch: ValidationFunction = (boardState, params) => {
   const rows = params?.rows as (number | string)[][] | undefined;
   const colorMapping = params?.color_mapping as Record<string, string> | undefined;
   const allowEmptyCells = params?.allow_empty_cells as boolean | undefined;
+  const rejectUnmappedTargetColors = params?.reject_unmapped_target_colors as boolean | undefined;
 
   if (!rows || !colorMapping) {
     return {
@@ -357,6 +362,9 @@ const validatePatternMatch: ValidationFunction = (boardState, params) => {
     }
   }
 
+  // Get the set of target colors (colors that are in the mapping)
+  const targetColors = new Set(Object.values(colorMapping).map(c => c.toLowerCase()));
+
   // Check each cell in the pattern
   const mismatches: { x: number; y: number; expected: string; actual: string | null }[] = [];
   const affectedCells: [number, number][] = [];
@@ -365,24 +373,30 @@ const validatePatternMatch: ValidationFunction = (boardState, params) => {
     for (let x = 0; x < rows[y].length; x++) {
       const expectedValue = String(rows[y][x]);
       const expectedColor = colorMapping[expectedValue]?.toLowerCase();
-
-      if (!expectedColor) {
-        // Value not in color mapping - skip or error
-        continue;
-      }
-
       const actualColor = cellColorMap.get(`${x},${y}`);
 
-      if (!actualColor) {
-        // Cell is empty
-        if (!allowEmptyCells) {
-          mismatches.push({ x, y, expected: expectedColor, actual: null });
+      if (expectedColor) {
+        // This cell SHOULD have a specific color
+        if (!actualColor) {
+          // Cell is empty but should have a color
+          if (!allowEmptyCells) {
+            mismatches.push({ x, y, expected: expectedColor, actual: null });
+            affectedCells.push([x, y]);
+          }
+        } else if (actualColor !== expectedColor) {
+          // Wrong color placed
+          mismatches.push({ x, y, expected: expectedColor, actual: actualColor });
           affectedCells.push([x, y]);
         }
-      } else if (actualColor !== expectedColor) {
-        // Wrong color
-        mismatches.push({ x, y, expected: expectedColor, actual: actualColor });
-        affectedCells.push([x, y]);
+      } else {
+        // This cell is NOT in color_mapping (e.g., "0" in Nonogram)
+        // Check if a TARGET color was placed here incorrectly (only if reject_unmapped_target_colors is true)
+        if (rejectUnmappedTargetColors && actualColor && targetColors.has(actualColor)) {
+          // A target color (like black) was placed in a cell that should NOT have it
+          mismatches.push({ x, y, expected: 'empty', actual: actualColor });
+          affectedCells.push([x, y]);
+        }
+        // Other colors (like red markers) are allowed in these cells
       }
     }
   }

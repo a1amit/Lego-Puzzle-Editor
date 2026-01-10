@@ -1,8 +1,9 @@
 import { useMemo, useRef } from 'react';
 import { ThreeEvent } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { usePuzzleStore } from '../../store/puzzleStore';
-import type { ValidationResult } from '../../types/puzzle';
+import type { ValidationResult, NonogramHints } from '../../types/puzzle';
 
 interface LegoBoardProps {
   width: number;
@@ -95,6 +96,81 @@ function BoardCell({
           />
         </mesh>
       )}
+    </group>
+  );
+}
+
+// ============================================
+// NONOGRAM HINTS 3D COMPONENT
+// ============================================
+
+interface NonogramHints3DProps {
+  hints: NonogramHints;
+}
+
+/**
+ * Renders Nonogram hints in 3D using Text components.
+ * Row hints appear on the left side (negative X), column hints on the front (negative Z).
+ */
+function NonogramHints3D({ hints }: NonogramHints3DProps) {
+  const HINT_SPACING = 0.5; // Space between hint numbers
+  const HINT_HEIGHT = 0.3; // Height above the board
+  const TEXT_SIZE = 0.4;
+
+  // Calculate max hints for proper spacing
+  const maxRowHints = Math.max(...hints.rows.map(r => r.length), 1);
+  const maxColHints = Math.max(...hints.columns.map(c => c.length), 1);
+
+  // Render row hints (left side of board, along Z axis)
+  const rowHintElements = hints.rows.map((row, rowIndex) => {
+    return row.map((num, numIndex) => {
+      // Position from right to left (closer numbers are closer to board)
+      const xOffset = -(maxRowHints - row.length + numIndex + 1) * HINT_SPACING - 0.3;
+      const zPosition = rowIndex * CELL_SIZE + CELL_SIZE / 2;
+
+      return (
+        <Text
+          key={`row-${rowIndex}-${numIndex}`}
+          position={[xOffset, HINT_HEIGHT, zPosition]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          fontSize={TEXT_SIZE}
+          color="#e0e0e0"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {num}
+        </Text>
+      );
+    });
+  });
+
+  // Render column hints (front of board, along X axis)
+  const colHintElements = hints.columns.map((col, colIndex) => {
+    return col.map((num, numIndex) => {
+      // Position from bottom to top (closer numbers are closer to board)
+      const zOffset = -(maxColHints - col.length + numIndex + 1) * HINT_SPACING - 0.3;
+      const xPosition = colIndex * CELL_SIZE + CELL_SIZE / 2;
+
+      return (
+        <Text
+          key={`col-${colIndex}-${numIndex}`}
+          position={[xPosition, HINT_HEIGHT, zOffset]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          fontSize={TEXT_SIZE}
+          color="#e0e0e0"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {num}
+        </Text>
+      );
+    });
+  });
+
+  return (
+    <group>
+      {rowHintElements.flat()}
+      {colHintElements.flat()}
     </group>
   );
 }
@@ -252,6 +328,13 @@ export function LegoBoard({
 
       {/* Individual cells */}
       {cells}
+
+      {/* Nonogram hints (if puzzle has them) */}
+      {store.puzzle?.nonogram_hints && (
+        <NonogramHints3D
+          hints={store.puzzle.nonogram_hints}
+        />
+      )}
 
       {/* Invisible interaction plane - rotated to face up for proper raycasting */}
       <mesh

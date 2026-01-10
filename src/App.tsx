@@ -7,10 +7,11 @@ import { InventoryPanel } from './components/ui/InventoryPanel';
 import { ValidationPanel } from './components/ui/ValidationPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
 import { CongratulationsPopup } from './components/ui/CongratulationsPopup';
+import { ChatPanel, LegoHelperIcon } from './components/ui/ChatPanel';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
 import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS, COLORFUL_COVERAGE_PUZZLE } from './types/puzzle';
-import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE } from './types/puzzle';
+import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE, NONOGRAM_PUZZLE } from './types/puzzle';
 
 // Lego Brick Icon for header
 function LegoBrickIcon({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
@@ -188,11 +189,19 @@ const PUZZLE_CATEGORIES: { category: string; color: string; iconType: string; pu
       { id: 'pen-challenge', label: 'Pen Challenge', puzzle: PEN_CHALLENGE_PUZZLE, is3D: false },
     ],
   },
+  {
+    category: 'Logic Puzzles',
+    color: '#10B981',
+    iconType: 'coverage',
+    puzzles: [
+      { id: 'nonogram', label: 'Nonogram: Cross', puzzle: NONOGRAM_PUZZLE, is3D: false },
+    ],
+  },
 ];
 
 type ViewMode = 'split' | 'editor' | 'preview';
 
-function Header() {
+function Header({ onChatToggle }: { onChatToggle: () => void }) {
   const { puzzle, isComplete, setPuzzle, resetPuzzle } = usePuzzleStore();
   const [showPuzzleMenu, setShowPuzzleMenu] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -228,7 +237,7 @@ function Header() {
   };
 
   return (
-    <header className="h-14 bg-editor-sidebar border-b border-editor-border flex items-center px-4 justify-between">
+    <header className="relative h-14 bg-editor-sidebar border-b border-editor-border flex items-center px-4 justify-between">
       <div className="flex items-center gap-4">
         {/* Logo */}
         <div className="flex items-center gap-2">
@@ -366,6 +375,20 @@ function Header() {
         </div>
       </div>
 
+      {/* Centered Assistant Button */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <button
+          onClick={onChatToggle}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition-colors group"
+          title="Puzzle Assistant"
+        >
+          <div className="w-6 h-6 transform transition-transform group-hover:scale-110">
+            <LegoHelperIcon className="w-full h-full" />
+          </div>
+          <span className="text-sm font-display font-medium">Assistant</span>
+        </button>
+      </div>
+
       {/* Actions */}
       <div className="flex items-center gap-2">
         {/* Instructions button */}
@@ -376,6 +399,8 @@ function Header() {
           <LegoStackIcon className="w-5 h-5" />
           <span className="text-sm font-display">Guide</span>
         </button>
+
+
 
         {/* GitHub link */}
         <a
@@ -536,10 +561,11 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('split');
+  const [showChat, setShowChat] = useState(false);
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-editor-bg">
-      <Header />
+      <Header onChatToggle={() => setShowChat(true)} />
 
       {/* View toggle bar */}
       <div className="h-10 bg-editor-sidebar/30 border-b border-editor-border flex items-center justify-center">
@@ -571,6 +597,9 @@ function App() {
           <span>TypeScript • React • Three.js</span>
         </div>
       </footer>
+
+      {/* Puzzle Assistant Chatbot */}
+      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} />
     </div>
   );
 }
