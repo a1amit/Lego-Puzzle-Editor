@@ -1003,7 +1003,9 @@ export const NONOGRAM_PUZZLE: PuzzleDefinition = {
     tags: ["nonogram", "2D", "logic", "picross"]
   }
 };
-
+// ============================================
+// NONOGRAM PUZZLE (Picross-style logic puzzle)
+// ============================================
 export const NONOGRAM_PUZZLE_2: PuzzleDefinition = {
   "puzzle_id": "Nonogram-02",
   "title": "Nonogram: Cross",
@@ -1107,4 +1109,4 @@ export const NONOGRAM_PUZZLE_2: PuzzleDefinition = {
     ]
   }
 };
-
+//========================================
