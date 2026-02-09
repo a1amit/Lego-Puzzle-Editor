@@ -5,11 +5,12 @@
  * independent of Three.js and works purely with the engine state.
  */
 
-import { useMemo, useCallback, useEffect, useState } from 'react';
+import { useMemo, useCallback, useEffect, useState, useRef } from 'react';
 import type { UsePuzzleEngineReturn, PlacedPiece, Coordinate2D } from '../../engine';
 import { rotateShape, getPieceCells, getValidSlideDestinations } from '../../engine';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import type { NonogramHints } from '../../types/puzzle';
+import { SCENE_2D } from '../../config/sceneConfig';
 
 interface Renderer2DProps {
   engine: UsePuzzleEngineReturn;
@@ -17,20 +18,19 @@ interface Renderer2DProps {
 }
 
 // ============================================
-// CONSTANTS
+// CONSTANTS (from centralized config)
 // ============================================
 
-const CELL_SIZE = 60;
-const CELL_GAP = 2;
-const PADDING = 20;
-const STUD_RADIUS = 8;
-const BRICK_OUTER_INSET = 2; // Inset from cell edges for brick body and borders
-const SELECTION_Y_OFFSET = 4; // Vertical lift when brick is selected
+const CELL_GAP = SCENE_2D.cellGap;
+const PADDING = SCENE_2D.padding;
+const STUD_RADIUS = SCENE_2D.studRadius;
+const BRICK_OUTER_INSET = SCENE_2D.brickOuterInset;
+const SELECTION_Y_OFFSET = SCENE_2D.selectionYOffset;
 
 // Nonogram hint display constants
-const HINT_CELL_SIZE = 24; // Smaller cells for Nonogram hints
-const HINT_FONT_SIZE = 14;
-const HINT_GAP = 4; // Gap between hint numbers
+const HINT_CELL_SIZE = SCENE_2D.hintCellSize;
+const HINT_FONT_SIZE = SCENE_2D.hintFontSize;
+const HINT_GAP = SCENE_2D.hintGap;
 
 // ============================================
 // HELPER COMPONENTS
@@ -521,9 +521,38 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   } = engine;
 
   const [hoveredPieceId, setHoveredPieceId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number } | null>(null);
+
+  // Observe container size for dynamic cell sizing
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width: cw, height: ch } = entry.contentRect;
+      setContainerSize({ w: cw, h: ch });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const { width, height } = board.dimensions;
-  const cellSize = CELL_SIZE;
+
+  // Dynamic cell size: fit the board in the container while clamping to config min/max
+  const cellSize = useMemo(() => {
+    if (!containerSize) return SCENE_2D.defaultCellSize;
+    // Calculate nonogram hint space first (needs cellSize-independent estimate)
+    const nonHints = puzzle?.nonogram_hints;
+    const maxRow = nonHints ? Math.max(...nonHints.rows.map(r => r.length), 1) : 0;
+    const maxCol = nonHints ? Math.max(...nonHints.columns.map(c => c.length), 1) : 0;
+    const hintLeftPx = maxRow * HINT_CELL_SIZE;
+    const hintTopPx = maxCol * HINT_CELL_SIZE;
+    const availW = containerSize.w - PADDING * 2 - hintLeftPx;
+    const availH = containerSize.h - PADDING * 2 - hintTopPx;
+    const fitW = availW / width;
+    const fitH = availH / height;
+    return Math.max(SCENE_2D.minCellSize, Math.min(SCENE_2D.maxCellSize, Math.floor(Math.min(fitW, fitH))));
+  }, [containerSize, width, height, puzzle?.nonogram_hints]);
 
   // Calculate Nonogram hint area dimensions
   const nonogramHints = puzzle?.nonogram_hints;
@@ -781,12 +810,15 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   }
 
   return (
-    <div className={`w-full h-full flex items-center justify-center bg-editor-bg ${className}`}>
+    <div ref={containerRef} className={`w-full h-full flex items-center justify-center bg-editor-bg ${className}`}>
       <svg
         width="100%"
         height="100%"
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
         style={{ maxWidth: svgWidth, maxHeight: svgHeight }}
+        role="grid"
+        aria-label={`${puzzle.title ?? 'Puzzle'} board, ${width} columns by ${height} rows`}
+        tabIndex={0}
       >
         {/* Definitions */}
         <defs>

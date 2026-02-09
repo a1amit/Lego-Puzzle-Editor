@@ -17,8 +17,10 @@ export interface ChatResponse {
     error?: string;
 }
 
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const MODEL = 'google/gemma-3-27b-it:free';
+const OPENROUTER_API_URL = import.meta.env.VITE_OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
+const MODEL = import.meta.env.VITE_CHAT_MODEL || 'google/gemma-3-27b-it:free';
+const MAX_TOKENS = Number(import.meta.env.VITE_CHAT_MAX_TOKENS) || 1000;
+const TEMPERATURE = Number(import.meta.env.VITE_CHAT_TEMPERATURE) || 0.7;
 
 /**
  * Gets the OpenRouter API key from environment variables
@@ -67,8 +69,8 @@ export async function sendChatMessage(
             body: JSON.stringify({
                 model: MODEL,
                 messages,
-                max_tokens: 1000,
-                temperature: 0.7,
+                max_tokens: MAX_TOKENS,
+                temperature: TEMPERATURE,
             }),
         });
 

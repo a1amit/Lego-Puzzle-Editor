@@ -1,274 +1,181 @@
-import { useState, ReactNode } from 'react';
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../ui/shadcn/dialog';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '../ui/shadcn/tabs';
+import { Button } from '../ui/shadcn/button';
+import { Badge } from '../ui/shadcn/badge';
+import {
+  Layers,
+  Puzzle,
+  ShieldCheck,
+  Lightbulb,
+  Rocket,
+  Square,
+  RectangleHorizontal,
+  Grid3x3,
+  Mouse,
+  Move,
+  Keyboard,
+} from 'lucide-react';
 
 interface InstructionsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Lego Brick Icon Components
-function LegoBrick1x1({ className = "w-4 h-4", color = "currentColor" }: { className?: string; color?: string }) {
+function KBD({ children }: { children: React.ReactNode }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="4" y="8" width="16" height="12" rx="1" fill={color} stroke={color} strokeWidth="1" />
-      <rect x="8" y="4" width="8" height="6" rx="1" fill={color} stroke={color} strokeWidth="1" />
-      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
-    </svg>
+    <kbd className="px-2 py-0.5 bg-secondary text-secondary-foreground rounded font-mono text-xs">
+      {children}
+    </kbd>
   );
 }
-
-function LegoBrick2x1({ className = "w-5 h-4", color = "currentColor" }: { className?: string; color?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 32 24" fill="none">
-      <rect x="2" y="8" width="28" height="14" rx="1" fill={color} stroke={color} strokeWidth="1" />
-      <ellipse cx="10" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
-      <ellipse cx="22" cy="5" rx="3" ry="1.5" fill={color} stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
-      <rect x="6" y="2" width="8" height="8" rx="1" fill={color} />
-      <rect x="18" y="2" width="8" height="8" rx="1" fill={color} />
-    </svg>
-  );
-}
-
-function LegoTBrick({ className = "w-5 h-5", color = "currentColor" }: { className?: string; color?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      {/* T-shape body */}
-      <rect x="2" y="4" width="20" height="8" rx="1" fill={color} />
-      <rect x="8" y="10" width="8" height="10" rx="1" fill={color} />
-      {/* Studs */}
-      <ellipse cx="6" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-      <ellipse cx="12" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-      <ellipse cx="18" cy="3" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-      <ellipse cx="12" cy="16" rx="2" ry="1" fill={color} stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-    </svg>
-  );
-}
-
-function LegoStackIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      {/* Bottom brick - blue */}
-      <rect x="2" y="14" width="20" height="8" rx="1" fill="#0055BF" />
-      {/* Top brick - red */}
-      <rect x="5" y="6" width="14" height="8" rx="1" fill="#D01012" />
-      {/* Studs */}
-      <ellipse cx="8" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-      <ellipse cx="16" cy="5" rx="2" ry="1" fill="#D01012" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-    </svg>
-  );
-}
-
-function LegoCheckIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="4" y="8" width="16" height="12" rx="1" fill="#287F46" />
-      <rect x="7" y="4" width="10" height="6" rx="1" fill="#287F46" />
-      <ellipse cx="12" cy="5" rx="3" ry="1.5" fill="#287F46" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
-      {/* Checkmark */}
-      <path d="M8 14l3 3 5-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function LegoLightbulbIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="4" y="10" width="16" height="10" rx="1" fill="#F5CD2F" />
-      <rect x="8" y="6" width="8" height="6" rx="1" fill="#F5CD2F" />
-      <ellipse cx="12" cy="7" rx="3" ry="1.5" fill="#F5CD2F" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-      {/* Light rays */}
-      <path d="M12 2v2M18 4l-1.5 1.5M6 4l1.5 1.5" stroke="#F5CD2F" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function LegoRocketIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      {/* Rocket body - brick style */}
-      <rect x="8" y="6" width="8" height="14" rx="1" fill="#D01012" />
-      {/* Nose cone */}
-      <path d="M8 6L12 2L16 6" fill="#D01012" />
-      {/* Fins */}
-      <path d="M8 16L4 20V16" fill="#0055BF" />
-      <path d="M16 16L20 20V16" fill="#0055BF" />
-      {/* Window/stud */}
-      <ellipse cx="12" cy="10" rx="2" ry="1.5" fill="#D01012" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" />
-      {/* Flame */}
-      <path d="M10 20L12 24L14 20" fill="#F5CD2F" />
-    </svg>
-  );
-}
-
-type TabId = 'overview' | 'shapes' | 'validation' | 'slider' | 'nonogram' | 'examples';
-
-interface TabDef {
-  id: TabId;
-  label: string;
-  icon: ReactNode;
-}
-
-const TABS: TabDef[] = [
-  { id: 'overview', label: 'Overview', icon: <LegoStackIcon className="w-4 h-4" /> },
-  { id: 'shapes', label: 'Shapes', icon: <LegoTBrick className="w-4 h-4" color="#D01012" /> },
-  { id: 'validation', label: 'Validation', icon: <LegoCheckIcon className="w-4 h-4" /> },
-  { id: 'slider', label: 'Slider Puzzles', icon: <LegoBrick2x1 className="w-4 h-3" color="#D01012" /> },
-  { id: 'nonogram', label: 'Nonogram', icon: <LegoBrick1x1 className="w-4 h-4" color="#10B981" /> },
-  { id: 'examples', label: 'Examples', icon: <LegoLightbulbIcon className="w-4 h-4" /> },
-];
 
 function OverviewTab() {
   return (
     <div className="space-y-4">
-      {/* Getting Started - Try Sample Puzzles */}
-      <div className="bg-gradient-to-r from-editor-accent/20 to-lego-purple/20 border border-editor-accent/40 rounded-xl p-5">
+      {/* Getting Started */}
+      <div className="bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/30 rounded-xl p-5">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-editor-accent/30 flex items-center justify-center flex-shrink-0">
-            <LegoStackIcon className="w-8 h-8" />
+          <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <Layers className="w-6 h-6 text-primary" />
           </div>
           <div className="flex-1">
-            <h4 className="text-white font-display font-bold text-lg mb-2">Try Sample Puzzles First!</h4>
-            <p className="text-gray-300 text-sm mb-3">
+            <h4 className="text-foreground font-bold text-lg mb-2">Try Sample Puzzles First!</h4>
+            <p className="text-muted-foreground text-sm mb-3">
               Before creating your own puzzle, try the built-in samples to understand how puzzles work.
             </p>
-            <div className="bg-black/30 rounded-lg p-3 flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-editor-border/50 rounded-lg border border-editor-border">
-                <LegoBrick1x1 className="w-4 h-4" color="#D01012" />
-                <span className="text-gray-400 text-sm">Puzzle:</span>
-                <span className="text-white font-display font-medium">T-Time</span>
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              <span className="text-gray-400 text-sm">← Click this dropdown in the header to switch puzzles</span>
+            <div className="bg-background/50 rounded-lg p-3 text-sm text-muted-foreground">
+              Click the <strong className="text-foreground">Puzzle</strong> dropdown in the header to switch puzzles
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-lg flex items-center gap-1.5">
-                <LegoBrick1x1 className="w-3 h-3" color="#60A5FA" />
-                T-Time — 3D Coverage puzzle
-              </span>
-              <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-lg flex items-center gap-1.5">
-                <LegoBrick2x1 className="w-4 h-3" color="#4ADE80" />
-                Tetris Pack — 3D Fit all pieces
-              </span>
-              <span className="px-2 py-1 bg-red-500/20 text-red-300 text-xs rounded-lg flex items-center gap-1.5">
-                <LegoBrick2x1 className="w-4 h-3" color="#F87171" />
-                Klotski Classic — 2D Slider puzzle
-              </span>
-              <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-lg flex items-center gap-1.5">
-                <LegoBrick1x1 className="w-3 h-3" color="#A78BFA" />
-                Grid Fill — 2D Coverage puzzle
-              </span>
-              <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-xs rounded-lg flex items-center gap-1.5">
-                <LegoBrick1x1 className="w-3 h-3" color="#10B981" />
-                Nonogram — 2D Logic puzzle
-              </span>
+              <Badge variant="secondary" className="gap-1.5">
+                <Square className="w-3 h-3 text-lego-red" />
+                T-Time — 3D Coverage
+              </Badge>
+              <Badge variant="secondary" className="gap-1.5">
+                <RectangleHorizontal className="w-3 h-3 text-lego-blue" />
+                Tetris Pack — 3D Fit all
+              </Badge>
+              <Badge variant="secondary" className="gap-1.5">
+                <Move className="w-3 h-3 text-red-400" />
+                Klotski — 2D Slider
+              </Badge>
+              <Badge variant="secondary" className="gap-1.5">
+                <Grid3x3 className="w-3 h-3 text-emerald-400" />
+                Nonogram — 2D Logic
+              </Badge>
             </div>
           </div>
         </div>
       </div>
 
-      <p className="text-gray-300">
+      <p className="text-muted-foreground">
         The Virtual Lego Puzzle Editor lets you create custom puzzles using a JSON-based format.
         Each puzzle defines a board, inventory of bricks, and validation rules.
       </p>
 
-      {/* View Modes Section */}
-      <h4 className="text-white font-display font-semibold mt-6 flex items-center gap-2">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-        </svg>
+      {/* View Modes */}
+      <h4 className="text-foreground font-semibold mt-6 flex items-center gap-2">
+        <Layers className="w-4 h-4 text-primary" />
         View Modes
       </h4>
-      <div className="bg-black/30 rounded-lg p-4 space-y-2">
+      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-blue-500/30 rounded text-blue-300 font-mono text-xs">3D</span>
-          <span className="text-gray-400">Interactive 3D view with rotation & zoom (default)</span>
+          <Badge variant="default" className="text-xs">3D</Badge>
+          <span className="text-muted-foreground">Interactive 3D view with rotation & zoom (default)</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-green-500/30 rounded text-green-300 font-mono text-xs">2D</span>
-          <span className="text-gray-400">Flat 2D grid view for slider & grid puzzles</span>
+          <Badge variant="secondary" className="text-xs">2D</Badge>
+          <span className="text-muted-foreground">Flat 2D grid view for slider & grid puzzles</span>
         </div>
       </div>
 
-      {/* 3D Controls Section */}
-      <h4 className="text-white font-display font-semibold mt-6 flex items-center gap-2">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-        </svg>
+      {/* 3D Controls */}
+      <h4 className="text-foreground font-semibold mt-6 flex items-center gap-2">
+        <Mouse className="w-4 h-4 text-primary" />
         3D View Controls
       </h4>
-      <div className="bg-black/30 rounded-lg p-4 space-y-2">
+      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Left-click + Drag</span>
-          <span className="text-gray-400">Rotate the camera view</span>
+          <KBD>Left-click + Drag</KBD>
+          <span className="text-muted-foreground">Rotate the camera view</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Right-click + Drag</span>
-          <span className="text-gray-400">Pan the camera view</span>
+          <KBD>Right-click + Drag</KBD>
+          <span className="text-muted-foreground">Pan the camera view</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Scroll Wheel</span>
-          <span className="text-gray-400">Zoom in/out</span>
+          <KBD>Scroll Wheel</KBD>
+          <span className="text-muted-foreground">Zoom in/out</span>
         </div>
       </div>
 
-      {/* 2D Controls Section */}
-      <h4 className="text-white font-display font-semibold mt-6 flex items-center gap-2">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
+      {/* 2D Controls */}
+      <h4 className="text-foreground font-semibold mt-6 flex items-center gap-2">
+        <Move className="w-4 h-4 text-primary" />
         2D View Controls (Slider Puzzles)
       </h4>
-      <div className="bg-black/30 rounded-lg p-4 space-y-2">
+      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Click piece</span>
-          <span className="text-gray-400">Select a piece (shows valid moves as green)</span>
+          <KBD>Click piece</KBD>
+          <span className="text-muted-foreground">Select a piece (shows valid moves as green)</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Click green cell</span>
-          <span className="text-gray-400">Slide the selected piece to that position</span>
+          <KBD>Click green cell</KBD>
+          <span className="text-muted-foreground">Slide the selected piece to that position</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Esc</span>
-          <span className="text-gray-400">Deselect current piece</span>
+          <KBD>Esc</KBD>
+          <span className="text-muted-foreground">Deselect current piece</span>
         </div>
       </div>
 
-      <h4 className="text-white font-display font-semibold mt-6 flex items-center gap-2">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
-        </svg>
+      {/* Brick Controls */}
+      <h4 className="text-foreground font-semibold mt-6 flex items-center gap-2">
+        <Keyboard className="w-4 h-4 text-primary" />
         Brick Controls
       </h4>
-      <div className="bg-black/30 rounded-lg p-4 space-y-2">
+      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Click inventory brick</span>
-          <span className="text-gray-400">Select a brick to place</span>
+          <KBD>Click inventory brick</KBD>
+          <span className="text-muted-foreground">Select a brick to place</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">R / Right-click</span>
-          <span className="text-gray-400">Rotate selected brick 90°</span>
+          <KBD>R / Right-click</KBD>
+          <span className="text-muted-foreground">Rotate selected brick 90°</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Click on board</span>
-          <span className="text-gray-400">Place the selected brick</span>
+          <KBD>Click on board</KBD>
+          <span className="text-muted-foreground">Place the selected brick</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Click placed brick</span>
-          <span className="text-gray-400">Lift and reposition</span>
+          <KBD>Click placed brick</KBD>
+          <span className="text-muted-foreground">Lift and reposition</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Del</span>
-          <span className="text-gray-400">Remove brick from board</span>
+          <KBD>Del</KBD>
+          <span className="text-muted-foreground">Remove brick from board</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="px-2 py-1 bg-editor-border rounded text-gray-300 font-mono text-xs">Esc</span>
-          <span className="text-gray-400">Deselect current brick</span>
+          <KBD>Esc</KBD>
+          <span className="text-muted-foreground">Deselect current brick</span>
         </div>
       </div>
 
-      <h4 className="text-white font-display font-semibold mt-6">JSON Structure</h4>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+      <h4 className="text-foreground font-semibold mt-6">JSON Structure</h4>
+      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
         {`{
   "puzzle_id": "unique-id",
   "title": "Puzzle Name",
@@ -276,12 +183,12 @@ function OverviewTab() {
   "viewMode": "3D",  // or "2D"
   "board": {
     "dimensions": { "width": 8, "height": 4, "depth": 1 },
-    "initial_state": [],        // Pre-placed pieces
-    "blocked_cells": []         // Obstacle cells
+    "initial_state": [],
+    "blocked_cells": []
   },
   "inventory": [...],
   "validation_rules": [...],
-  "goal": { ... },              // Optional: for slider puzzles
+  "goal": { ... },
   "metadata": {
     "author": "Your Name",
     "difficulty": "easy|medium|hard",
@@ -290,13 +197,13 @@ function OverviewTab() {
 }`}
       </pre>
 
-      <h4 className="text-white font-display font-semibold mt-6">Board Configuration</h4>
-      <ul className="list-disc list-inside text-gray-300 space-y-1">
-        <li><code className="text-editor-accent">width</code> - Number of columns (1-20)</li>
-        <li><code className="text-editor-accent">height</code> - Number of rows (1-20)</li>
-        <li><code className="text-editor-accent">depth</code> - Height layers (usually 1)</li>
-        <li><code className="text-editor-accent">initial_state</code> - Pre-placed pieces for slider puzzles</li>
-        <li><code className="text-editor-accent">blocked_cells</code> - Cells where pieces cannot be placed</li>
+      <h4 className="text-foreground font-semibold mt-6">Board Configuration</h4>
+      <ul className="list-disc list-inside text-muted-foreground space-y-1">
+        <li><code className="text-primary">width</code> - Number of columns (1-20)</li>
+        <li><code className="text-primary">height</code> - Number of rows (1-20)</li>
+        <li><code className="text-primary">depth</code> - Height layers (usually 1)</li>
+        <li><code className="text-primary">initial_state</code> - Pre-placed pieces for slider puzzles</li>
+        <li><code className="text-primary">blocked_cells</code> - Cells where pieces cannot be placed</li>
       </ul>
     </div>
   );
@@ -324,52 +231,52 @@ function ShapesTab() {
 
   return (
     <div className="space-y-4">
-      <p className="text-gray-300">
+      <p className="text-muted-foreground">
         Available built-in shapes. Each brick in the inventory references a shape by name.
       </p>
 
       <div className="grid gap-3">
         {shapes.map((shape) => (
-          <div key={shape.name} className="bg-black/30 rounded-lg p-3 flex items-start gap-4">
+          <div key={shape.name} className="bg-secondary/50 rounded-lg p-3 flex items-start gap-4">
             <div className="flex-1">
-              <div className="font-display font-semibold text-white">{shape.name}</div>
-              <div className="text-sm text-gray-400">{shape.desc}</div>
-              <code className="text-xs text-editor-accent mt-1 block">{shape.cells}</code>
+              <div className="font-semibold text-foreground">{shape.name}</div>
+              <div className="text-sm text-muted-foreground">{shape.desc}</div>
+              <code className="text-xs text-primary mt-1 block">{shape.cells}</code>
             </div>
           </div>
         ))}
       </div>
 
-      <h4 className="text-white font-display font-semibold mt-6">Inventory Item Format (for 3D puzzles)</h4>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+      <h4 className="text-foreground font-semibold mt-6">Inventory Item Format (for 3D puzzles)</h4>
+      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
         {`{
-  "id": "brick-1",        // Unique identifier
-  "shape": "T-tetromino", // Shape name from above
-  "color": "#D01012",     // Hex color code
-  "quantity": 2           // How many of this brick
+  "id": "brick-1",
+  "shape": "T-tetromino",
+  "color": "#D01012",
+  "quantity": 2
 }`}
       </pre>
 
-      <h4 className="text-white font-display font-semibold mt-6">Cell-Based Piece Definition (for Slider Puzzles)</h4>
-      <p className="text-gray-400 text-sm mb-3">
-        For slider puzzles, pieces are defined by the exact cells they cover in <code className="text-editor-accent">initial_state</code>:
+      <h4 className="text-foreground font-semibold mt-6">Cell-Based Piece Definition (for Slider Puzzles)</h4>
+      <p className="text-muted-foreground text-sm mb-3">
+        For slider puzzles, pieces are defined by the exact cells they cover in <code className="text-primary">initial_state</code>:
       </p>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
         {`"initial_state": [
   {
     "id": "red-block",
-    "cells": [[1,0], [2,0], [1,1], [2,1]],  // 2x2 block
+    "cells": [[1,0], [2,0], [1,1], [2,1]],
     "color": "#D01012"
   },
   {
     "id": "blue-v1",
-    "cells": [[0,0], [0,1]],                // Vertical domino
+    "cells": [[0,0], [0,1]],
     "color": "#0055BF"
   }
 ]`}
       </pre>
-      <p className="text-gray-400 text-sm mt-2">
-        Each cell is <code className="text-editor-accent">[x, y]</code> — the exact grid positions the piece covers.
+      <p className="text-muted-foreground text-sm mt-2">
+        Each cell is <code className="text-primary">[x, y]</code> — the exact grid positions the piece covers.
       </p>
     </div>
   );
@@ -377,81 +284,37 @@ function ShapesTab() {
 
 function ValidationTab() {
   const rules = [
+    { name: 'ALL_BOARD_SQUARES_MUST_BE_COVERED', type: 'COVERAGE', desc: 'Every cell on the board must be covered by a brick. Used for classic coverage puzzles.' },
+    { name: 'ALL_BRICKS_MUST_BE_USED', type: 'COUNT', desc: 'All bricks from the inventory must be placed on the board. Board can have empty cells.' },
+    { name: 'NO_BRICK_OVERLAP', type: 'PLACEMENT', desc: 'Bricks cannot overlap each other. Usually required for all puzzles.' },
+    { name: 'NO_BRICKS_OUT_OF_BOUNDS', type: 'PLACEMENT', desc: 'All bricks must be fully within the board boundaries.' },
+    { name: 'NO_BLOCKED_CELLS', type: 'PLACEMENT', desc: 'Bricks cannot be placed on blocked/obstacle cells.' },
+    { name: 'SLIDING_ONLY', type: 'MOVEMENT', desc: 'Pieces can only slide horizontally or vertically — no lifting or free placement.' },
+    { name: 'FREE_PLACEMENT', type: 'MOVEMENT', desc: 'Pieces can be placed freely anywhere on the board (default behavior).' },
+    { name: 'NO_ROTATION', type: 'ROTATION', desc: 'Disables rotation for all pieces. Used for slider puzzles.' },
     {
-      name: 'ALL_BOARD_SQUARES_MUST_BE_COVERED',
-      type: 'COVERAGE',
-      desc: 'Every cell on the board must be covered by a brick. Used for classic coverage puzzles.',
-    },
-    {
-      name: 'ALL_BRICKS_MUST_BE_USED',
-      type: 'COUNT',
-      desc: 'All bricks from the inventory must be placed on the board. Board can have empty cells.',
-    },
-    {
-      name: 'NO_BRICK_OVERLAP',
-      type: 'PLACEMENT',
-      desc: 'Bricks cannot overlap each other. Usually required for all puzzles.',
-    },
-    {
-      name: 'NO_BRICKS_OUT_OF_BOUNDS',
-      type: 'PLACEMENT',
-      desc: 'All bricks must be fully within the board boundaries.',
-    },
-    {
-      name: 'NO_BLOCKED_CELLS',
-      type: 'PLACEMENT',
-      desc: 'Bricks cannot be placed on blocked/obstacle cells.',
-    },
-    {
-      name: 'SLIDING_ONLY',
-      type: 'MOVEMENT',
-      desc: 'Pieces can only slide horizontally or vertically — no lifting or free placement. Used for Klotski-style puzzles.',
-    },
-    {
-      name: 'FREE_PLACEMENT',
-      type: 'MOVEMENT',
-      desc: 'Pieces can be placed freely anywhere on the board (default behavior).',
-    },
-    {
-      name: 'NO_ROTATION',
-      type: 'ROTATION',
-      desc: 'Disables rotation for all pieces. Used for slider puzzles where pieces cannot be rotated.',
-    },
-    {
-      name: 'PATTERN_MATCH',
-      type: 'PATTERN',
-      desc: 'Check if placed pieces match a target pattern. Used for Binary encoding, Nonogram, and pixel art puzzles.',
+      name: 'PATTERN_MATCH', type: 'PATTERN', desc: 'Check if placed pieces match a target pattern.',
       paramDetails: [
-        { name: 'rows', tooltip: '2D array defining the pattern grid. Each cell contains a value that maps to a color.' },
-        { name: 'color_mapping', tooltip: 'Object mapping pattern values to hex colors. E.g., {"1": "#05131D"} maps "1" to black.' },
-        { name: 'allow_empty_cells?', tooltip: 'If true, cells in the pattern can be empty. Default is false (all mapped cells must have bricks).' },
-        { name: 'reject_unmapped_target_colors?', tooltip: 'If true, rejects any color from color_mapping placed in cells NOT defined in the mapping. Used for Nonogram.' },
+        { name: 'rows', tooltip: '2D array defining the pattern grid.' },
+        { name: 'color_mapping', tooltip: 'Object mapping pattern values to hex colors.' },
+        { name: 'allow_empty_cells?', tooltip: 'If true, cells in the pattern can be empty.' },
+        { name: 'reject_unmapped_target_colors?', tooltip: 'If true, rejects mapped colors in unmapped cells.' },
       ],
     },
     {
-      name: 'GOAL_REACHED',
-      type: 'GOAL',
-      desc: 'Check if the target piece has reached the goal cells. Used as win condition for slider puzzles.',
+      name: 'GOAL_REACHED', type: 'GOAL', desc: 'Check if the target piece has reached the goal cells.',
       paramDetails: [
-        { name: 'targetPieceId', tooltip: 'ID of the single piece that must reach the goal cells.' },
-        { name: 'targetPieceIds', tooltip: 'Array of piece IDs — any one of these reaching the goal wins.' },
-        { name: 'allowAnyPiece', tooltip: 'If true, any piece on the board can trigger the win condition.' },
-        { name: 'cells', tooltip: 'Array of [x,y] coordinates defining the goal area that must be covered.' },
-        { name: 'hideGoalVisualization?', tooltip: 'If true, hides the default goal overlay/markers. Useful for puzzles where the goal is secret.' },
+        { name: 'targetPieceId', tooltip: 'ID of the single piece that must reach the goal.' },
+        { name: 'targetPieceIds', tooltip: 'Array of piece IDs — any one reaching the goal wins.' },
+        { name: 'allowAnyPiece', tooltip: 'If true, any piece can trigger the win.' },
+        { name: 'cells', tooltip: 'Array of [x,y] coordinates defining the goal area.' },
+        { name: 'hideGoalVisualization?', tooltip: 'If true, hides the goal overlay.' },
       ],
     },
+    { name: 'NO_BRICK_REMOVAL', type: 'CONSTRAINT', desc: 'Prevents deleting/removing pieces from the board.' },
     {
-      name: 'NO_BRICK_REMOVAL',
-      type: 'CONSTRAINT',
-      desc: 'Prevents deleting/removing pieces from the board. Used for slider puzzles where pieces should only slide, not be deleted.',
-    },
-    {
-      name: 'MAX_MOVES',
-      type: 'MAX_MOVES',
-      desc: 'Limits the maximum number of moves allowed to solve the puzzle. Useful for brain teasers.',
-      paramDetails: [
-        { name: 'maxMoves', tooltip: 'Maximum number of moves allowed. Exceeding this fails the puzzle.' },
-      ],
+      name: 'MAX_MOVES', type: 'MAX_MOVES', desc: 'Limits the maximum number of moves allowed.',
+      paramDetails: [{ name: 'maxMoves', tooltip: 'Maximum number of moves allowed.' }],
     },
   ];
 
@@ -466,35 +329,35 @@ function ValidationTab() {
       case 'GOAL': return 'bg-red-500/20 text-red-300';
       case 'CONSTRAINT': return 'bg-pink-500/20 text-pink-300';
       case 'MAX_MOVES': return 'bg-red-500/20 text-red-300';
-      default: return 'bg-gray-500/20 text-gray-300';
+      default: return 'bg-secondary text-muted-foreground';
     }
   };
 
   return (
     <div className="space-y-4">
-      <p className="text-gray-300">
+      <p className="text-muted-foreground">
         Validation rules determine when a puzzle is "solved". Combine multiple rules for complex puzzles.
       </p>
 
       <div className="space-y-3">
         {rules.map((rule) => (
-          <div key={rule.name} className="bg-black/30 rounded-lg p-4">
+          <div key={rule.name} className="bg-secondary/50 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-1">
               <span className={`px-2 py-0.5 text-xs rounded ${getTypeColor(rule.type)}`}>
                 {rule.type}
               </span>
             </div>
-            <code className="text-editor-accent font-display text-sm">{rule.name}</code>
-            <p className="text-gray-400 text-sm mt-1">{rule.desc}</p>
+            <code className="text-primary text-sm">{rule.name}</code>
+            <p className="text-muted-foreground text-sm mt-1">{rule.desc}</p>
             {rule.paramDetails && (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                <span className="text-gray-500 text-xs">Params:</span>
+                <span className="text-muted-foreground text-xs">Params:</span>
                 {rule.paramDetails.map((param, idx) => (
                   <span key={idx} className="relative group">
                     <code className="text-cyan-400 text-xs cursor-help px-1.5 py-0.5 bg-cyan-500/10 rounded hover:bg-cyan-500/20 transition-colors">
                       {param.name}
                     </code>
-                    <span className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 border border-gray-700 rounded-lg text-xs text-gray-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
+                    <span className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-popover border border-border rounded-lg text-xs text-popover-foreground opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
                       {param.tooltip}
                     </span>
                   </span>
@@ -505,8 +368,8 @@ function ValidationTab() {
         ))}
       </div>
 
-      <h4 className="text-white font-display font-semibold mt-6">Rule Format (Coverage Puzzle)</h4>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+      <h4 className="text-foreground font-semibold mt-6">Rule Format (Coverage Puzzle)</h4>
+      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
         {`"validation_rules": [
   { "type": "COVERAGE", "rule": "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
   { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
@@ -514,8 +377,8 @@ function ValidationTab() {
 ]`}
       </pre>
 
-      <h4 className="text-white font-display font-semibold mt-6">Rule Format (Slider Puzzle)</h4>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+      <h4 className="text-foreground font-semibold mt-6">Rule Format (Slider Puzzle)</h4>
+      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
         {`"validation_rules": [
   { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
   { "type": "ROTATION", "rule": "NO_ROTATION" },
@@ -530,70 +393,61 @@ function ValidationTab() {
 function SliderTab() {
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/40 rounded-xl p-5">
+      <div className="bg-gradient-to-r from-red-500/15 to-orange-500/10 border border-red-500/30 rounded-xl p-5">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-red-500/30 flex items-center justify-center flex-shrink-0">
-            <LegoBrick2x1 className="w-8 h-6" color="#D01012" />
+          <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
+            <Move className="w-6 h-6 text-red-400" />
           </div>
           <div className="flex-1">
-            <h4 className="text-white font-display font-bold text-lg mb-2">Klotski-Style Slider Puzzles</h4>
-            <p className="text-gray-300 text-sm">
-              Slider puzzles have pre-placed pieces that can only <strong>slide</strong> horizontally or vertically.
-              The goal is to move a target piece to a specific position (like a red 2×2 block to an exit).
+            <h4 className="text-foreground font-bold text-lg mb-2">Klotski-Style Slider Puzzles</h4>
+            <p className="text-muted-foreground text-sm">
+              Slider puzzles have pre-placed pieces that can only <strong className="text-foreground">slide</strong> horizontally or vertically.
+              The goal is to move a target piece to a specific position.
             </p>
           </div>
         </div>
       </div>
 
-      <h4 className="text-white font-display font-semibold">Key Differences from 3D Puzzles</h4>
-      <div className="bg-black/30 rounded-lg p-4 space-y-3">
+      <h4 className="text-foreground font-semibold">Key Differences from 3D Puzzles</h4>
+      <div className="bg-secondary/50 rounded-lg p-4 space-y-3">
         <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-blue-500/30 rounded text-blue-300 font-mono text-xs shrink-0">viewMode</span>
-          <span className="text-gray-400">Set to <code className="text-editor-accent">"2D"</code> for flat 2D rendering</span>
+          <Badge className="bg-blue-500/20 text-blue-300 text-xs shrink-0">viewMode</Badge>
+          <span className="text-muted-foreground">Set to <code className="text-primary">"2D"</code> for flat 2D rendering</span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-green-500/30 rounded text-green-300 font-mono text-xs shrink-0">initial_state</span>
-          <span className="text-gray-400">Pieces start on the board (not in inventory). Defined by exact cells they cover.</span>
+          <Badge className="bg-green-500/20 text-green-300 text-xs shrink-0">initial_state</Badge>
+          <span className="text-muted-foreground">Pieces start on the board (not in inventory). Defined by exact cells.</span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-purple-500/30 rounded text-purple-300 font-mono text-xs shrink-0">SLIDING_ONLY</span>
-          <span className="text-gray-400">Movement rule that prevents lifting — pieces slide along one axis only.</span>
+          <Badge className="bg-purple-500/20 text-purple-300 text-xs shrink-0">SLIDING_ONLY</Badge>
+          <span className="text-muted-foreground">Movement rule that prevents lifting — pieces slide along one axis only.</span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-red-500/30 rounded text-red-300 font-mono text-xs shrink-0">goal</span>
-          <span className="text-gray-400">Defines which piece must reach which cells to win.</span>
+          <Badge className="bg-red-500/20 text-red-300 text-xs shrink-0">goal</Badge>
+          <span className="text-muted-foreground">Defines which piece must reach which cells to win.</span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-yellow-500/30 rounded text-yellow-300 font-mono text-xs shrink-0">blocked_cells</span>
-          <span className="text-gray-400">Cells where pieces cannot slide through (obstacles/walls).</span>
+          <Badge className="bg-yellow-500/20 text-yellow-300 text-xs shrink-0">blocked_cells</Badge>
+          <span className="text-muted-foreground">Cells where pieces cannot slide through (obstacles/walls).</span>
         </div>
       </div>
 
-      <h4 className="text-white font-display font-semibold mt-6">Goal Definition</h4>
-      <p className="text-gray-400 text-sm mb-3">
-        The <code className="text-editor-accent">goal</code> property defines the win condition — which piece must cover which cells:
+      <h4 className="text-foreground font-semibold mt-6">Goal Definition</h4>
+      <p className="text-muted-foreground text-sm mb-3">
+        The <code className="text-primary">goal</code> property defines the win condition:
       </p>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
         {`"goal": {
-  // Option 1: Specific piece
   "targetPieceId": "goal",
-  
-  // Option 2: Multiple allowed pieces (NEW)
   "targetPieceIds": ["p1", "p2"],
-  
-  // Option 3: Any piece (NEW)
   "allowAnyPiece": true,
-
-  // Required: Target cells to cover
   "cells": [[1,4], [2,4], [1,5], [2,5]],
-
-  // Optional: Hide default visualization (NEW)
   "hideGoalVisualization": true
 }`}
       </pre>
 
-      <h4 className="text-white font-display font-semibold mt-6">Example: Minimal Slider</h4>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+      <h4 className="text-foreground font-semibold mt-6">Example: Minimal Slider</h4>
+      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
         {`{
   "puzzle_id": "mini-slider",
   "title": "Mini Slider",
@@ -602,16 +456,8 @@ function SliderTab() {
   "board": {
     "dimensions": { "width": 4, "height": 5, "depth": 1 },
     "initial_state": [
-      {
-        "id": "goal",
-        "cells": [[1,0], [2,0], [1,1], [2,1]],
-        "color": "#D01012"
-      },
-      {
-        "id": "blocker1",
-        "cells": [[0,0], [0,1]],
-        "color": "#0055BF"
-      }
+      { "id": "goal", "cells": [[1,0],[2,0],[1,1],[2,1]], "color": "#D01012" },
+      { "id": "blocker1", "cells": [[0,0],[0,1]], "color": "#0055BF" }
     ],
     "blocked_cells": [[0,4], [3,4]]
   },
@@ -622,171 +468,107 @@ function SliderTab() {
     { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
     { "type": "GOAL", "rule": "GOAL_REACHED" }
   ],
-  "goal": {
-    "targetPieceId": "goal",
-    "cells": [[1,4], [2,4], [1,5], [2,5]]
-  }
+  "goal": { "targetPieceId": "goal", "cells": [[1,4],[2,4],[1,5],[2,5]] }
 }`}
       </pre>
 
-      <h4 className="text-white font-display font-semibold mt-6">How Sliding Works</h4>
-      <div className="bg-black/30 rounded-lg p-4 space-y-2">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="w-6 h-6 flex items-center justify-center bg-green-500/30 rounded text-green-300">1</span>
-          <span className="text-gray-400">Click a piece to select it</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="w-6 h-6 flex items-center justify-center bg-green-500/30 rounded text-green-300">2</span>
-          <span className="text-gray-400">Valid slide destinations appear as <span className="text-green-400">green cells</span></span>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="w-6 h-6 flex items-center justify-center bg-green-500/30 rounded text-green-300">3</span>
-          <span className="text-gray-400">Click any green cell to slide the piece there</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="w-6 h-6 flex items-center justify-center bg-green-500/30 rounded text-green-300">4</span>
-          <span className="text-gray-400">The <span className="text-yellow-400">GOAL area</span> is shown with a dotted border</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="w-6 h-6 flex items-center justify-center bg-green-500/30 rounded text-green-300">5</span>
-          <span className="text-gray-400">Move the target piece to cover all goal cells to win!</span>
-        </div>
+      <h4 className="text-foreground font-semibold mt-6">How Sliding Works</h4>
+      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+        {[
+          'Click a piece to select it',
+          'Valid slide destinations appear as green cells',
+          'Click any green cell to slide the piece there',
+          'The GOAL area is shown with a dotted border',
+          'Move the target piece to cover all goal cells to win!',
+        ].map((step, i) => (
+          <div key={i} className="flex items-center gap-3 text-sm">
+            <span className="w-6 h-6 flex items-center justify-center bg-success/20 rounded text-success text-xs font-bold">{i + 1}</span>
+            <span className="text-muted-foreground">{step}</span>
+          </div>
+        ))}
       </div>
-    </div >
+    </div>
   );
 }
 
 function NonogramTab() {
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 rounded-xl p-5">
+      <div className="bg-gradient-to-r from-emerald-500/15 to-teal-500/10 border border-emerald-500/30 rounded-xl p-5">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/30 flex items-center justify-center flex-shrink-0">
-            <LegoBrick1x1 className="w-8 h-8" color="#10B981" />
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+            <Grid3x3 className="w-6 h-6 text-emerald-400" />
           </div>
           <div className="flex-1">
-            <h4 className="text-white font-display font-bold text-lg mb-2">Nonogram (Picross) Puzzles</h4>
-            <p className="text-gray-300 text-sm">
+            <h4 className="text-foreground font-bold text-lg mb-2">Nonogram (Picross) Puzzles</h4>
+            <p className="text-muted-foreground text-sm">
               Nonogram puzzles display number hints on the left and top of the grid. Players must fill cells according to the clues.
-              <strong> Black bricks</strong> mark filled cells, <strong>red bricks</strong> mark definitely empty cells.
+              <strong className="text-foreground"> Black bricks</strong> mark filled cells, <strong className="text-foreground">red bricks</strong> mark empty cells.
             </p>
           </div>
         </div>
       </div>
 
-      <h4 className="text-white font-display font-semibold">Key Components</h4>
-      <div className="bg-black/30 rounded-lg p-4 space-y-3">
+      <h4 className="text-foreground font-semibold">Key Components</h4>
+      <div className="bg-secondary/50 rounded-lg p-4 space-y-3">
         <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-emerald-500/30 rounded text-emerald-300 font-mono text-xs shrink-0">nonogram_hints</span>
-          <span className="text-gray-400">Defines row and column number hints displayed around the grid.</span>
+          <Badge className="bg-emerald-500/20 text-emerald-300 text-xs shrink-0">nonogram_hints</Badge>
+          <span className="text-muted-foreground">Defines row and column number hints displayed around the grid.</span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-cyan-500/30 rounded text-cyan-300 font-mono text-xs shrink-0">target_pattern</span>
-          <span className="text-gray-400">Defines the solution pattern. Uses PATTERN_MATCH validation.</span>
+          <Badge className="bg-cyan-500/20 text-cyan-300 text-xs shrink-0">target_pattern</Badge>
+          <span className="text-muted-foreground">Defines the solution pattern. Uses PATTERN_MATCH validation.</span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-yellow-500/30 rounded text-yellow-300 font-mono text-xs shrink-0">reject_unmapped_target_colors</span>
-          <span className="text-gray-400">Rejects colors from color_mapping placed in cells not defined in the mapping (e.g., black in "0" cells).</span>
+          <Badge className="bg-yellow-500/20 text-yellow-300 text-xs shrink-0">reject_unmapped</Badge>
+          <span className="text-muted-foreground">Rejects mapped colors placed in unmapped cells.</span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-blue-500/30 rounded text-blue-300 font-mono text-xs shrink-0">viewMode: "2D"</span>
-          <span className="text-gray-400">Nonogram puzzles use 2D view for best experience.</span>
-        </div>
-        <div className="flex items-start gap-3 text-sm">
-          <span className="px-2 py-1 bg-gray-500/30 rounded text-gray-300 font-mono text-xs shrink-0">unit bricks</span>
-          <span className="text-gray-400">Use single-cell unit bricks for placing marks.</span>
+          <Badge className="bg-blue-500/20 text-blue-300 text-xs shrink-0">viewMode: "2D"</Badge>
+          <span className="text-muted-foreground">Nonogram puzzles use 2D view.</span>
         </div>
       </div>
 
-      <h4 className="text-white font-display font-semibold mt-6">Nonogram Hints Format</h4>
-      <p className="text-gray-400 text-sm mb-3">
-        Define the hints as arrays of numbers for each row and column:
-      </p>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+      <h4 className="text-foreground font-semibold mt-6">Nonogram Hints Format</h4>
+      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
         {`"nonogram_hints": {
   "rows": [
-    [4],          // Row 0: 4 consecutive filled cells
-    [1, 1],       // Row 1: two separate single cells
-    [2, 1],       // Row 2: group of 2, then group of 1
-    [3],          // Row 3: 3 consecutive cells
-    [1, 2]        // Row 4: single, then pair
+    [4],      // Row 0: 4 consecutive filled cells
+    [1, 1],   // Row 1: two separate single cells
+    [2, 1],   // Row 2: group of 2, then group of 1
+    [3],      // Row 3: 3 consecutive cells
+    [1, 2]    // Row 4: single, then pair
   ],
   "columns": [
-    [1, 1],       // Col 0: two separate singles
-    [1, 2],       // Col 1: single, then pair
-    [5],          // Col 2: all 5 cells filled
-    [1, 2],       // Col 3: single, then pair
-    [2]           // Col 4: pair
+    [1, 1], [1, 2], [5], [1, 2], [2]
   ]
 }`}
       </pre>
 
-      <h4 className="text-white font-display font-semibold mt-6">Target Pattern Format</h4>
-      <p className="text-gray-400 text-sm mb-3">
-        Define which cells must have black bricks to win. Use <code className="text-editor-accent">1</code> for filled,
-        <code className="text-editor-accent">0</code> for empty (ignored by validation):
-      </p>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+      <h4 className="text-foreground font-semibold mt-6">Target Pattern Format</h4>
+      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
         {`"target_pattern": {
   "rows": [
-    [1, 1, 1, 1, 0],  // Row 0: filled at cols 0-3
-    [0, 0, 1, 0, 1],  // Row 1: filled at cols 2, 4
-    [0, 1, 1, 0, 1],  // Row 2: filled at cols 1, 2, 4
-    [0, 1, 1, 1, 0],  // Row 3: filled at cols 1-3
-    [1, 0, 1, 1, 0]   // Row 4: filled at cols 0, 2, 3
+    [1, 1, 1, 1, 0],
+    [0, 0, 1, 0, 1],
+    [0, 1, 1, 0, 1],
+    [0, 1, 1, 1, 0],
+    [1, 0, 1, 1, 0]
   ],
-  "color_mapping": {
-    "1": "#05131D"    // Black = filled cells
-  }
+  "color_mapping": { "1": "#05131D" }
 }`}
       </pre>
 
-      <h4 className="text-white font-display font-semibold mt-6">Full Example</h4>
-      <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-        {`{
-  "puzzle_id": "Nonogram-01",
-  "title": "Nonogram: Cross",
-  "description": "Fill cells according to the number hints",
-  "viewMode": "2D",
-  "board": {
-    "dimensions": { "width": 5, "height": 5, "depth": 1 },
-    "initial_state": []
-  },
-  "inventory": [
-    { "shape": "unit", "color": "#05131D", "quantity": 25, "id": "filled" },
-    { "shape": "unit", "color": "#D01012", "quantity": 25, "id": "marked" }
-  ],
-  "nonogram_hints": {
-    "rows": [[4], [1,1], [2,1], [3], [1,2]],
-    "columns": [[1,1], [1,2], [5], [1,2], [2]]
-  },
-  "target_pattern": {
-    "rows": [
-      [1,1,1,1,0], [0,0,1,0,1], [0,1,1,0,1],
-      [0,1,1,1,0], [1,0,1,1,0]
-    ],
-    "color_mapping": { "1": "#05131D" }
-  },
-  "validation_rules": [
-    { "type": "PATTERN", "rule": "PATTERN_MATCH", "params": { "reject_unmapped_target_colors": true } },
-    { "type": "ROTATION", "rule": "NO_ROTATION" },
-    { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
-    { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
-  ]
-}`}
-      </pre>
-
-      <div className="bg-editor-accent/10 border border-editor-accent/30 rounded-lg p-4 mt-4">
-        <h4 className="text-editor-accent font-display font-semibold mb-2 flex items-center gap-2">
-          <LegoLightbulbIcon className="w-5 h-5" />
+      <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mt-4">
+        <h4 className="text-primary font-semibold mb-2 flex items-center gap-2">
+          <Lightbulb className="w-4 h-4" />
           Tips
         </h4>
-        <ul className="text-gray-300 text-sm space-y-1 list-disc list-inside">
-          <li>Row hints appear on the <strong>left</strong> side of the grid</li>
-          <li>Column hints appear on the <strong>top</strong> of the grid</li>
+        <ul className="text-muted-foreground text-sm space-y-1 list-disc list-inside">
+          <li>Row hints appear on the <strong className="text-foreground">left</strong> side of the grid</li>
+          <li>Column hints appear on the <strong className="text-foreground">top</strong> of the grid</li>
           <li>Numbers indicate consecutive groups of filled cells</li>
           <li>Red bricks are optional helpers — only black bricks are validated</li>
-          <li>The hint array order matches grid order (top-to-bottom, left-to-right)</li>
         </ul>
       </div>
     </div>
@@ -797,28 +579,21 @@ function ExamplesTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h4 className="text-white font-display font-semibold mb-2">Coverage Puzzle (3D)</h4>
-        <p className="text-gray-400 text-sm mb-3">
-          Player must cover every cell on an 8×4 board (32 cells) using 8 T-tetrominoes (4 cells each).
+        <h4 className="text-foreground font-semibold mb-2">Coverage Puzzle (3D)</h4>
+        <p className="text-muted-foreground text-sm mb-3">
+          Cover every cell on an 8x4 board using 8 T-tetrominoes.
         </p>
-        <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+        <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
           {`{
   "puzzle_id": "t-puzzle",
   "title": "T-Time",
-  "description": "Cover the entire board with T pieces",
   "board": {
-    "dimensions": { "width": 8, "height": 4, "depth": 1 },
-    "initial_state": []
+    "dimensions": { "width": 8, "height": 4, "depth": 1 }
   },
   "inventory": [
     { "id": "t1", "shape": "T-tetromino", "color": "#D01012", "quantity": 1 },
     { "id": "t2", "shape": "T-tetromino", "color": "#0055BF", "quantity": 1 },
-    { "id": "t3", "shape": "T-tetromino", "color": "#287F46", "quantity": 1 },
-    { "id": "t4", "shape": "T-tetromino", "color": "#F5CD2F", "quantity": 1 },
-    { "id": "t5", "shape": "T-tetromino", "color": "#FE8A18", "quantity": 1 },
-    { "id": "t6", "shape": "T-tetromino", "color": "#9B5FC0", "quantity": 1 },
-    { "id": "t7", "shape": "T-tetromino", "color": "#00BCD4", "quantity": 1 },
-    { "id": "t8", "shape": "T-tetromino", "color": "#E91E63", "quantity": 1 }
+    ...
   ],
   "validation_rules": [
     { "type": "COVERAGE", "rule": "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
@@ -830,39 +605,11 @@ function ExamplesTab() {
       </div>
 
       <div>
-        <h4 className="text-white font-display font-semibold mb-2">Fit All Bricks Puzzle (3D)</h4>
-        <p className="text-gray-400 text-sm mb-3">
-          Player must place all bricks on a larger board. Empty cells allowed.
+        <h4 className="text-foreground font-semibold mb-2">Slider Puzzle (2D)</h4>
+        <p className="text-muted-foreground text-sm mb-3">
+          Klotski-style puzzle. Slide the red 2x2 block to the goal position.
         </p>
-        <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-          {`{
-  "puzzle_id": "tetris-pack",
-  "title": "Tetris Pack",
-  "viewMode": "3D",
-  "board": {
-    "dimensions": { "width": 10, "height": 4, "depth": 1 },
-    "initial_state": []
-  },
-  "inventory": [
-    { "id": "t", "shape": "T-tetromino", "color": "#9B5FC0", "quantity": 1 },
-    { "id": "i", "shape": "I-tetromino", "color": "#00BCD4", "quantity": 1 },
-    ...
-  ],
-  "validation_rules": [
-    { "type": "COUNT", "rule": "ALL_BRICKS_MUST_BE_USED" },
-    { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
-    { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
-  ]
-}`}
-        </pre>
-      </div>
-
-      <div>
-        <h4 className="text-white font-display font-semibold mb-2">Slider Puzzle (2D)</h4>
-        <p className="text-gray-400 text-sm mb-3">
-          Klotski-style puzzle. Slide the red 2×2 block to the goal position at the bottom.
-        </p>
-        <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
+        <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
           {`{
   "puzzle_id": "Slider-01",
   "title": "Klotski Classic",
@@ -871,8 +618,6 @@ function ExamplesTab() {
     "dimensions": { "width": 4, "height": 5, "depth": 1 },
     "initial_state": [
       { "id": "goal", "cells": [[1,0],[2,0],[1,1],[2,1]], "color": "#D01012" },
-      { "id": "v1", "cells": [[0,0],[0,1]], "color": "#0055BF" },
-      { "id": "v2", "cells": [[3,0],[3,1]], "color": "#0055BF" },
       ...
     ],
     "blocked_cells": [[0,4], [3,4]]
@@ -880,72 +625,38 @@ function ExamplesTab() {
   "inventory": [],
   "validation_rules": [
     { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
-    { "type": "ROTATION", "rule": "NO_ROTATION" },
-    { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
     { "type": "GOAL", "rule": "GOAL_REACHED" }
   ],
-  "goal": {
-    "targetPieceId": "goal",
-    "cells": [[1,4],[2,4],[1,5],[2,5]]
-  }
-}`}
-        </pre>
-      </div>
-
-      <div>
-        <h4 className="text-white font-display font-semibold mb-2">Brain Teaser (Pen Challenge)</h4>
-        <p className="text-gray-400 text-sm mb-3">
-          A puzzle with limited moves and hidden goal.
-        </p>
-        <pre className="bg-black/50 rounded-lg p-4 text-sm overflow-x-auto text-gray-300">
-          {`{
-  "puzzle_id": "pen-challenge",
-  "title": "Pen Challenge",
-  "viewMode": "3D",
-  "board": {
-    "dimensions": { "width": 13, "height": 4, "depth": 1 },
-    "initial_state": [...]
-  },
-  "inventory": [], // Pieces defined in initial_state
-  "validation_rules": [
-    { "type": "MAX_MOVES", "rule": "MAX_MOVES", "params": { "maxMoves": 1 } },
-    { "type": "GOAL", "rule": "GOAL_REACHED" },
-    { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" }
-  ],
-  "goal": {
-    "targetPieceIds": ["pen-9"],
-    "cells": [[1,0], [1,1], [1,2], [1,3]],
-    "hideGoalVisualization": true
-  }
+  "goal": { "targetPieceId": "goal", "cells": [[1,4],[2,4],[1,5],[2,5]] }
 }`}
         </pre>
       </div>
 
       {/* Quick Start */}
-      <div className="bg-gradient-to-r from-lego-green/20 to-editor-success/20 border border-lego-green/40 rounded-lg p-4">
-        <h4 className="text-lego-green font-display font-semibold mb-2 flex items-center gap-2">
-          <LegoRocketIcon className="w-5 h-5" />
+      <div className="bg-success/10 border border-success/30 rounded-lg p-4">
+        <h4 className="text-success font-semibold mb-2 flex items-center gap-2">
+          <Rocket className="w-4 h-4" />
           Quick Start
         </h4>
-        <ol className="text-gray-300 text-sm space-y-2 list-decimal list-inside">
-          <li>Click <strong>"Puzzle: T-Time"</strong> in the header to see sample puzzles</li>
+        <ol className="text-muted-foreground text-sm space-y-2 list-decimal list-inside">
+          <li>Click the <strong className="text-foreground">Puzzle</strong> dropdown to see samples</li>
           <li>Select a sample to load it into the editor</li>
           <li>Play with the puzzle to understand how it works</li>
-          <li>Modify the JSON in the editor to create your own variation</li>
+          <li>Modify the JSON to create your own variation</li>
         </ol>
       </div>
 
-      <div className="bg-editor-accent/10 border border-editor-accent/30 rounded-lg p-4">
-        <h4 className="text-editor-accent font-display font-semibold mb-2 flex items-center gap-2">
-          <LegoLightbulbIcon className="w-5 h-5" />
+      <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+        <h4 className="text-primary font-semibold mb-2 flex items-center gap-2">
+          <Lightbulb className="w-4 h-4" />
           Tips
         </h4>
-        <ul className="text-gray-300 text-sm space-y-1 list-disc list-inside">
-          <li>Use the <strong>Format</strong> button to auto-format your JSON</li>
+        <ul className="text-muted-foreground text-sm space-y-1 list-disc list-inside">
+          <li>Use the <strong className="text-foreground">Format</strong> button to auto-format your JSON</li>
           <li>Changes are applied live when JSON is valid</li>
           <li>Each brick ID must be unique in the inventory</li>
           <li>Colors can be any valid CSS hex color</li>
-          <li>Bricks can be rotated 90° by pressing <kbd className="px-1 bg-editor-border rounded">R</kbd></li>
+          <li>Bricks can be rotated 90° by pressing <KBD>R</KBD></li>
           <li>All panels are resizable — drag the borders to adjust!</li>
         </ul>
       </div>
@@ -954,82 +665,65 @@ function ExamplesTab() {
 }
 
 export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
-
-  if (!isOpen) return null;
+  const [activeTab, setActiveTab] = useState('overview');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="relative bg-editor-sidebar border border-editor-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-editor-border bg-editor-bg/50">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-editor-accent to-lego-purple flex items-center justify-center">
-              <LegoStackIcon className="w-7 h-7" />
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <Puzzle className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h2 className="text-xl font-display font-bold text-white">Puzzle Creator Guide</h2>
-              <p className="text-sm text-gray-400">Learn how to create custom puzzles</p>
+              <DialogTitle className="text-xl font-bold">Puzzle Creator Guide</DialogTitle>
+              <DialogDescription>Learn how to create custom puzzles</DialogDescription>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-editor-border/50 rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        </DialogHeader>
 
-        {/* Tabs */}
-        <div className="flex gap-1 px-6 py-2 border-b border-editor-border bg-editor-bg/30">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-display transition-all flex items-center gap-2 ${activeTab === tab.id
-                ? 'bg-editor-accent text-white'
-                : 'text-gray-400 hover:text-white hover:bg-editor-border/50'
-                }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
+          <TabsList className="flex-shrink-0 mx-6 mt-2 !h-auto flex-wrap justify-start bg-transparent gap-1 p-0 border-b border-border pb-2">
+            <TabsTrigger value="overview" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Layers className="w-3.5 h-3.5" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="shapes" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Puzzle className="w-3.5 h-3.5" />
+              Shapes
+            </TabsTrigger>
+            <TabsTrigger value="validation" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Validation
+            </TabsTrigger>
+            <TabsTrigger value="slider" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Move className="w-3.5 h-3.5" />
+              Slider
+            </TabsTrigger>
+            <TabsTrigger value="nonogram" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Grid3x3 className="w-3.5 h-3.5" />
+              Nonogram
+            </TabsTrigger>
+            <TabsTrigger value="examples" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Lightbulb className="w-3.5 h-3.5" />
+              Examples
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'overview' && <OverviewTab />}
-          {activeTab === 'shapes' && <ShapesTab />}
-          {activeTab === 'validation' && <ValidationTab />}
-          {activeTab === 'slider' && <SliderTab />}
-          {activeTab === 'nonogram' && <NonogramTab />}
-          {activeTab === 'examples' && <ExamplesTab />}
-        </div>
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+            <TabsContent value="overview" className="mt-0"><OverviewTab /></TabsContent>
+            <TabsContent value="shapes" className="mt-0"><ShapesTab /></TabsContent>
+            <TabsContent value="validation" className="mt-0"><ValidationTab /></TabsContent>
+            <TabsContent value="slider" className="mt-0"><SliderTab /></TabsContent>
+            <TabsContent value="nonogram" className="mt-0"><NonogramTab /></TabsContent>
+            <TabsContent value="examples" className="mt-0"><ExamplesTab /></TabsContent>
+          </div>
+        </Tabs>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-editor-border bg-editor-bg/50 flex justify-between items-center">
-          <p className="text-xs text-gray-500">
-            Press <kbd className="px-1.5 py-0.5 bg-editor-border rounded text-gray-400">Esc</kbd> to close
-          </p>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-editor-accent hover:bg-editor-accent/80 text-white rounded-lg font-display text-sm transition-colors"
-          >
-            Got it!
-          </button>
-        </div>
-      </div>
-    </div>
+        <DialogFooter className="px-6 py-4 border-t border-border flex-shrink-0">
+          <Button onClick={onClose}>Got it!</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
-

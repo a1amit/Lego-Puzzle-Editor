@@ -7,6 +7,7 @@ import { PolyominoBrick, GhostBrick } from './PolyominoBrick';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { getBrickCells, rotateShape } from '../../validation/ValidationRegistry';
+import { SCENE_3D, GOAL_INDICATOR_3D, COLORS } from '../../config/sceneConfig';
 
 // Floating Goal Area Indicator - renders a visible frame above bricks
 function GoalAreaIndicator({
@@ -39,9 +40,9 @@ function GoalAreaIndicator({
   const z1 = bounds.minY - boardOffset.y;
   const z2 = bounds.maxY + 1 - boardOffset.y;
 
-  const postHeight = 1.5; // Height of corner posts
-  const frameHeight = 1.2; // Height of the floating frame
-  const cornerInset = 0.1; // Slight inset from cell edges
+  const postHeight = GOAL_INDICATOR_3D.postHeight;
+  const frameHeight = GOAL_INDICATOR_3D.frameHeight;
+  const cornerInset = GOAL_INDICATOR_3D.cornerInset;
 
   // Corner positions
   const corners = [
@@ -65,10 +66,10 @@ function GoalAreaIndicator({
       {/* Corner posts - vertical cylinders */}
       {corners.map(([cx, cz], i) => (
         <mesh key={`post-${i}`} position={[cx, postHeight / 2, cz]}>
-          <cylinderGeometry args={[0.05, 0.05, postHeight, 8]} />
+          <cylinderGeometry args={[GOAL_INDICATOR_3D.postRadius, GOAL_INDICATOR_3D.postRadius, postHeight, 8]} />
           <meshStandardMaterial
-            color="#F5C300"
-            emissive="#F5C300"
+            color={COLORS.goalPost}
+            emissive={COLORS.goalPost}
             emissiveIntensity={0.3}
             metalness={0.6}
             roughness={0.3}
@@ -79,17 +80,17 @@ function GoalAreaIndicator({
       {/* Floating dashed frame line */}
       <Line
         points={framePoints}
-        color="#3FB950"
-        lineWidth={3}
+        color={COLORS.goalFrame}
+        lineWidth={GOAL_INDICATOR_3D.lineWidth}
         dashed
-        dashSize={0.15}
-        gapSize={0.1}
+        dashSize={GOAL_INDICATOR_3D.dashSize}
+        gapSize={GOAL_INDICATOR_3D.gapSize}
       />
 
       {/* "GOAL" label - small floating text indicator */}
       <mesh position={[(x1 + x2) / 2, frameHeight + 0.15, (z1 + z2) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.8, 0.25]} />
-        <meshBasicMaterial color="#3FB950" transparent opacity={0.9} />
+        <meshBasicMaterial color={COLORS.goalFrame} transparent opacity={0.9} />
       </mesh>
     </group>
   );
@@ -572,25 +573,26 @@ function DragDropManager() {
 
 // Scene lighting and environment
 function SceneLighting() {
+  const { lighting, shadow } = SCENE_3D;
   return (
     <>
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={lighting.ambient.intensity} />
       <directionalLight
-        position={[10, 15, 10]}
-        intensity={1}
+        position={lighting.main.position as unknown as [number, number, number]}
+        intensity={lighting.main.intensity}
         castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-far={50}
-        shadow-camera-left={-15}
-        shadow-camera-right={15}
-        shadow-camera-top={15}
-        shadow-camera-bottom={-15}
+        shadow-mapSize={[shadow.mapSize, shadow.mapSize]}
+        shadow-camera-far={shadow.cameraFar}
+        shadow-camera-left={-shadow.cameraExtent}
+        shadow-camera-right={shadow.cameraExtent}
+        shadow-camera-top={shadow.cameraExtent}
+        shadow-camera-bottom={-shadow.cameraExtent}
       />
       <directionalLight
-        position={[-5, 10, -5]}
-        intensity={0.3}
+        position={lighting.fill.position as unknown as [number, number, number]}
+        intensity={lighting.fill.intensity}
       />
-      <pointLight position={[0, 5, 0]} intensity={0.2} />
+      <pointLight position={lighting.point.position as unknown as [number, number, number]} intensity={lighting.point.intensity} />
     </>
   );
 }
@@ -601,9 +603,9 @@ function BackgroundGrid() {
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
       <planeGeometry args={[50, 50]} />
       <meshStandardMaterial
-        color="#0a0a0a"
-        roughness={0.9}
-        metalness={0}
+        color={SCENE_3D.background.color}
+        roughness={SCENE_3D.background.roughness}
+        metalness={SCENE_3D.background.metalness}
       />
     </mesh>
   );
@@ -668,8 +670,8 @@ export function PuzzleScene() {
       >
         <PerspectiveCamera
           makeDefault
-          position={[8, 12, 12]}
-          fov={45}
+          position={SCENE_3D.camera.position as unknown as [number, number, number]}
+          fov={SCENE_3D.camera.fov}
         />
 
         <OrbitControls
@@ -677,10 +679,10 @@ export function PuzzleScene() {
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
-          minDistance={5}
-          maxDistance={30}
-          maxPolarAngle={Math.PI / 2.1}
-          target={[0, 0, 0]}
+          minDistance={SCENE_3D.camera.minZoom}
+          maxDistance={SCENE_3D.camera.maxZoom}
+          maxPolarAngle={SCENE_3D.camera.maxPolarAngle}
+          target={SCENE_3D.camera.target as unknown as [number, number, number]}
         />
 
         <SceneLighting />
@@ -690,16 +692,16 @@ export function PuzzleScene() {
           <FloatingPreviewWrapper />
           <BackgroundGrid />
           <ContactShadows
-            position={[0, -0.49, 0]}
-            opacity={0.4}
-            scale={30}
-            blur={2}
-            far={10}
+            position={SCENE_3D.contactShadow.position as unknown as [number, number, number]}
+            opacity={SCENE_3D.contactShadow.opacity}
+            scale={SCENE_3D.contactShadow.scale}
+            blur={SCENE_3D.contactShadow.blur}
+            far={SCENE_3D.contactShadow.far}
           />
         </Suspense>
 
         {/* Subtle fog for depth */}
-        <fog attach="fog" args={['#0a0a0a', 20, 50]} />
+        <fog attach="fog" args={[SCENE_3D.fog.color, SCENE_3D.fog.near, SCENE_3D.fog.far]} />
       </Canvas>
     </div>
   );
