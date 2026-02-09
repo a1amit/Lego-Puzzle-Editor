@@ -4,6 +4,7 @@ import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import type { ValidationResult, NonogramHints } from '../../types/puzzle';
+import { BOARD_3D } from '../../config/sceneConfig';
 
 interface LegoBoardProps {
   width: number;
@@ -23,10 +24,10 @@ interface LegoBoardProps {
   goalCells?: [number, number][];
 }
 
-const CELL_SIZE = 1;
-const STUD_RADIUS = 0.3;
-const STUD_HEIGHT = 0.2;
-const BOARD_DEPTH = 0.3;
+const CELL_SIZE = BOARD_3D.cellSize;
+const STUD_RADIUS = BOARD_3D.studRadius;
+const STUD_HEIGHT = BOARD_3D.studHeight;
+const BOARD_DEPTH = BOARD_3D.depth;
 
 // Board cell component with stud
 function BoardCell({

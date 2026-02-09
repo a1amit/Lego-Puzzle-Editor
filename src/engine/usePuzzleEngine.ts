@@ -39,8 +39,10 @@ import {
   generateInstanceId,
   getPieceCells,
 } from './utils';
+import { createInitialBoard, createInitialInventory } from './boardFactory';
+import { enrichValidationRules, hasNoBrickRemovalRule } from './validationHelpers';
 import { ValidationRegistry } from '../validation/ValidationRegistry';
-import type { PuzzleDefinition, ValidationRule } from '../types/puzzle';
+import type { PuzzleDefinition } from '../types/puzzle';
 import { SHAPE_LIBRARY } from '../types/puzzle';
 
 // ============================================
@@ -65,116 +67,6 @@ interface UsePuzzleEngineReturn extends EngineState, EngineActions {
 // ============================================
 // DEFAULT STATE CREATORS
 // ============================================
-
-function createInitialBoard(puzzle: PuzzleDefinition | null): EngineBoard {
-  if (!puzzle) {
-    return {
-      dimensions: { width: 8, height: 4, depth: 1 },
-      placedPieces: [],
-      blockedCells: [],
-    };
-  }
-
-  // Load initial piece placements from puzzle definition (for slider puzzles)
-  const placedPieces: PlacedPiece[] = [];
-
-  if (puzzle.board.initial_state && puzzle.board.initial_state.length > 0) {
-    for (const placement of puzzle.board.initial_state) {
-      // Check which type of placement this is
-      if ('cells' in placement && Array.isArray(placement.cells)) {
-        // Cell-based piece definition (most explicit)
-        // Convert cells to shape + position format for internal use
-        const cells = placement.cells as [number, number][];
-        const minX = Math.min(...cells.map(c => c[0]));
-        const minY = Math.min(...cells.map(c => c[1]));
-
-        // Create a custom shape from the cells (normalized to origin)
-        const normalizedCells = cells.map(([x, y]) => [x - minX, y - minY] as [number, number]);
-        const shapeName = `custom-${placement.id}`;
-
-        // Register custom shape if not exists
-        if (!SHAPE_LIBRARY[shapeName]) {
-          SHAPE_LIBRARY[shapeName] = {
-            name: shapeName,
-            cells: normalizedCells,
-          };
-        }
-
-        placedPieces.push({
-          id: placement.id,
-          instanceId: `${placement.id}-initial-${placedPieces.length}`,
-          shape: shapeName,
-          color: placement.color,
-          position: {
-            x: minX,
-            y: minY,
-            z: 0,
-          },
-          rotation: 0,
-        });
-      } else if ('shape' in placement && 'color' in placement && 'position' in placement) {
-        // Inline piece definition with shape name
-        placedPieces.push({
-          id: placement.id,
-          instanceId: `${placement.id}-initial-${placedPieces.length}`,
-          shape: placement.shape,
-          color: placement.color,
-          position: {
-            x: placement.position[0],
-            y: placement.position[1],
-            z: 0,
-          },
-          rotation: placement.rotation || 0,
-        });
-      } else if ('brickId' in placement) {
-        // Reference to inventory piece
-        const brickDef = puzzle.inventory.find(b => b.id === placement.brickId);
-        if (brickDef) {
-          placedPieces.push({
-            id: brickDef.id,
-            instanceId: `${brickDef.id}-initial-${placedPieces.length}`,
-            shape: brickDef.shape,
-            color: brickDef.color,
-            position: {
-              x: placement.position[0],
-              y: placement.position[1],
-              z: 0,
-            },
-            rotation: placement.rotation || 0,
-          });
-        }
-      }
-    }
-  }
-
-  return {
-    dimensions: puzzle.board.dimensions,
-    placedPieces,
-    blockedCells: puzzle.board.blocked_cells || [],
-  };
-}
-
-function createInitialInventory(puzzle: PuzzleDefinition | null): InventoryState {
-  const inventory = new Map<string, number>();
-  if (puzzle) {
-    // Start with full inventory quantities
-    for (const brick of puzzle.inventory) {
-      inventory.set(brick.id, brick.quantity);
-    }
-
-    // Subtract pre-placed pieces that reference inventory (not inline pieces)
-    if (puzzle.board.initial_state) {
-      for (const placement of puzzle.board.initial_state) {
-        if ('brickId' in placement) {
-          const current = inventory.get(placement.brickId) ?? 0;
-          inventory.set(placement.brickId, Math.max(0, current - 1));
-        }
-        // Inline pieces don't need inventory entries
-      }
-    }
-  }
-  return inventory;
-}
 
 function deriveConfig(puzzle: PuzzleDefinition | null, viewModeOverride?: ViewMode): EngineConfig {
   // Extract viewMode from puzzle or use override/default
@@ -235,70 +127,8 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   useEffect(() => {
     if (!puzzle) return;
 
-    // Enhance validation rules with additional parameters
-    const rulesWithParams: ValidationRule[] = puzzle.validation_rules.map(rule => {
-      // Add inventory data for ALL_BRICKS_MUST_BE_USED rule
-      if (rule.rule === 'ALL_BRICKS_MUST_BE_USED') {
-        return {
-          ...rule,
-          params: {
-            ...rule.params,
-            inventory: puzzle.inventory.map(b => ({ id: b.id, quantity: b.quantity })),
-          },
-        };
-      }
-
-      // Add goal cells data for GOAL_REACHED rule (slider puzzles)
-      if (rule.rule === 'GOAL_REACHED' && puzzle.goal) {
-        // Extract initial positions for stationary check if needed
-        let initialPositions: Array<{ id: string; cells: [number, number][] }> | undefined;
-        if (puzzle.goal.requireOtherPiecesStationary && puzzle.board.initial_state) {
-          initialPositions = puzzle.board.initial_state
-            .filter((p): p is { id: string; cells: [number, number][]; color: string } => 'cells' in p && 'id' in p)
-            .map(p => ({ id: p.id, cells: p.cells }));
-        }
-
-        return {
-          ...rule,
-          params: {
-            ...rule.params,
-            targetPieceId: puzzle.goal.targetPieceId,
-            targetPieceIds: puzzle.goal.targetPieceIds,
-            allowAnyPiece: puzzle.goal.allowAnyPiece,
-            goalCells: puzzle.goal.cells,
-            requireOtherPiecesStationary: puzzle.goal.requireOtherPiecesStationary,
-            initialPositions,
-          },
-        };
-      }
-
-      // Add target pattern data for PATTERN_MATCH rule
-      if (rule.rule === 'PATTERN_MATCH' && (puzzle as any).target_pattern) {
-        const targetPattern = (puzzle as any).target_pattern;
-        return {
-          ...rule,
-          params: {
-            ...rule.params,
-            rows: targetPattern.rows,
-            color_mapping: targetPattern.color_mapping,
-            allow_empty_cells: targetPattern.allow_empty_cells,
-          },
-        };
-      }
-
-      // Add currentMoves data for MAX_MOVES rule
-      if (rule.rule === 'MAX_MOVES') {
-        return {
-          ...rule,
-          params: {
-            ...rule.params,
-            currentMoves: moveCount,
-          },
-        };
-      }
-
-      return rule;
-    });
+    // Enrich validation rules with runtime parameters (shared helper)
+    const rulesWithParams = enrichValidationRules(puzzle, moveCount);
 
     // Convert engine board to validation board format
     const validationBoard = {
@@ -410,13 +240,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   // ============================================
 
   const removePiece = useCallback((instanceId: string) => {
-    // Check if piece removal is disabled
-    const hasNoBrickRemovalRule = puzzle?.validation_rules?.some(
-      r => r.rule === 'NO_BRICK_REMOVAL'
-    ) ?? false;
-
-    if (hasNoBrickRemovalRule) {
-      console.log('Brick removal is disabled for this puzzle (NO_BRICK_REMOVAL rule)');
+    if (hasNoBrickRemovalRule(puzzle)) {
       return;
     }
 

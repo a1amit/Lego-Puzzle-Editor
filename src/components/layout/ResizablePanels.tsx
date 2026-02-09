@@ -89,8 +89,8 @@ export function ResizablePanels({
         className={`
           flex-shrink-0 relative
           ${isHorizontal ? 'w-1 h-full cursor-col-resize' : 'h-1 w-full cursor-row-resize'}
-          bg-editor-border hover:bg-editor-accent transition-colors
-          ${isDragging ? 'bg-editor-accent' : ''}
+          bg-border hover:bg-primary transition-colors
+          ${isDragging ? 'bg-primary' : ''}
         `}
         onMouseDown={handleMouseDown}
       >
@@ -105,7 +105,7 @@ export function ResizablePanels({
           `}
         >
           {[0, 1, 2].map((i) => (
-            <div key={i} className="w-1 h-1 rounded-full bg-editor-accent" />
+            <div key={i} className="w-1 h-1 rounded-full bg-primary" />
           ))}
         </div>
       </div>

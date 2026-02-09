@@ -1,4 +1,7 @@
 import { BoardState, ValidationResult, SHAPE_LIBRARY, ShapeDefinition, PlacedBrick } from '../types/puzzle';
+// Re-export rotateShape from the single source of truth in engine/utils
+import { rotateShape as _rotateShape } from '../engine/utils';
+import type { Coordinate2D } from '../engine/types';
 
 // ============================================
 // VALIDATION FUNCTION TYPE
@@ -10,25 +13,14 @@ export type ValidationFunction = (
 ) => ValidationResult;
 
 // ============================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS (delegating to engine/utils)
 // ============================================
 
 /**
- * Rotate shape cells by 90 degrees clockwise
+ * Rotate shape cells — delegates to engine/utils (single source of truth)
  */
 export function rotateShape(cells: [number, number][], rotation: number): [number, number][] {
-  const steps = Math.floor((rotation % 360) / 90);
-  let rotated = [...cells];
-
-  for (let i = 0; i < steps; i++) {
-    rotated = rotated.map(([x, y]) => [y, -x] as [number, number]);
-  }
-
-  // Normalize to positive coordinates
-  const minX = Math.min(...rotated.map(([x]) => x));
-  const minY = Math.min(...rotated.map(([, y]) => y));
-
-  return rotated.map(([x, y]) => [x - minX, y - minY] as [number, number]);
+  return _rotateShape(cells as Coordinate2D[], rotation) as [number, number][];
 }
 
 /**

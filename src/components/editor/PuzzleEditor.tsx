@@ -3,6 +3,8 @@ import Editor, { OnMount, OnChange } from '@monaco-editor/react';
 import { editor } from 'monaco-editor';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { PuzzleDefinitionSchema } from '../../types/puzzle';
+import { Button } from '../ui/shadcn/button';
+import { Badge } from '../ui/shadcn/badge';
 
 // JSON Schema for Monaco intellisense
 const puzzleJsonSchema = {
@@ -10,18 +12,9 @@ const puzzleJsonSchema = {
   type: 'object',
   required: ['puzzle_id', 'title', 'description', 'board', 'inventory', 'validation_rules'],
   properties: {
-    puzzle_id: {
-      type: 'string',
-      description: 'Unique identifier for the puzzle',
-    },
-    title: {
-      type: 'string',
-      description: 'Display title of the puzzle',
-    },
-    description: {
-      type: 'string',
-      description: 'Description or instructions for the puzzle',
-    },
+    puzzle_id: { type: 'string', description: 'Unique identifier for the puzzle' },
+    title: { type: 'string', description: 'Display title of the puzzle' },
+    description: { type: 'string', description: 'Description or instructions for the puzzle' },
     board: {
       type: 'object',
       required: ['dimensions'],
@@ -42,32 +35,20 @@ const puzzleJsonSchema = {
             type: 'object',
             oneOf: [
               {
-                // Reference to inventory piece
                 properties: {
                   brickId: { type: 'string' },
-                  position: {
-                    type: 'array',
-                    items: { type: 'number' },
-                    minItems: 2,
-                    maxItems: 2,
-                  },
+                  position: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
                   rotation: { type: 'number', default: 0 },
                 },
                 required: ['brickId', 'position'],
               },
               {
-                // Cell-based piece (most explicit)
                 properties: {
                   id: { type: 'string' },
                   cells: {
                     type: 'array',
                     description: 'Exactly which cells this piece covers [[x,y], ...]',
-                    items: {
-                      type: 'array',
-                      items: { type: 'number' },
-                      minItems: 2,
-                      maxItems: 2,
-                    },
+                    items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
                   },
                   color: { type: 'string' },
                 },
@@ -78,12 +59,7 @@ const puzzleJsonSchema = {
         },
         blocked_cells: {
           type: 'array',
-          items: {
-            type: 'array',
-            items: { type: 'number' },
-            minItems: 2,
-            maxItems: 2,
-          },
+          items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
         },
       },
     },
@@ -96,24 +72,7 @@ const puzzleJsonSchema = {
           id: { type: 'string' },
           shape: {
             type: 'string',
-            enum: [
-              'T-tetromino',
-              'I-tetromino',
-              'L-tetromino',
-              'O-tetromino',
-              'S-tetromino',
-              'Z-tetromino',
-              'J-tetromino',
-              'unit',
-              'domino',
-              'domino-v',
-              'tromino-I',
-              'plus',
-              'long-L-pentomino',
-              'corner-pentomino',
-              'stretched-Z-pentomino',
-              'U-pentomino',
-            ],
+            enum: ['T-tetromino', 'I-tetromino', 'L-tetromino', 'O-tetromino', 'S-tetromino', 'Z-tetromino', 'J-tetromino', 'unit', 'domino', 'domino-v', 'tromino-I', 'plus', 'long-L-pentomino', 'corner-pentomino', 'stretched-Z-pentomino', 'U-pentomino'],
           },
           color: { type: 'string' },
           quantity: { type: 'integer', minimum: 1 },
@@ -126,68 +85,22 @@ const puzzleJsonSchema = {
         type: 'object',
         required: ['type', 'rule'],
         properties: {
-          type: {
-            type: 'string',
-            enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'ROTATION', 'PATTERN', 'GOAL', 'CONSTRAINT', 'MAX_MOVES', 'CUSTOM'],
-          },
-          rule: {
-            type: 'string',
-            enum: [
-              'ALL_BOARD_SQUARES_MUST_BE_COVERED',
-              'ALL_BRICKS_MUST_BE_USED',
-              'NO_BRICK_OVERLAP',
-              'NO_BRICKS_OUT_OF_BOUNDS',
-              'NO_BLOCKED_CELLS',
-              'SLIDING_ONLY',
-              'FREE_PLACEMENT',
-              'NO_ROTATION',
-              'NO_BRICK_REMOVAL',
-              'PATTERN_MATCH',
-              'GOAL_REACHED',
-              'MAX_MOVES',
-            ],
-          },
+          type: { type: 'string', enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'ROTATION', 'PATTERN', 'GOAL', 'CONSTRAINT', 'MAX_MOVES', 'CUSTOM'] },
+          rule: { type: 'string', enum: ['ALL_BOARD_SQUARES_MUST_BE_COVERED', 'ALL_BRICKS_MUST_BE_USED', 'NO_BRICK_OVERLAP', 'NO_BRICKS_OUT_OF_BOUNDS', 'NO_BLOCKED_CELLS', 'SLIDING_ONLY', 'FREE_PLACEMENT', 'NO_ROTATION', 'NO_BRICK_REMOVAL', 'PATTERN_MATCH', 'GOAL_REACHED', 'MAX_MOVES'] },
           params: { type: 'object' },
         },
       },
     },
-    viewMode: {
-      type: 'string',
-      enum: ['3D', '2D'],
-      description: 'How to render the puzzle (3D or 2D)',
-      default: '3D',
-    },
+    viewMode: { type: 'string', enum: ['3D', '2D'], description: 'How to render the puzzle (3D or 2D)', default: '3D' },
     goal: {
       type: 'object',
       description: 'Win condition for slider puzzles',
       properties: {
-        targetPieceId: {
-          type: 'string',
-          description: 'ID of the piece that must reach the goal',
-        },
-        targetPieceIds: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'List of piece IDs (any one can satisfy the goal)',
-        },
-        allowAnyPiece: {
-          type: 'boolean',
-          description: 'If true, any piece on the board can satisfy the goal',
-        },
-        hideGoalVisualization: {
-          type: 'boolean',
-          description: 'If true, the goal area will not be rendered',
-        },
-        cells: {
-          type: 'array',
-          description: 'Cells the target piece must cover to win [[x,y], ...]',
-          items: {
-            type: 'array',
-            items: { type: 'number' },
-            minItems: 2,
-            maxItems: 2,
-          },
-        },
+        targetPieceId: { type: 'string', description: 'ID of the piece that must reach the goal' },
+        targetPieceIds: { type: 'array', items: { type: 'string' }, description: 'List of piece IDs (any one can satisfy the goal)' },
+        allowAnyPiece: { type: 'boolean', description: 'If true, any piece on the board can satisfy the goal' },
+        hideGoalVisualization: { type: 'boolean', description: 'If true, the goal area will not be rendered' },
+        cells: { type: 'array', description: 'Cells the target piece must cover to win [[x,y], ...]', items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 } },
       },
       required: ['cells'],
     },
@@ -195,24 +108,9 @@ const puzzleJsonSchema = {
       type: 'object',
       description: 'Target pattern for pattern-matching puzzles (Binary, RLE, etc.)',
       properties: {
-        rows: {
-          type: 'array',
-          description: '2D grid of expected values. rows[y][x] = value (0, 1, or color key)',
-          items: {
-            type: 'array',
-            items: { type: ['number', 'string'] },
-          },
-        },
-        color_mapping: {
-          type: 'object',
-          description: 'Maps pattern values to colors. e.g., {"0": "#000000", "1": "#ffffff"}',
-          additionalProperties: { type: 'string' },
-        },
-        allow_empty_cells: {
-          type: 'boolean',
-          description: 'If true, cells without pieces are allowed',
-          default: false,
-        },
+        rows: { type: 'array', description: '2D grid of expected values. rows[y][x] = value (0, 1, or color key)', items: { type: 'array', items: { type: ['number', 'string'] } } },
+        color_mapping: { type: 'object', description: 'Maps pattern values to colors.', additionalProperties: { type: 'string' } },
+        allow_empty_cells: { type: 'boolean', description: 'If true, cells without pieces are allowed', default: false },
       },
       required: ['rows', 'color_mapping'],
     },
@@ -220,14 +118,8 @@ const puzzleJsonSchema = {
       type: 'object',
       properties: {
         author: { type: 'string' },
-        difficulty: {
-          type: 'string',
-          enum: ['easy', 'medium', 'hard', 'expert'],
-        },
-        tags: {
-          type: 'array',
-          items: { type: 'string' },
-        },
+        difficulty: { type: 'string', enum: ['easy', 'medium', 'hard', 'expert'] },
+        tags: { type: 'array', items: { type: 'string' } },
         version: { type: 'string' },
       },
     },
@@ -245,26 +137,17 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
   const [localErrors, setLocalErrors] = useState<string[]>([]);
   const debounceRef = useRef<number | null>(null);
 
-  // Setup Monaco on mount
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    // Configure JSON with our schema
     monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
       validate: true,
-      schemas: [
-        {
-          uri: 'http://puzzle-schema/puzzle.json',
-          fileMatch: ['*'],
-          schema: puzzleJsonSchema,
-        },
-      ],
+      schemas: [{ uri: 'http://puzzle-schema/puzzle.json', fileMatch: ['*'], schema: puzzleJsonSchema }],
       enableSchemaRequest: false,
       allowComments: false,
     });
 
-    // Custom dark theme
     monaco.editor.defineTheme('puzzle-dark', {
       base: 'vs-dark',
       inherit: true,
@@ -275,33 +158,28 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
         { token: 'keyword', foreground: 'ff7b72' },
       ],
       colors: {
-        'editor.background': '#0d1117',
+        'editor.background': '#0f0f14',
         'editor.foreground': '#c9d1d9',
-        'editor.lineHighlightBackground': '#161b22',
+        'editor.lineHighlightBackground': '#1a1a24',
         'editor.selectionBackground': '#264f78',
-        'editorCursor.foreground': '#58a6ff',
+        'editorCursor.foreground': '#6366f1',
         'editorLineNumber.foreground': '#484f58',
         'editorLineNumber.activeForeground': '#c9d1d9',
         'editor.inactiveSelectionBackground': '#264f7844',
-        'editorIndentGuide.background': '#21262d',
-        'editorIndentGuide.activeBackground': '#30363d',
+        'editorIndentGuide.background': '#1e1e28',
+        'editorIndentGuide.activeBackground': '#2e2e3a',
       },
     });
 
     monaco.editor.setTheme('puzzle-dark');
-
-    // Initial validation
     validateAndUpdate(jsonSource);
   };
 
-  // Validate JSON with Zod and update markers
   const validateWithZod = useCallback((value: string): string[] => {
     const errors: string[] = [];
-
     try {
       const parsed = JSON.parse(value);
       const result = PuzzleDefinitionSchema.safeParse(parsed);
-
       if (!result.success) {
         for (const issue of result.error.issues) {
           errors.push(`${issue.path.join('.')}: ${issue.message}`);
@@ -312,62 +190,39 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
         errors.push(`JSON Syntax: ${e.message}`);
       }
     }
-
     return errors;
   }, []);
 
-  // Update editor markers based on errors
   const updateMarkers = useCallback((errors: string[]) => {
     if (!editorRef.current || !monacoRef.current) return;
-
     const model = editorRef.current.getModel();
     if (!model) return;
-
     const markers: editor.IMarkerData[] = errors.map((error) => ({
       severity: monacoRef.current!.MarkerSeverity.Error,
       message: error,
-      startLineNumber: 1,
-      startColumn: 1,
-      endLineNumber: 1,
-      endColumn: 1,
+      startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1,
     }));
-
     monacoRef.current.editor.setModelMarkers(model, 'puzzle-validator', markers);
   }, []);
 
-  // Debounced validation
   const validateAndUpdate = useCallback((value: string) => {
     const errors = validateWithZod(value);
     setLocalErrors(errors);
     updateMarkers(errors);
-
     if (errors.length === 0) {
       parseAndLoadPuzzle(value);
     }
   }, [validateWithZod, updateMarkers, parseAndLoadPuzzle]);
 
-  // Handle editor changes
   const handleChange: OnChange = (value) => {
     if (!value) return;
     setJsonSource(value);
-
-    // Debounce validation
-    if (debounceRef.current) {
-      window.clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = window.setTimeout(() => {
-      validateAndUpdate(value);
-    }, 500);
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => { validateAndUpdate(value); }, 500);
   };
 
-  // Cleanup debounce on unmount
   useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        window.clearTimeout(debounceRef.current);
-      }
-    };
+    return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); };
   }, []);
 
   const hasErrors = localErrors.length > 0 || parseError;
@@ -375,32 +230,27 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* Editor header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-editor-sidebar border-b border-editor-border">
+      <div className="flex items-center justify-between px-4 py-2 bg-card border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-display text-editor-accent">puzzle.json</span>
-          {hasErrors && (
-            <span className="px-2 py-0.5 text-xs bg-editor-error/20 text-editor-error rounded-full">
+          <span className="text-sm font-mono text-primary">puzzle.json</span>
+          {hasErrors ? (
+            <Badge variant="destructive" className="text-[10px] h-5">
               {localErrors.length} error(s)
-            </span>
-          )}
-          {!hasErrors && (
-            <span className="px-2 py-0.5 text-xs bg-editor-success/20 text-editor-success rounded-full">
+            </Badge>
+          ) : (
+            <Badge variant="default" className="bg-success text-success-foreground text-[10px] h-5">
               Valid
-            </span>
+            </Badge>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-editor-border rounded transition-colors"
-            onClick={() => {
-              if (editorRef.current) {
-                editorRef.current.getAction('editor.action.formatDocument')?.run();
-              }
-            }}
-          >
-            Format
-          </button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
+        >
+          Format
+        </Button>
       </div>
 
       {/* Monaco Editor */}
@@ -421,15 +271,12 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
             automaticLayout: true,
             tabSize: 2,
             formatOnPaste: true,
-            scrollbar: {
-              verticalScrollbarSize: 8,
-              horizontalScrollbarSize: 8,
-            },
+            scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
             padding: { top: 12, bottom: 12 },
           }}
           loading={
-            <div className="flex items-center justify-center h-full bg-editor-bg">
-              <div className="text-gray-400">Loading editor...</div>
+            <div className="flex items-center justify-center h-full bg-background">
+              <div className="text-muted-foreground">Loading editor...</div>
             </div>
           }
         />
@@ -437,18 +284,18 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
 
       {/* Error panel */}
       {hasErrors && (
-        <div className="max-h-32 overflow-auto bg-editor-error/10 border-t border-editor-error/30 p-3">
-          <div className="text-xs font-display text-editor-error mb-2">PROBLEMS</div>
+        <div className="max-h-32 overflow-auto bg-destructive/10 border-t border-destructive/30 p-3">
+          <div className="text-xs font-mono text-destructive mb-2">PROBLEMS</div>
           <div className="space-y-1">
             {localErrors.map((error, i) => (
-              <div key={i} className="text-xs text-gray-300 flex items-start gap-2">
-                <span className="text-editor-error">●</span>
+              <div key={i} className="text-xs text-foreground/70 flex items-start gap-2">
+                <span className="text-destructive">●</span>
                 <span>{error}</span>
               </div>
             ))}
             {parseError && !localErrors.length && (
-              <div className="text-xs text-gray-300 flex items-start gap-2">
-                <span className="text-editor-error">●</span>
+              <div className="text-xs text-foreground/70 flex items-start gap-2">
+                <span className="text-destructive">●</span>
                 <span>{parseError}</span>
               </div>
             )}
@@ -458,4 +305,3 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
     </div>
   );
 }
-

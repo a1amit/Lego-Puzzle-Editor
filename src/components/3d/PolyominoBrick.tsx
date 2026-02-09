@@ -3,6 +3,7 @@ import { ThreeEvent, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { SHAPE_LIBRARY, PlacedBrick, ShapeDefinition } from '../../types/puzzle';
 import { rotateShape } from '../../validation/ValidationRegistry';
+import { BRICK_3D, ANIMATION_3D } from '../../config/sceneConfig';
 
 interface PolyominoBrickProps {
   brick: PlacedBrick;
@@ -18,12 +19,12 @@ interface PolyominoBrickProps {
   boardOffset?: { x: number; y: number };
 }
 
-const CELL_SIZE = 1;
-const BRICK_HEIGHT = 0.4;
-const STUD_RADIUS = 0.25;
-const STUD_HEIGHT = 0.15;
-const HOVER_HEIGHT = 1.5; // Height when brick is lifted
-const BRICK_STACK_HEIGHT = BRICK_HEIGHT + STUD_HEIGHT; // Total height of one brick layer
+const CELL_SIZE = BRICK_3D.cellSize;
+const BRICK_HEIGHT = BRICK_3D.height;
+const STUD_RADIUS = BRICK_3D.studRadius;
+const STUD_HEIGHT = BRICK_3D.studHeight;
+const HOVER_HEIGHT = ANIMATION_3D.liftHeight;
+const BRICK_STACK_HEIGHT = BRICK_3D.stackHeight;
 
 // Individual brick cell with stud
 function BrickCell({
@@ -139,23 +140,25 @@ export function PolyominoBrick({
     }
   }, [interactive]);
 
-  // Smooth animation for height and rotation
+  // Smooth animation for height and rotation (frame-rate independent exponential decay)
   useFrame((_, delta) => {
-    // Animate height
+    // Animate height using exponential decay: lerp factor = 1 - e^(-rate * dt)
     const heightDiff = targetHeight.current - currentHeight;
-    if (Math.abs(heightDiff) > 0.01) {
-      setCurrentHeight(prev => prev + heightDiff * Math.min(delta * 8, 1));
+    if (Math.abs(heightDiff) > ANIMATION_3D.convergenceThreshold) {
+      const heightAlpha = 1 - Math.exp(-ANIMATION_3D.heightDecayRate * delta);
+      setCurrentHeight(prev => prev + heightDiff * heightAlpha);
     }
 
-    // Animate rotation
+    // Animate rotation using exponential decay
     const rotDiff = targetRotation.current - rotationAngle;
-    if (Math.abs(rotDiff) > 0.01) {
-      setRotationAngle(prev => prev + rotDiff * Math.min(delta * 10, 1));
+    if (Math.abs(rotDiff) > ANIMATION_3D.convergenceThreshold) {
+      const rotAlpha = 1 - Math.exp(-ANIMATION_3D.rotationDecayRate * delta);
+      setRotationAngle(prev => prev + rotDiff * rotAlpha);
     }
 
     // Gentle floating animation when selected
     if (groupRef.current && isSelected) {
-      groupRef.current.position.y = currentHeight + Math.sin(Date.now() * 0.003) * 0.05;
+      groupRef.current.position.y = currentHeight + Math.sin(Date.now() * ANIMATION_3D.floatSpeed) * ANIMATION_3D.floatAmplitude;
     } else if (groupRef.current) {
       groupRef.current.position.y = currentHeight;
     }

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npx vite build)",
+      "WebFetch(domain:vercel.com)",
+      "WebFetch(domain:www.aceternity.com)",
+      "WebFetch(domain:chatbot-aceternity.vercel.app)",
+      "WebFetch(domain:neon-aceternity-chatbot.vercel.app)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(find:*)",
+      "WebFetch(domain:ui.shadcn.com)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(echo:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm run build:*)"
+    ]
+  }
+}

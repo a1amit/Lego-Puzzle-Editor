@@ -9,8 +9,22 @@ import {
   SHAPE_LIBRARY
 } from '../types/puzzle';
 import { ValidationRegistry, getBrickCells, rotateShape } from '../validation/ValidationRegistry';
-import { getValidSlideDestinations } from '../engine/utils';
+import { getValidSlideDestinations, generateInstanceId } from '../engine/utils';
 import type { EngineBoard, PlacedPiece } from '../engine/types';
+import { createInitialBoard, createInitialInventory } from '../engine/boardFactory';
+import { enrichValidationRules, hasSlidingOnlyRule, hasNoBrickRemovalRule } from '../engine/validationHelpers';
+
+// ============================================
+// UNDO / REDO SNAPSHOT
+// ============================================
+
+interface BoardSnapshot {
+  boardState: BoardState;
+  inventoryState: Map<string, number>;
+  moveCount: number;
+}
+
+const MAX_UNDO_HISTORY = 50;
 
 interface PuzzleStore {
   // Puzzle Definition
@@ -31,9 +45,16 @@ interface PuzzleStore {
 
   // Selection & Interaction
   selectedBrickId: string | null;
-  previewRotation: number; // Rotation for inventory brick before placement
+  previewRotation: number;
   hoveredCell: { x: number; y: number } | null;
   draggedBrick: PlacedBrick | null;
+
+  // Action feedback
+  lastActionError: string | null;
+
+  // Undo / Redo
+  undoStack: BoardSnapshot[];
+  redoStack: BoardSnapshot[];
 
   // Actions
   setPuzzle: (puzzle: PuzzleDefinition) => void;
@@ -46,12 +67,15 @@ interface PuzzleStore {
   rotateBrick: (instanceId: string) => void;
 
   selectBrick: (brickId: string | null) => void;
-  rotatePreview: () => void; // Rotate the preview before placement
+  rotatePreview: () => void;
   setHoveredCell: (cell: { x: number; y: number } | null) => void;
   setDraggedBrick: (brick: PlacedBrick | null) => void;
 
   resetPuzzle: () => void;
   validate: () => void;
+
+  undo: () => void;
+  redo: () => void;
 
   // Sliding helpers
   getValidSlideDestinationsFor: (instanceId: string) => [number, number][];
@@ -62,27 +86,17 @@ interface PuzzleStore {
 // TYPE ADAPTERS (Store <-> Engine)
 // ============================================
 
-/**
- * Convert store's PlacedBrick to engine's PlacedPiece format
- */
 function toEnginePiece(brick: PlacedBrick): PlacedPiece {
   return {
     id: brick.id,
     instanceId: brick.instanceId,
     shape: brick.shape,
     color: brick.color,
-    position: {
-      x: brick.position.x,
-      y: brick.position.y,
-      z: brick.z || 0,
-    },
+    position: { x: brick.position.x, y: brick.position.y, z: brick.z || 0 },
     rotation: brick.rotation,
   };
 }
 
-/**
- * Convert store's BoardState to engine's EngineBoard format
- */
 function toEngineBoard(boardState: BoardState): EngineBoard {
   return {
     dimensions: boardState.dimensions,
@@ -91,58 +105,24 @@ function toEngineBoard(boardState: BoardState): EngineBoard {
   };
 }
 
-/**
- * Check if a puzzle has the SLIDING_ONLY movement rule
- */
-function hasSlidingOnlyRule(puzzle: PuzzleDefinition | null): boolean {
-  if (!puzzle) return false;
-  return puzzle.validation_rules.some(
-    r => r.type === 'MOVEMENT' && r.rule === 'SLIDING_ONLY'
-  );
-}
+// ============================================
+// HELPERS
+// ============================================
 
-/**
- * Check if a puzzle has the NO_BRICK_REMOVAL constraint rule
- */
-function hasNoBrickRemovalRule(puzzle: PuzzleDefinition | null): boolean {
-  if (!puzzle) return false;
-  return puzzle.validation_rules.some(
-    r => r.rule === 'NO_BRICK_REMOVAL'
-  );
-}
-
-// Initialize with default puzzle JSON
-const defaultJson = JSON.stringify(DEFAULT_PUZZLE, null, 2);
-
-/**
- * Calculate the maximum z-level at the given cells
- * Returns the highest z-level + 1 (to stack on top)
- */
-function calculateZLevel(
-  boardState: BoardState,
-  cells: [number, number][]
-): number {
+function calculateZLevel(boardState: BoardState, cells: [number, number][]): number {
   let maxZ = -1;
-
   for (const brick of boardState.placedBricks) {
     const brickCells = getBrickCells(brick);
     const brickCellSet = new Set(brickCells.map(([x, y]) => `${x},${y}`));
-
-    // Check if any of the new cells overlap with this brick's cells
     for (const [x, y] of cells) {
       if (brickCellSet.has(`${x},${y}`)) {
         maxZ = Math.max(maxZ, brick.z || 0);
       }
     }
   }
-
-  return maxZ + 1; // Stack on top of the highest brick
+  return maxZ + 1;
 }
 
-/**
- * Find all bricks that are stacked on top of a given brick
- * Returns a set of instanceIds of bricks that should be removed
- */
 function findBricksStackedOnTop(
   boardState: BoardState,
   targetBrick: PlacedBrick,
@@ -153,27 +133,14 @@ function findBricksStackedOnTop(
   const targetCellSet = new Set(targetCells.map(([x, y]) => `${x},${y}`));
   const targetZ = targetBrick.z || 0;
 
-  // Find all bricks with higher z-level that overlap with target brick's cells
   for (const brick of boardState.placedBricks) {
-    // Skip if already excluded or if it's the target brick itself
-    if (excludeInstanceIds.has(brick.instanceId) || brick.instanceId === targetBrick.instanceId) {
-      continue;
-    }
-
-    // Only check bricks at higher z-levels
+    if (excludeInstanceIds.has(brick.instanceId) || brick.instanceId === targetBrick.instanceId) continue;
     const brickZ = brick.z || 0;
-    if (brickZ <= targetZ) {
-      continue;
-    }
+    if (brickZ <= targetZ) continue;
 
-    // Check if this brick overlaps with the target brick's cells
     const brickCells = getBrickCells(brick);
-    const hasOverlap = brickCells.some(([x, y]) => targetCellSet.has(`${x},${y}`));
-
-    if (hasOverlap) {
+    if (brickCells.some(([x, y]) => targetCellSet.has(`${x},${y}`))) {
       stackedBrickIds.add(brick.instanceId);
-
-      // Recursively find bricks stacked on top of this one
       const nestedStacked = findBricksStackedOnTop(
         boardState,
         brick,
@@ -182,106 +149,53 @@ function findBricksStackedOnTop(
       nestedStacked.forEach(id => stackedBrickIds.add(id));
     }
   }
-
   return stackedBrickIds;
 }
 
-const createInitialBoardState = (puzzle: PuzzleDefinition | null): BoardState => {
-  if (!puzzle) {
-    return {
-      dimensions: { width: 8, height: 4, depth: 1 },
-      placedBricks: [],
-      blockedCells: [],
-    };
-  }
-
-  // Load initial piece placements from puzzle definition (for slider puzzles)
-  const placedBricks: PlacedBrick[] = [];
-
-  if (puzzle.board.initial_state && puzzle.board.initial_state.length > 0) {
-    for (const placement of puzzle.board.initial_state) {
-      // Check which type of placement this is
-      if ('cells' in placement && Array.isArray(placement.cells)) {
-        // Cell-based piece definition (most explicit)
-        // Convert cells to shape + position format for internal use
-        const cells = placement.cells as [number, number][];
-        const minX = Math.min(...cells.map(c => c[0]));
-        const minY = Math.min(...cells.map(c => c[1]));
-
-        // Create a custom shape from the cells (normalized to origin)
-        const normalizedCells = cells.map(([x, y]) => [x - minX, y - minY] as [number, number]);
-        const shapeName = `custom-${placement.id}`;
-
-        // Register custom shape if not exists
-        if (!SHAPE_LIBRARY[shapeName]) {
-          SHAPE_LIBRARY[shapeName] = {
-            name: shapeName,
-            cells: normalizedCells,
-          };
-        }
-
-        placedBricks.push({
-          id: placement.id,
-          instanceId: `${placement.id}-initial-${placedBricks.length}`,
-          shape: shapeName,
-          color: placement.color,
-          position: { x: minX, y: minY },
-          rotation: 0,
-          z: 0,
-        });
-      } else if ('shape' in placement && 'color' in placement && 'position' in placement) {
-        // Inline piece definition with shape name
-        placedBricks.push({
-          id: placement.id,
-          instanceId: `${placement.id}-initial-${placedBricks.length}`,
-          shape: placement.shape,
-          color: placement.color,
-          position: { x: placement.position[0], y: placement.position[1] },
-          rotation: placement.rotation || 0,
-          z: 0,
-        });
-      } else if ('brickId' in placement) {
-        // Reference to inventory piece
-        const brickDef = puzzle.inventory.find(b => b.id === placement.brickId);
-        if (brickDef) {
-          placedBricks.push({
-            id: brickDef.id,
-            instanceId: `${brickDef.id}-initial-${placedBricks.length}`,
-            shape: brickDef.shape,
-            color: brickDef.color,
-            position: { x: placement.position[0], y: placement.position[1] },
-            rotation: placement.rotation || 0,
-            z: 0,
-          });
-        }
-      }
-    }
-  }
-
+/**
+ * Convert engine board (from boardFactory) to store's BoardState format
+ */
+function engineBoardToBoardState(engine: EngineBoard): BoardState {
   return {
-    dimensions: puzzle.board.dimensions,
-    placedBricks,
-    blockedCells: puzzle.board.blocked_cells || [],
+    dimensions: engine.dimensions,
+    placedBricks: engine.placedPieces.map(p => ({
+      id: p.id,
+      instanceId: p.instanceId,
+      shape: p.shape,
+      color: p.color,
+      position: { x: p.position.x, y: p.position.y },
+      rotation: p.rotation,
+      z: p.position.z,
+    })),
+    blockedCells: engine.blockedCells,
   };
-};
+}
 
-const createInitialInventory = (puzzle: PuzzleDefinition | null): Map<string, number> => {
-  const inventory = new Map<string, number>();
-  if (puzzle) {
-    for (const brick of puzzle.inventory) {
-      inventory.set(brick.id, brick.quantity);
-    }
-  }
-  return inventory;
-};
+function setActionError(set: (partial: Partial<PuzzleStore>) => void, message: string) {
+  set({ lastActionError: message });
+  setTimeout(() => set({ lastActionError: null }), 3000);
+}
+
+// ============================================
+// INITIAL STATE (uses shared boardFactory)
+// ============================================
+
+const defaultJson = JSON.stringify(DEFAULT_PUZZLE, null, 2);
+
+const initialBoard = engineBoardToBoardState(createInitialBoard(DEFAULT_PUZZLE));
+const initialInventory = createInitialInventory(DEFAULT_PUZZLE);
+
+// ============================================
+// STORE
+// ============================================
 
 export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   puzzle: DEFAULT_PUZZLE,
   jsonSource: defaultJson,
   parseError: null,
 
-  boardState: createInitialBoardState(DEFAULT_PUZZLE),
-  inventoryState: createInitialInventory(DEFAULT_PUZZLE),
+  boardState: initialBoard,
+  inventoryState: initialInventory,
 
   validationResults: [],
   isComplete: false,
@@ -292,17 +206,29 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   hoveredCell: null,
   draggedBrick: null,
 
+  lastActionError: null,
+
+  undoStack: [],
+  redoStack: [],
+
+  // ------------------------------------------
+  // PUZZLE LOADING
+  // ------------------------------------------
+
   setPuzzle: (puzzle) => {
     set({
       puzzle,
       jsonSource: JSON.stringify(puzzle, null, 2),
-      boardState: createInitialBoardState(puzzle),
+      boardState: engineBoardToBoardState(createInitialBoard(puzzle)),
       inventoryState: createInitialInventory(puzzle),
       validationResults: [],
       isComplete: false,
       moveCount: 0,
       selectedBrickId: null,
       previewRotation: 0,
+      undoStack: [],
+      redoStack: [],
+      lastActionError: null,
     });
   },
 
@@ -319,40 +245,45 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
         puzzle: validated,
         jsonSource: json,
         parseError: null,
-        boardState: createInitialBoardState(validated),
+        boardState: engineBoardToBoardState(createInitialBoard(validated)),
         inventoryState: createInitialInventory(validated),
         validationResults: [],
         isComplete: false,
         previewRotation: 0,
+        undoStack: [],
+        redoStack: [],
+        lastActionError: null,
       });
 
       return true;
     } catch (error) {
       let errorMessage = 'Invalid JSON';
-
       if (error instanceof SyntaxError) {
         errorMessage = `JSON Syntax Error: ${error.message}`;
       } else if (error instanceof Error && 'issues' in error) {
-        // Zod error
         const zodError = error as { issues: Array<{ path: (string | number)[]; message: string }> };
         errorMessage = zodError.issues
           .map(issue => `${issue.path.join('.')}: ${issue.message}`)
           .join('\n');
       }
-
       set({ parseError: errorMessage });
       return false;
     }
   },
 
+  // ------------------------------------------
+  // BOARD MANIPULATION
+  // ------------------------------------------
+
   placeBrick: (brick) => {
-    const { boardState, inventoryState } = get();
+    const { boardState, inventoryState, undoStack } = get();
 
-    // Check if brick is available in inventory
     const remaining = inventoryState.get(brick.id) ?? 0;
-    if (remaining <= 0) return;
+    if (remaining <= 0) {
+      setActionError(set, 'No more bricks of this type available');
+      return;
+    }
 
-    // Calculate z-level for stacking
     const shape = SHAPE_LIBRARY[brick.shape];
     if (!shape) return;
 
@@ -363,23 +294,22 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     ]);
 
     const zLevel = calculateZLevel(boardState, cells);
-
-    // Check if z-level exceeds board depth (depth: 1 = no stacking, depth: 2 = one layer, etc.)
     const maxAllowedZ = boardState.dimensions.depth - 1;
     if (zLevel > maxAllowedZ) {
-      // Stacking would exceed depth limit
+      setActionError(set, 'Cannot stack higher — depth limit reached');
       return;
     }
 
-    // Create new placed brick with unique instance ID
-    const instanceId = `${brick.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const placedBrick: PlacedBrick = {
-      ...brick,
-      instanceId,
-      z: zLevel,
+    // Save snapshot for undo
+    const snapshot: BoardSnapshot = {
+      boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
+      inventoryState: new Map(inventoryState),
+      moveCount: get().moveCount,
     };
 
-    // Update state
+    const instanceId = generateInstanceId(brick.id);
+    const placedBrick: PlacedBrick = { ...brick, instanceId, z: zLevel };
+
     const newInventory = new Map(inventoryState);
     newInventory.set(brick.id, remaining - 1);
 
@@ -389,41 +319,43 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
         placedBricks: [...boardState.placedBricks, placedBrick],
       },
       inventoryState: newInventory,
-      previewRotation: 0, // Reset rotation after placement
+      previewRotation: 0,
+      undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
+      redoStack: [],
     });
 
-    // Validate after placement
     get().validate();
   },
 
   removeBrick: (instanceId) => {
-    const { boardState, inventoryState, puzzle } = get();
+    const { boardState, inventoryState, puzzle, undoStack } = get();
 
-    // Block removal if NO_BRICK_REMOVAL rule is present
     if (hasNoBrickRemovalRule(puzzle)) {
-      console.log('Brick removal is disabled for this puzzle (NO_BRICK_REMOVAL rule)');
+      setActionError(set, 'Brick removal is disabled for this puzzle');
       return;
     }
 
     const brick = boardState.placedBricks.find(b => b.instanceId === instanceId);
     if (!brick) return;
 
-    // Find all bricks stacked on top of this brick
-    const stackedBrickIds = findBricksStackedOnTop(boardState, brick);
+    // Save snapshot for undo
+    const snapshot: BoardSnapshot = {
+      boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
+      inventoryState: new Map(inventoryState),
+      moveCount: get().moveCount,
+    };
 
-    // Collect all bricks to remove (the target brick + all stacked on top)
+    const stackedBrickIds = findBricksStackedOnTop(boardState, brick);
     const bricksToRemove = boardState.placedBricks.filter(
       b => b.instanceId === instanceId || stackedBrickIds.has(b.instanceId)
     );
 
-    // Return all removed bricks to inventory
     const newInventory = new Map(inventoryState);
     for (const brickToRemove of bricksToRemove) {
       const current = newInventory.get(brickToRemove.id) ?? 0;
       newInventory.set(brickToRemove.id, current + 1);
     }
 
-    // Remove all bricks (target + stacked on top)
     const instanceIdsToRemove = new Set([instanceId, ...stackedBrickIds]);
     set({
       boardState: {
@@ -431,60 +363,55 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
         placedBricks: boardState.placedBricks.filter(b => !instanceIdsToRemove.has(b.instanceId)),
       },
       inventoryState: newInventory,
+      undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
+      redoStack: [],
     });
 
     get().validate();
   },
 
   moveBrick: (instanceId, newPosition) => {
-    const { boardState, inventoryState, puzzle } = get();
+    const { boardState, inventoryState, puzzle, undoStack } = get();
 
     const brick = boardState.placedBricks.find(b => b.instanceId === instanceId);
     if (!brick) return;
 
-    // Check if position is actually changing
-    if (brick.position.x === newPosition.x && brick.position.y === newPosition.y) {
-      // Position is the same, no need to move
-      return;
-    }
+    if (brick.position.x === newPosition.x && brick.position.y === newPosition.y) return;
 
-    // === SLIDING ONLY VALIDATION ===
-    // If SLIDING_ONLY rule is active, validate the move is a valid slide
     if (hasSlidingOnlyRule(puzzle)) {
       const engineBoard = toEngineBoard(boardState);
       const enginePiece = toEnginePiece(brick);
       const validDestinations = getValidSlideDestinations(engineBoard, enginePiece);
-
       const isValidSlide = validDestinations.some(
         ([x, y]) => x === newPosition.x && y === newPosition.y
       );
-
       if (!isValidSlide) {
-        console.log('Invalid slide move - not in valid destinations');
-        return; // Block invalid slides
+        setActionError(set, 'Invalid slide — not a valid destination');
+        return;
       }
     }
 
-    // Find all bricks stacked on top of the original position
-    const stackedBrickIds = findBricksStackedOnTop(boardState, brick);
+    // Save snapshot for undo
+    const snapshot: BoardSnapshot = {
+      boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
+      inventoryState: new Map(inventoryState),
+      moveCount: get().moveCount,
+    };
 
-    // Remove stacked bricks and return them to inventory
+    const stackedBrickIds = findBricksStackedOnTop(boardState, brick);
     const newInventory = new Map(inventoryState);
     const bricksToRemove = boardState.placedBricks.filter(
       b => stackedBrickIds.has(b.instanceId)
     );
-
     for (const brickToRemove of bricksToRemove) {
       const current = newInventory.get(brickToRemove.id) ?? 0;
       newInventory.set(brickToRemove.id, current + 1);
     }
 
-    // Remove stacked bricks from board state before calculating new z-level
     const bricksWithoutStacked = boardState.placedBricks.filter(
       b => !stackedBrickIds.has(b.instanceId)
     );
 
-    // Calculate new z-level for the new position
     const shape = SHAPE_LIBRARY[brick.shape];
     if (!shape) return;
 
@@ -494,23 +421,16 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       newPosition.y + dy,
     ]);
 
-    // Exclude the current brick from z-level calculation (it's being moved)
     const otherBricks = bricksWithoutStacked.filter(b => b.instanceId !== instanceId);
-    const tempBoardState: BoardState = {
-      ...boardState,
-      placedBricks: otherBricks,
-    };
-
+    const tempBoardState: BoardState = { ...boardState, placedBricks: otherBricks };
     const zLevel = calculateZLevel(tempBoardState, cells);
 
-    // Check if z-level exceeds board depth (depth: 1 = no stacking, depth: 2 = one layer, etc.)
     const maxAllowedZ = boardState.dimensions.depth - 1;
     if (zLevel > maxAllowedZ) {
-      // Stacking would exceed depth limit, don't move
+      setActionError(set, 'Cannot move — depth limit would be exceeded');
       return;
     }
 
-    // Update board state: remove stacked bricks and move the target brick
     set({
       boardState: {
         ...boardState,
@@ -522,13 +442,21 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       },
       inventoryState: newInventory,
       moveCount: get().moveCount + 1,
+      undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
+      redoStack: [],
     });
 
     get().validate();
   },
 
   rotateBrick: (instanceId) => {
-    const { boardState } = get();
+    const { boardState, undoStack, inventoryState } = get();
+
+    const snapshot: BoardSnapshot = {
+      boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
+      inventoryState: new Map(inventoryState),
+      moveCount: get().moveCount,
+    };
 
     set({
       boardState: {
@@ -539,14 +467,19 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
             : b
         ),
       },
+      undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
+      redoStack: [],
     });
 
     get().validate();
   },
 
+  // ------------------------------------------
+  // SELECTION
+  // ------------------------------------------
+
   selectBrick: (brickId) => {
     const { selectedBrickId } = get();
-    // Reset rotation when selecting a different brick
     if (brickId !== selectedBrickId) {
       set({ selectedBrickId: brickId, previewRotation: 0 });
     } else {
@@ -559,105 +492,101 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     set({ previewRotation: (previewRotation + 90) % 360 });
   },
 
-  setHoveredCell: (cell) => {
-    set({ hoveredCell: cell });
-  },
+  setHoveredCell: (cell) => set({ hoveredCell: cell }),
 
-  setDraggedBrick: (brick) => {
-    set({ draggedBrick: brick });
-  },
+  setDraggedBrick: (brick) => set({ draggedBrick: brick }),
+
+  // ------------------------------------------
+  // RESET
+  // ------------------------------------------
 
   resetPuzzle: () => {
     const { puzzle } = get();
     set({
-      boardState: createInitialBoardState(puzzle),
+      boardState: engineBoardToBoardState(createInitialBoard(puzzle)),
       inventoryState: createInitialInventory(puzzle),
       validationResults: [],
       isComplete: false,
       moveCount: 0,
       selectedBrickId: null,
       previewRotation: 0,
+      undoStack: [],
+      redoStack: [],
+      lastActionError: null,
     });
   },
 
+  // ------------------------------------------
+  // VALIDATION (uses shared enrichValidationRules)
+  // ------------------------------------------
+
   validate: () => {
-    const { puzzle, boardState } = get();
+    const { puzzle, boardState, moveCount } = get();
     if (!puzzle) return;
 
-    // Enhance validation rules with additional parameters
-    const rulesWithParams = puzzle.validation_rules.map(rule => {
-      // Add inventory data for ALL_BRICKS_MUST_BE_USED rule
-      if (rule.rule === 'ALL_BRICKS_MUST_BE_USED') {
-        return {
-          ...rule,
-          params: {
-            ...rule.params,
-            inventory: puzzle.inventory.map(b => ({ id: b.id, quantity: b.quantity })),
-          },
-        };
-      }
-
-      // Add goal cells data for GOAL_REACHED rule (slider puzzles)
-      if (rule.rule === 'GOAL_REACHED' && puzzle.goal) {
-        // Extract initial positions for stationary check if needed
-        let initialPositions: Array<{ id: string; cells: [number, number][] }> | undefined;
-        if (puzzle.goal.requireOtherPiecesStationary && puzzle.board.initial_state) {
-          initialPositions = puzzle.board.initial_state
-            .filter((p): p is { id: string; cells: [number, number][]; color: string } => 'cells' in p && 'id' in p)
-            .map(p => ({ id: p.id, cells: p.cells }));
-        }
-
-        return {
-          ...rule,
-          params: {
-            ...rule.params,
-            targetPieceId: puzzle.goal.targetPieceId,
-            targetPieceIds: puzzle.goal.targetPieceIds,
-            allowAnyPiece: puzzle.goal.allowAnyPiece,
-            goalCells: puzzle.goal.cells,
-            requireOtherPiecesStationary: puzzle.goal.requireOtherPiecesStationary,
-            initialPositions,
-          },
-        };
-      }
-
-      // Add target pattern data for PATTERN_MATCH rule
-      if (rule.rule === 'PATTERN_MATCH' && puzzle.target_pattern) {
-        return {
-          ...rule,
-          params: {
-            ...rule.params,
-            rows: puzzle.target_pattern.rows,
-            color_mapping: puzzle.target_pattern.color_mapping,
-            allow_empty_cells: puzzle.target_pattern.allow_empty_cells,
-          },
-        };
-      }
-
-      // Add current moves data for MAX_MOVES rule
-      if (rule.rule === 'MAX_MOVES') {
-        return {
-          ...rule,
-          params: {
-            ...rule.params,
-            currentMoves: get().moveCount,
-          },
-        };
-      }
-
-      return rule;
-    });
-
+    const rulesWithParams = enrichValidationRules(puzzle, moveCount);
     const results = ValidationRegistry.validate(boardState, rulesWithParams);
     const isComplete = ValidationRegistry.isAllValid(results);
 
-    set({
-      validationResults: results,
-      isComplete,
-    });
+    set({ validationResults: results, isComplete });
   },
 
-  // Sliding puzzle helpers
+  // ------------------------------------------
+  // UNDO / REDO
+  // ------------------------------------------
+
+  undo: () => {
+    const { undoStack, boardState, inventoryState, moveCount, redoStack } = get();
+    if (undoStack.length === 0) return;
+
+    const currentSnapshot: BoardSnapshot = {
+      boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
+      inventoryState: new Map(inventoryState),
+      moveCount,
+    };
+
+    const prev = undoStack[undoStack.length - 1];
+    set({
+      boardState: prev.boardState,
+      inventoryState: prev.inventoryState,
+      moveCount: prev.moveCount,
+      undoStack: undoStack.slice(0, -1),
+      redoStack: [...redoStack, currentSnapshot],
+      selectedBrickId: null,
+      previewRotation: 0,
+    });
+
+    get().validate();
+  },
+
+  redo: () => {
+    const { redoStack, boardState, inventoryState, moveCount, undoStack } = get();
+    if (redoStack.length === 0) return;
+
+    const currentSnapshot: BoardSnapshot = {
+      boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
+      inventoryState: new Map(inventoryState),
+      moveCount,
+    };
+
+    const next = redoStack[redoStack.length - 1];
+    set({
+      boardState: next.boardState,
+      inventoryState: next.inventoryState,
+      moveCount: next.moveCount,
+      redoStack: redoStack.slice(0, -1),
+      undoStack: [...undoStack, currentSnapshot],
+      selectedBrickId: null,
+      previewRotation: 0,
+    });
+
+    get().validate();
+  },
+
+  // ------------------------------------------
+  // SLIDING HELPERS
+  // ------------------------------------------
+
   getValidSlideDestinationsFor: (instanceId) => {
     const { boardState, puzzle } = get();
     if (!hasSlidingOnlyRule(puzzle)) return [];
