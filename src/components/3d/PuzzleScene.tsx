@@ -4,6 +4,7 @@ import { OrbitControls, PerspectiveCamera, ContactShadows, Line } from '@react-t
 import * as THREE from 'three';
 import { LegoBoard } from './LegoBoard';
 import { PolyominoBrick, GhostBrick } from './PolyominoBrick';
+import { CinematicEffects } from './CinematicEffects';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { getBrickCells, rotateShape } from '../../validation/ValidationRegistry';
@@ -577,6 +578,11 @@ function SceneLighting() {
   return (
     <>
       <ambientLight intensity={lighting.ambient.intensity} />
+      <hemisphereLight
+        intensity={lighting.hemisphere.intensity}
+        color={lighting.hemisphere.skyColor}
+        groundColor={lighting.hemisphere.groundColor}
+      />
       <directionalLight
         position={lighting.main.position as unknown as [number, number, number]}
         intensity={lighting.main.intensity}
@@ -587,10 +593,17 @@ function SceneLighting() {
         shadow-camera-right={shadow.cameraExtent}
         shadow-camera-top={shadow.cameraExtent}
         shadow-camera-bottom={-shadow.cameraExtent}
+        shadow-bias={shadow.bias}
+        shadow-normalBias={shadow.normalBias}
       />
       <directionalLight
         position={lighting.fill.position as unknown as [number, number, number]}
         intensity={lighting.fill.intensity}
+      />
+      <directionalLight
+        position={lighting.rim.position as unknown as [number, number, number]}
+        intensity={lighting.rim.intensity}
+        color="#8cb9ff"
       />
       <pointLight position={lighting.point.position as unknown as [number, number, number]} intensity={lighting.point.intensity} />
     </>
@@ -651,10 +664,15 @@ export function PuzzleScene() {
 
   // Hide cursor when any brick is selected for placement/movement
   const shouldHideCursor = hasInventorySelection || hasPlacedBrickSelection;
+  const boardCellCount = boardState.dimensions.width * boardState.dimensions.height;
+  const isLargeBoard = boardCellCount >= 400;
+  const effectiveDpr = isLargeBoard
+    ? ([1, 1.5] as [number, number])
+    : (SCENE_3D.renderer.dpr as unknown as [number, number]);
 
   return (
     <div
-      className="w-full h-full"
+      className="w-full h-full relative"
       style={{ cursor: shouldHideCursor ? 'none' : 'auto' }}
       onContextMenu={(e) => {
         if (hasInventorySelection) {
@@ -665,6 +683,20 @@ export function PuzzleScene() {
     >
       <Canvas
         shadows
+        dpr={effectiveDpr}
+        gl={{
+          antialias: !isLargeBoard,
+          alpha: false,
+          powerPreference: 'high-performance',
+        }}
+        onCreated={({ gl, scene }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = SCENE_3D.renderer.toneMappingExposure;
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.shadowMap.enabled = true;
+          gl.shadowMap.type = isLargeBoard ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+          scene.background = new THREE.Color(SCENE_3D.background.color);
+        }}
         style={{ cursor: shouldHideCursor ? 'none' : 'auto' }}
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -679,6 +711,8 @@ export function PuzzleScene() {
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
+          enableDamping
+          dampingFactor={0.08}
           minDistance={SCENE_3D.camera.minZoom}
           maxDistance={SCENE_3D.camera.maxZoom}
           maxPolarAngle={SCENE_3D.camera.maxPolarAngle}
@@ -691,14 +725,18 @@ export function PuzzleScene() {
           <DragDropManager />
           <FloatingPreviewWrapper />
           <BackgroundGrid />
-          <ContactShadows
-            position={SCENE_3D.contactShadow.position as unknown as [number, number, number]}
-            opacity={SCENE_3D.contactShadow.opacity}
-            scale={SCENE_3D.contactShadow.scale}
-            blur={SCENE_3D.contactShadow.blur}
-            far={SCENE_3D.contactShadow.far}
-          />
+          {!isLargeBoard && (
+            <ContactShadows
+              position={SCENE_3D.contactShadow.position as unknown as [number, number, number]}
+              opacity={SCENE_3D.contactShadow.opacity}
+              scale={SCENE_3D.contactShadow.scale}
+              blur={SCENE_3D.contactShadow.blur}
+              far={SCENE_3D.contactShadow.far}
+            />
+          )}
         </Suspense>
+
+        {!isLargeBoard && <CinematicEffects />}
 
         {/* Subtle fog for depth */}
         <fog attach="fog" args={[SCENE_3D.fog.color, SCENE_3D.fog.near, SCENE_3D.fog.far]} />

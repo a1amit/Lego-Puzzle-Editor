@@ -11,38 +11,63 @@
 
 export const SCENE_3D = {
   camera: {
-    position: [8, 12, 12] as const,
-    fov: 45,
-    minZoom: 5,
-    maxZoom: 30,
+    position: [9, 13, 11] as const,
+    fov: 42,
+    minZoom: 5.5,
+    maxZoom: 28,
     maxPolarAngle: Math.PI / 2.1,
     target: [0, 0, 0] as const,
   },
 
-  lighting: {
-    ambient: { intensity: 0.4 },
-    main: { intensity: 1.0, position: [10, 15, 10] as const },
-    fill: { intensity: 0.3, position: [-5, 10, -5] as const },
-    point: { intensity: 0.2, position: [0, 5, 0] as const },
+  renderer: {
+    dpr: [1, 2] as const,
+    toneMappingExposure: 1.04,
   },
 
-  fog: { color: '#0a0a0a', near: 20, far: 50 },
+  postprocessing: {
+    bloom: {
+      intensity: 0.08,
+      luminanceThreshold: 0.62,
+      luminanceSmoothing: 0.92,
+    },
+    vignette: {
+      offset: 0.19,
+      darkness: 0.28,
+    },
+  },
+
+  lighting: {
+    ambient: { intensity: 0.44 },
+    hemisphere: {
+      intensity: 0.36,
+      skyColor: '#e3ecff',
+      groundColor: '#1c2637',
+    },
+    main: { intensity: 1.26, position: [11, 18, 9] as const },
+    fill: { intensity: 0.32, position: [-8, 10, -6] as const },
+    rim: { intensity: 0.2, position: [0, 8, -14] as const },
+    point: { intensity: 0.18, position: [0, 6, 0] as const },
+  },
+
+  fog: { color: '#0f1520', near: 30, far: 78 },
 
   shadow: {
-    mapSize: 1024 as number,
+    mapSize: 2048 as number,
     cameraFar: 50,
-    cameraExtent: 15,
+    cameraExtent: 16,
+    bias: -0.00012,
+    normalBias: 0.02,
   },
 
   contactShadow: {
     position: [0, -0.49, 0] as const,
-    opacity: 0.4,
-    scale: 30,
-    blur: 2,
-    far: 10,
+    opacity: 0.46,
+    scale: 34,
+    blur: 2.8,
+    far: 14,
   },
 
-  background: { color: '#0a0a0a', roughness: 0.9, metalness: 0 },
+  background: { color: '#0f1520', roughness: 0.95, metalness: 0.05 },
 } as const;
 
 // ============================================
@@ -57,13 +82,17 @@ export const BRICK_3D = {
   studHeight: 0.15,
   studSegments: 16,
   stackHeight: 0.55,   // height + studHeight
-  roughness: 0.4,
-  metalness: 0.1,
-  studRoughness: 0.35,
-  studMetalness: 0.15,
+  roughness: 0.32,
+  metalness: 0.06,
+  clearcoat: 0.8,
+  clearcoatRoughness: 0.26,
+  studRoughness: 0.26,
+  studMetalness: 0.08,
+  studClearcoat: 0.9,
+  studClearcoatRoughness: 0.2,
   reflectionRadius: 0.1,  // studRadius * 0.4
-  reflectionOpacity: 0.15,
-  emissiveIntensity: 0.3,
+  reflectionOpacity: 0.2,
+  emissiveIntensity: 0.25,
 } as const;
 
 // ============================================
@@ -77,20 +106,20 @@ export const BOARD_3D = {
   studSegments: 16,
   depth: 0.3,
   cellGap: 0.02,
-  roughness: 0.7,
-  metalness: 0.1,
-  studRoughness: 0.6,
-  studMetalness: 0.2,
+  roughness: 0.52,
+  metalness: 0.05,
+  studRoughness: 0.45,
+  studMetalness: 0.08,
   basePlateOffset: 0.1,
   rimOverhang: 0.3,
   colors: {
-    normal: '#FFFFFF',
-    blocked: '#4a4a4a',
-    goal: '#5d5020',
-    goalStud: '#6d6030',
-    stud: '#E0E0E0',
-    basePlate: '#1a1a1a',
-    rim: '#222222',
+    normal: '#f4f6fa',
+    blocked: '#2f384a',
+    goal: '#73611f',
+    goalStud: '#8d7a33',
+    stud: '#d7deec',
+    basePlate: '#121724',
+    rim: '#1e2636',
   },
 } as const;
 
@@ -117,16 +146,16 @@ export const ANIMATION_3D = {
 // ============================================
 
 export const COLORS = {
-  selection: '#58A6FF',
+  selection: '#6EC1FF',
   selectionOpacity: 0.6,
-  hover: '#FFFFFF',
-  hoverOpacity: 0.3,
+  hover: '#D9ECFF',
+  hoverOpacity: 0.34,
   invalidGhost: '#ff4444',
   goalPost: '#F5C300',
-  goalFrame: '#3FB950',
+  goalFrame: '#52C477',
   slideDestination: '#3FB950',
   invalidCell: '#F85149',
-  background: '#0a0a0a',
+  background: '#0b101d',
 } as const;
 
 // ============================================

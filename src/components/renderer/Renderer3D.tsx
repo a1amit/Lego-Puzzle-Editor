@@ -8,11 +8,14 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, ContactShadows } from '@react-three/drei';
+import * as THREE from 'three';
 import type { UsePuzzleEngineReturn } from '../../engine';
 import { rotateShape, getPieceCells } from '../../engine';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { LegoBoard } from '../3d/LegoBoard';
 import { PolyominoBrick, GhostBrick } from '../3d/PolyominoBrick';
+import { CinematicEffects } from '../3d/CinematicEffects';
+import { SCENE_3D } from '../../config/sceneConfig';
 
 interface Renderer3DProps {
   engine: UsePuzzleEngineReturn;
@@ -295,22 +298,38 @@ function DragDropManager3D({ engine }: DragDropManager3DProps) {
 // ============================================
 
 function SceneLighting() {
+  const { lighting, shadow } = SCENE_3D;
   return (
     <>
-      <ambientLight intensity={0.4} />
-      <directionalLight
-        position={[10, 15, 10]}
-        intensity={1}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-far={50}
-        shadow-camera-left={-15}
-        shadow-camera-right={15}
-        shadow-camera-top={15}
-        shadow-camera-bottom={-15}
+      <ambientLight intensity={lighting.ambient.intensity} />
+      <hemisphereLight
+        intensity={lighting.hemisphere.intensity}
+        color={lighting.hemisphere.skyColor}
+        groundColor={lighting.hemisphere.groundColor}
       />
-      <directionalLight position={[-5, 10, -5]} intensity={0.3} />
-      <pointLight position={[0, 5, 0]} intensity={0.2} />
+      <directionalLight
+        position={lighting.main.position as unknown as [number, number, number]}
+        intensity={lighting.main.intensity}
+        castShadow
+        shadow-mapSize={[shadow.mapSize, shadow.mapSize]}
+        shadow-camera-far={shadow.cameraFar}
+        shadow-camera-left={-shadow.cameraExtent}
+        shadow-camera-right={shadow.cameraExtent}
+        shadow-camera-top={shadow.cameraExtent}
+        shadow-camera-bottom={-shadow.cameraExtent}
+        shadow-bias={shadow.bias}
+        shadow-normalBias={shadow.normalBias}
+      />
+      <directionalLight
+        position={lighting.fill.position as unknown as [number, number, number]}
+        intensity={lighting.fill.intensity}
+      />
+      <directionalLight
+        position={lighting.rim.position as unknown as [number, number, number]}
+        intensity={lighting.rim.intensity}
+        color="#8cb9ff"
+      />
+      <pointLight position={lighting.point.position as unknown as [number, number, number]} intensity={lighting.point.intensity} />
     </>
   );
 }
@@ -319,7 +338,11 @@ function BackgroundGrid() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
       <planeGeometry args={[50, 50]} />
-      <meshStandardMaterial color="#0a0a0a" roughness={0.9} metalness={0} />
+      <meshStandardMaterial
+        color={SCENE_3D.background.color}
+        roughness={SCENE_3D.background.roughness}
+        metalness={SCENE_3D.background.metalness}
+      />
     </mesh>
   );
 }
@@ -340,6 +363,11 @@ export function Renderer3D({ engine, className = '' }: Renderer3DProps) {
     board.placedPieces.find(p => p.instanceId === selectedPieceId);
   
   const shouldHideCursor = hasInventorySelection || hasPlacedPieceSelection;
+  const boardCellCount = board.dimensions.width * board.dimensions.height;
+  const isLargeBoard = boardCellCount >= 400;
+  const effectiveDpr = isLargeBoard
+    ? ([1, 1.5] as [number, number])
+    : (SCENE_3D.renderer.dpr as unknown as [number, number]);
   
   // Cursor position for drag preview overlay
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
@@ -375,20 +403,40 @@ export function Renderer3D({ engine, className = '' }: Renderer3DProps) {
     >
       <Canvas 
         shadows
+        dpr={effectiveDpr}
+        gl={{
+          antialias: !isLargeBoard,
+          alpha: false,
+          powerPreference: 'high-performance',
+        }}
+        onCreated={({ gl, scene }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = SCENE_3D.renderer.toneMappingExposure;
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.shadowMap.enabled = true;
+          gl.shadowMap.type = isLargeBoard ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+          scene.background = new THREE.Color(SCENE_3D.background.color);
+        }}
         style={{ cursor: shouldHideCursor ? 'none' : 'auto' }}
         onContextMenu={(e) => e.preventDefault()}
       >
-        <PerspectiveCamera makeDefault position={[8, 12, 12]} fov={45} />
+        <PerspectiveCamera
+          makeDefault
+          position={SCENE_3D.camera.position as unknown as [number, number, number]}
+          fov={SCENE_3D.camera.fov}
+        />
         
         <OrbitControls
           makeDefault
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
-          minDistance={5}
-          maxDistance={30}
-          maxPolarAngle={Math.PI / 2.1}
-          target={[0, 0, 0]}
+          enableDamping
+          dampingFactor={0.08}
+          minDistance={SCENE_3D.camera.minZoom}
+          maxDistance={SCENE_3D.camera.maxZoom}
+          maxPolarAngle={SCENE_3D.camera.maxPolarAngle}
+          target={SCENE_3D.camera.target as unknown as [number, number, number]}
         />
         
         <SceneLighting />
@@ -396,16 +444,20 @@ export function Renderer3D({ engine, className = '' }: Renderer3DProps) {
         <Suspense fallback={null}>
           <DragDropManager3D engine={engine} />
           <BackgroundGrid />
-          <ContactShadows
-            position={[0, -0.49, 0]}
-            opacity={0.4}
-            scale={30}
-            blur={2}
-            far={10}
-          />
+          {!isLargeBoard && (
+            <ContactShadows
+              position={SCENE_3D.contactShadow.position as unknown as [number, number, number]}
+              opacity={SCENE_3D.contactShadow.opacity}
+              scale={SCENE_3D.contactShadow.scale}
+              blur={SCENE_3D.contactShadow.blur}
+              far={SCENE_3D.contactShadow.far}
+            />
+          )}
         </Suspense>
+
+        {!isLargeBoard && <CinematicEffects />}
         
-        <fog attach="fog" args={['#0a0a0a', 20, 50]} />
+        <fog attach="fog" args={[SCENE_3D.fog.color, SCENE_3D.fog.near, SCENE_3D.fog.far]} />
       </Canvas>
       
       {/* Drag preview overlay */}
@@ -420,7 +472,7 @@ export function Renderer3D({ engine, className = '' }: Renderer3DProps) {
             zIndex: 1200,
           }}
         >
-          <div className="p-1 bg-editor-sidebar/60 rounded shadow-lg border border-editor-border/40">
+          <div className="p-1.5 bg-card/85 rounded-xl shadow-2xl border border-border/60 backdrop-blur-md">
             <svg width={72} height={72} viewBox="0 0 72 72">
               {(() => {
                 const shapeDef = SHAPE_LIBRARY[selectedInventoryPiece.shape];
