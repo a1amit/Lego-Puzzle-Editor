@@ -58,7 +58,7 @@ function PreviewPanel() {
   return (
     <>
       <ResizablePanels direction="horizontal" defaultSize={75} minSize={40} maxSize={90}>
-        <div className="h-full bg-background relative">
+        <div className="h-full bg-[radial-gradient(circle_at_30%_20%,rgba(101,143,222,0.16),rgba(8,12,20,0.15)_35%,rgba(8,12,20,0.9)_100%)] relative">
           {is2D ? (
             <PuzzleRenderer engine={engine} />
           ) : (
@@ -68,7 +68,7 @@ function PreviewPanel() {
             <ViewModeIndicator viewMode={viewMode} />
           </div>
         </div>
-        <div className="h-full bg-card border-l border-border">
+        <div className="h-full bg-gradient-to-b from-card to-background border-l border-border/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
           <ResizablePanels direction="vertical" defaultSize={60} minSize={20} maxSize={85}>
             <InventoryPanel className="h-full" engine={is2D ? engine : undefined} />
             <ValidationPanel className="h-full" engine={is2D ? engine : undefined} />

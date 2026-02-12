@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { ThreeEvent } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
@@ -29,76 +29,54 @@ const STUD_RADIUS = BOARD_3D.studRadius;
 const STUD_HEIGHT = BOARD_3D.studHeight;
 const BOARD_DEPTH = BOARD_3D.depth;
 
-// Board cell component with stud
-function BoardCell({
-  x,
-  y,
-  isBlocked,
-  isHighlighted,
-  highlightColor,
-  isGoal,
-}: {
-  x: number;
-  y: number;
-  isBlocked: boolean;
-  isHighlighted: boolean;
-  highlightColor?: string;
-  isGoal?: boolean;
-}) {
-  const baseColor = isBlocked ? '#4a4a4a' : isGoal ? '#5d5020' : '#FFFFFF';
-  const studColor = isBlocked ? '#4a4a4a' : isGoal ? '#6d6030' : '#E0E0E0';
+type CellPosition = [number, number];
+type HighlightInstance = { x: number; y: number; color: string };
 
-  return (
-    <group position={[x * CELL_SIZE, 0, y * CELL_SIZE]}>
-      {/* Cell base */}
-      <mesh position={[0.5, -BOARD_DEPTH / 2, 0.5]} receiveShadow>
-        <boxGeometry args={[CELL_SIZE - 0.02, BOARD_DEPTH, CELL_SIZE - 0.02]} />
-        <meshStandardMaterial
-          color={isHighlighted ? (highlightColor || '#4a6fa5') : baseColor}
-          roughness={0.7}
-          metalness={0.1}
-        />
-      </mesh>
+const INSTANCE_DUMMY = new THREE.Object3D();
+const INSTANCE_COLOR = new THREE.Color();
 
-      {/* Stud */}
-      {!isBlocked && (
-        <mesh position={[0.5, STUD_HEIGHT / 2, 0.5]} castShadow>
-          <cylinderGeometry args={[STUD_RADIUS, STUD_RADIUS, STUD_HEIGHT, 16]} />
-          <meshStandardMaterial
-            color={studColor}
-            roughness={0.6}
-            metalness={0.2}
-          />
-        </mesh>
-      )}
+function applyMatrices(
+  mesh: THREE.InstancedMesh | null,
+  cells: CellPosition[],
+  y: number,
+  rotation: [number, number, number] = [0, 0, 0],
+) {
+  if (!mesh) return;
 
-      {/* Highlight overlay when cell is active */}
-      {isHighlighted && (
-        <mesh position={[0.5, 0.01, 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[CELL_SIZE - 0.05, CELL_SIZE - 0.05]} />
-          <meshBasicMaterial
-            color={highlightColor || '#58A6FF'}
-            transparent
-            opacity={0.3}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      )}
+  mesh.count = cells.length;
+  INSTANCE_DUMMY.rotation.set(rotation[0], rotation[1], rotation[2]);
 
-      {/* Goal indicator - golden diamond outline */}
-      {isGoal && !isHighlighted && (
-        <mesh position={[0.5, 0.015, 0.5]} rotation={[-Math.PI / 2, Math.PI / 4, 0]}>
-          <ringGeometry args={[0.32, 0.4, 4]} />
-          <meshBasicMaterial
-            color="#F5C300"
-            transparent
-            opacity={0.7}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      )}
-    </group>
-  );
+  for (let i = 0; i < cells.length; i++) {
+    const [x, z] = cells[i];
+    INSTANCE_DUMMY.position.set(x + 0.5, y, z + 0.5);
+    INSTANCE_DUMMY.updateMatrix();
+    mesh.setMatrixAt(i, INSTANCE_DUMMY.matrix);
+  }
+
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.computeBoundingSphere();
+}
+
+function applyHighlights(mesh: THREE.InstancedMesh | null, highlights: HighlightInstance[]) {
+  if (!mesh) return;
+
+  mesh.count = highlights.length;
+  INSTANCE_DUMMY.rotation.set(-Math.PI / 2, 0, 0);
+
+  for (let i = 0; i < highlights.length; i++) {
+    const { x, y, color } = highlights[i];
+    INSTANCE_DUMMY.position.set(x + 0.5, 0.012, y + 0.5);
+    INSTANCE_DUMMY.updateMatrix();
+    mesh.setMatrixAt(i, INSTANCE_DUMMY.matrix);
+    INSTANCE_COLOR.set(color);
+    mesh.setColorAt(i, INSTANCE_COLOR);
+  }
+
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) {
+    mesh.instanceColor.needsUpdate = true;
+  }
+  mesh.computeBoundingSphere();
 }
 
 // ============================================
@@ -135,7 +113,9 @@ function NonogramHints3D({ hints }: NonogramHints3DProps) {
           position={[xOffset, HINT_HEIGHT, zPosition]}
           rotation={[-Math.PI / 2, 0, 0]}
           fontSize={TEXT_SIZE}
-          color="#e0e0e0"
+          color="#ecf2ff"
+          outlineWidth={0.03}
+          outlineColor="#0d1523"
           anchorX="center"
           anchorY="middle"
         >
@@ -158,7 +138,9 @@ function NonogramHints3D({ hints }: NonogramHints3DProps) {
           position={[xPosition, HINT_HEIGHT, zOffset]}
           rotation={[-Math.PI / 2, 0, 0]}
           fontSize={TEXT_SIZE}
-          color="#e0e0e0"
+          color="#ecf2ff"
+          outlineWidth={0.03}
+          outlineColor="#0d1523"
           anchorX="center"
           anchorY="middle"
         >
@@ -188,6 +170,16 @@ export function LegoBoard({
   goalCells,
 }: LegoBoardProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const lastHoveredCellKeyRef = useRef<string | null>(null);
+
+  const baseNormalRef = useRef<THREE.InstancedMesh>(null);
+  const baseBlockedRef = useRef<THREE.InstancedMesh>(null);
+  const baseGoalRef = useRef<THREE.InstancedMesh>(null);
+  const studNormalRef = useRef<THREE.InstancedMesh>(null);
+  const studGoalRef = useRef<THREE.InstancedMesh>(null);
+  const highlightRef = useRef<THREE.InstancedMesh>(null);
+  const goalRingRef = useRef<THREE.InstancedMesh>(null);
+
   const store = usePuzzleStore();
 
   // Use override props if provided, otherwise fall back to store
@@ -233,9 +225,15 @@ export function LegoBoard({
     return new Set(cells.map(([x, y]) => `${x},${y}`));
   }, [goalCells, store.puzzle]);
 
-  // Generate cells
-  const cells = useMemo(() => {
-    const cellElements = [];
+  const instanceData = useMemo(() => {
+    const baseNormal: CellPosition[] = [];
+    const baseBlocked: CellPosition[] = [];
+    const baseGoal: CellPosition[] = [];
+    const studNormal: CellPosition[] = [];
+    const studGoal: CellPosition[] = [];
+    const highlights: HighlightInstance[] = [];
+    const goalRings: CellPosition[] = [];
+
     for (let x = 0; x < width; x++) {
       for (let y = 0; y < height; y++) {
         const key = `${x},${y}`;
@@ -245,26 +243,76 @@ export function LegoBoard({
         const isSlideDestination = slideDestinationCells.has(key);
         const isGoal = goalCellSet.has(key);
 
-        cellElements.push(
-          <BoardCell
-            key={key}
-            x={x}
-            y={y}
-            isBlocked={isBlocked}
-            isHighlighted={isHovered || isInvalid || isSlideDestination}
-            highlightColor={
-              isInvalid ? '#F85149' :
-                isSlideDestination ? '#3FB950' : // Green for valid slides
-                  isHovered ? '#58A6FF' :
-                    undefined
-            }
-            isGoal={isGoal}
-          />
-        );
+        const highlightColor = isInvalid
+          ? '#F85149'
+          : isSlideDestination
+            ? '#3FB950'
+            : isHovered
+              ? '#58A6FF'
+              : null;
+
+        if (isBlocked) {
+          baseBlocked.push([x, y]);
+        } else if (isGoal) {
+          baseGoal.push([x, y]);
+        } else {
+          baseNormal.push([x, y]);
+        }
+
+        if (!isBlocked) {
+          if (isGoal) {
+            studGoal.push([x, y]);
+          } else {
+            studNormal.push([x, y]);
+          }
+        }
+
+        if (highlightColor) {
+          highlights.push({ x, y, color: highlightColor });
+        } else if (isGoal) {
+          goalRings.push([x, y]);
+        }
       }
     }
-    return cellElements;
+
+    return {
+      baseNormal,
+      baseBlocked,
+      baseGoal,
+      studNormal,
+      studGoal,
+      highlights,
+      goalRings,
+    };
   }, [width, height, blockedCells, hoveredCell, invalidCells, slideDestinationCells, goalCellSet]);
+
+  useLayoutEffect(() => {
+    const dynamicMeshes = [
+      baseNormalRef.current,
+      baseBlockedRef.current,
+      baseGoalRef.current,
+      studNormalRef.current,
+      studGoalRef.current,
+      highlightRef.current,
+      goalRingRef.current,
+    ];
+
+    for (const mesh of dynamicMeshes) {
+      if (mesh) {
+        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      }
+    }
+
+    applyMatrices(baseNormalRef.current, instanceData.baseNormal, -BOARD_DEPTH / 2);
+    applyMatrices(baseBlockedRef.current, instanceData.baseBlocked, -BOARD_DEPTH / 2);
+    applyMatrices(baseGoalRef.current, instanceData.baseGoal, -BOARD_DEPTH / 2);
+
+    applyMatrices(studNormalRef.current, instanceData.studNormal, STUD_HEIGHT / 2);
+    applyMatrices(studGoalRef.current, instanceData.studGoal, STUD_HEIGHT / 2);
+
+    applyHighlights(highlightRef.current, instanceData.highlights);
+    applyMatrices(goalRingRef.current, instanceData.goalRings, 0.015, [-Math.PI / 2, Math.PI / 4, 0]);
+  }, [instanceData]);
 
   // Handle pointer events
   const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
@@ -278,12 +326,22 @@ export function LegoBoard({
     const cellY = Math.floor(localPoint.z / CELL_SIZE);
 
     if (cellX >= 0 && cellX < width && cellY >= 0 && cellY < height) {
-      onCellHover?.(cellX, cellY);
+      const nextKey = `${cellX},${cellY}`;
+      if (lastHoveredCellKeyRef.current !== nextKey) {
+        lastHoveredCellKeyRef.current = nextKey;
+        onCellHover?.(cellX, cellY);
+      }
+    } else if (lastHoveredCellKeyRef.current !== null) {
+      lastHoveredCellKeyRef.current = null;
+      onCellHover?.(0, null);
     }
   };
 
   const handlePointerLeave = () => {
-    onCellHover?.(0, null as any); // Signal to clear hover
+    if (lastHoveredCellKeyRef.current !== null) {
+      lastHoveredCellKeyRef.current = null;
+      onCellHover?.(0, null); // Signal to clear hover
+    }
   };
 
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
@@ -303,6 +361,7 @@ export function LegoBoard({
   // Center the board
   const offsetX = -width / 2;
   const offsetY = -height / 2;
+  const maxInstances = width * height;
 
   return (
     <group
@@ -312,23 +371,115 @@ export function LegoBoard({
       onPointerLeave={handlePointerLeave}
       onClick={handleClick}
     >
+      {/* Board under-glow for scene separation */}
+      <mesh position={[width / 2, -BOARD_DEPTH - 0.25, height / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[Math.max(width, height) * 0.45, Math.max(width, height) * 0.72, 64]} />
+        <meshBasicMaterial
+          color="#73b6ff"
+          transparent
+          opacity={0.1}
+          side={THREE.DoubleSide}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+
       {/* Board base plate */}
       <mesh
         position={[width / 2, -BOARD_DEPTH - 0.1, height / 2]}
         receiveShadow
       >
         <boxGeometry args={[width + 0.2, 0.2, height + 0.2]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={0.8} metalness={0.1} />
+        <meshPhysicalMaterial color={BOARD_3D.colors.basePlate} roughness={0.7} metalness={0.06} clearcoat={0.3} clearcoatRoughness={0.7} />
       </mesh>
 
       {/* Board rim */}
       <mesh position={[width / 2, -BOARD_DEPTH / 2, height / 2]}>
         <boxGeometry args={[width + 0.3, BOARD_DEPTH + 0.1, height + 0.3]} />
-        <meshStandardMaterial color="#222222" roughness={0.7} metalness={0.2} />
+        <meshPhysicalMaterial color={BOARD_3D.colors.rim} roughness={0.55} metalness={0.12} clearcoat={0.45} clearcoatRoughness={0.58} />
       </mesh>
 
-      {/* Individual cells */}
-      {cells}
+      {/* Instanced board cells */}
+      <instancedMesh ref={baseNormalRef} args={[undefined, undefined, maxInstances]} receiveShadow>
+        <boxGeometry args={[CELL_SIZE - 0.02, BOARD_DEPTH, CELL_SIZE - 0.02]} />
+        <meshPhysicalMaterial
+          color={BOARD_3D.colors.normal}
+          roughness={BOARD_3D.roughness}
+          metalness={BOARD_3D.metalness}
+          clearcoat={0.45}
+          clearcoatRoughness={0.6}
+        />
+      </instancedMesh>
+
+      <instancedMesh ref={baseBlockedRef} args={[undefined, undefined, maxInstances]} receiveShadow>
+        <boxGeometry args={[CELL_SIZE - 0.02, BOARD_DEPTH, CELL_SIZE - 0.02]} />
+        <meshPhysicalMaterial
+          color={BOARD_3D.colors.blocked}
+          roughness={BOARD_3D.roughness}
+          metalness={BOARD_3D.metalness}
+          clearcoat={0.45}
+          clearcoatRoughness={0.6}
+        />
+      </instancedMesh>
+
+      <instancedMesh ref={baseGoalRef} args={[undefined, undefined, maxInstances]} receiveShadow>
+        <boxGeometry args={[CELL_SIZE - 0.02, BOARD_DEPTH, CELL_SIZE - 0.02]} />
+        <meshPhysicalMaterial
+          color={BOARD_3D.colors.goal}
+          roughness={BOARD_3D.roughness}
+          metalness={BOARD_3D.metalness}
+          clearcoat={0.45}
+          clearcoatRoughness={0.6}
+        />
+      </instancedMesh>
+
+      {/* Instanced studs */}
+      <instancedMesh ref={studNormalRef} args={[undefined, undefined, maxInstances]} castShadow>
+        <cylinderGeometry args={[STUD_RADIUS, STUD_RADIUS, STUD_HEIGHT, 16]} />
+        <meshPhysicalMaterial
+          color={BOARD_3D.colors.stud}
+          roughness={BOARD_3D.studRoughness}
+          metalness={BOARD_3D.studMetalness}
+          clearcoat={0.6}
+          clearcoatRoughness={0.45}
+        />
+      </instancedMesh>
+
+      <instancedMesh ref={studGoalRef} args={[undefined, undefined, maxInstances]} castShadow>
+        <cylinderGeometry args={[STUD_RADIUS, STUD_RADIUS, STUD_HEIGHT, 16]} />
+        <meshPhysicalMaterial
+          color={BOARD_3D.colors.goalStud}
+          roughness={BOARD_3D.studRoughness}
+          metalness={BOARD_3D.studMetalness}
+          clearcoat={0.6}
+          clearcoatRoughness={0.45}
+        />
+      </instancedMesh>
+
+      {/* Instanced highlights */}
+      <instancedMesh ref={highlightRef} args={[undefined, undefined, maxInstances]}>
+        <ringGeometry args={[0.2, 0.48, 24]} />
+        <meshBasicMaterial
+          vertexColors
+          transparent
+          opacity={0.35}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </instancedMesh>
+
+      {/* Instanced goal diamonds for non-highlighted goal cells */}
+      <instancedMesh ref={goalRingRef} args={[undefined, undefined, maxInstances]}>
+        <ringGeometry args={[0.32, 0.4, 4]} />
+        <meshBasicMaterial
+          color="#F5C300"
+          transparent
+          opacity={0.78}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </instancedMesh>
 
       {/* Nonogram hints (if puzzle has them) */}
       {store.puzzle?.nonogram_hints && (

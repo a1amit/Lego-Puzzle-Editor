@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { ThreeEvent, useFrame } from '@react-three/fiber';
+import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { SHAPE_LIBRARY, PlacedBrick, ShapeDefinition } from '../../types/puzzle';
 import { rotateShape } from '../../validation/ValidationRegistry';
@@ -42,24 +43,38 @@ function BrickCell({
   isSelected?: boolean;
   isHovering?: boolean;
 }) {
+  const baseColor = useMemo(() => new THREE.Color(color), [color]);
+  const edgeTint = useMemo(() => baseColor.clone().offsetHSL(0, 0.01, -0.08).getStyle(), [baseColor]);
+  const highlightTint = useMemo(() => baseColor.clone().offsetHSL(0, 0.02, 0.14).getStyle(), [baseColor]);
+
   return (
     <group position={[x * CELL_SIZE + 0.5, 0, y * CELL_SIZE + 0.5]}>
-      {/* Brick body */}
-      <mesh
+      {/* Brick body (rounded edges for a molded plastic look) */}
+      <RoundedBox
+        args={[CELL_SIZE - 0.05, BRICK_HEIGHT, CELL_SIZE - 0.05]}
+        radius={0.06}
+        smoothness={4}
         position={[0, BRICK_HEIGHT / 2, 0]}
         castShadow
         receiveShadow
       >
-        <boxGeometry args={[CELL_SIZE - 0.04, BRICK_HEIGHT, CELL_SIZE - 0.04]} />
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           color={color}
-          roughness={0.4}
-          metalness={0.1}
+          roughness={BRICK_3D.roughness}
+          metalness={BRICK_3D.metalness}
+          clearcoat={BRICK_3D.clearcoat}
+          clearcoatRoughness={BRICK_3D.clearcoatRoughness}
           transparent={isGhost}
-          opacity={isGhost ? 0.5 : 1}
+          opacity={isGhost ? 0.56 : 1}
           emissive={isSelected || isHovering ? color : '#000000'}
-          emissiveIntensity={isSelected || isHovering ? 0.3 : 0}
+          emissiveIntensity={isSelected || isHovering ? BRICK_3D.emissiveIntensity : 0}
         />
+      </RoundedBox>
+
+      {/* Bottom edge tint adds depth against the board */}
+      <mesh position={[0, BRICK_HEIGHT * 0.2, 0]} castShadow>
+        <boxGeometry args={[CELL_SIZE - 0.08, BRICK_HEIGHT * 0.32, CELL_SIZE - 0.08]} />
+        <meshStandardMaterial color={edgeTint} roughness={0.7} metalness={0.02} transparent opacity={isGhost ? 0.3 : 0.44} />
       </mesh>
 
       {/* Stud on top */}
@@ -68,14 +83,16 @@ function BrickCell({
         castShadow
       >
         <cylinderGeometry args={[STUD_RADIUS, STUD_RADIUS, STUD_HEIGHT, 16]} />
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           color={color}
-          roughness={0.35}
-          metalness={0.15}
+          roughness={BRICK_3D.studRoughness}
+          metalness={BRICK_3D.studMetalness}
+          clearcoat={BRICK_3D.studClearcoat}
+          clearcoatRoughness={BRICK_3D.studClearcoatRoughness}
           transparent={isGhost}
-          opacity={isGhost ? 0.5 : 1}
+          opacity={isGhost ? 0.56 : 1}
           emissive={isSelected || isHovering ? color : '#000000'}
-          emissiveIntensity={isSelected || isHovering ? 0.3 : 0}
+          emissiveIntensity={isSelected || isHovering ? BRICK_3D.emissiveIntensity : 0}
         />
       </mesh>
 
@@ -84,9 +101,9 @@ function BrickCell({
         <mesh position={[0.08, BRICK_HEIGHT + STUD_HEIGHT + 0.001, -0.08]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[STUD_RADIUS * 0.4, 16]} />
           <meshBasicMaterial
-            color="#ffffff"
+            color={highlightTint}
             transparent
-            opacity={0.15}
+            opacity={BRICK_3D.reflectionOpacity}
             side={THREE.DoubleSide}
           />
         </mesh>
@@ -112,10 +129,8 @@ export function PolyominoBrick({
   void _onDragEnd;
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
-  const [currentHeight, setCurrentHeight] = useState(0);
-  const [rotationAngle, setRotationAngle] = useState(0);
-  const targetHeight = useRef(0);
-  const targetRotation = useRef(0);
+  const currentHeightRef = useRef(0);
+  const targetHeightRef = useRef(0);
 
   // Get shape definition
   const shape: ShapeDefinition | undefined = SHAPE_LIBRARY[brick.shape];
@@ -125,13 +140,14 @@ export function PolyominoBrick({
 
   // Update target height based on selection
   useEffect(() => {
-    targetHeight.current = isSelected ? baseHeight + HOVER_HEIGHT : baseHeight;
+    targetHeightRef.current = isSelected ? baseHeight + HOVER_HEIGHT : baseHeight;
   }, [isSelected, baseHeight]);
 
-  // Update rotation when brick.rotation changes
+  // Keep internal animated height aligned when the stacked z-level changes.
   useEffect(() => {
-    targetRotation.current = (brick.rotation * Math.PI) / 180;
-  }, [brick.rotation]);
+    currentHeightRef.current = baseHeight;
+    targetHeightRef.current = isSelected ? baseHeight + HOVER_HEIGHT : baseHeight;
+  }, [baseHeight, isSelected]);
 
   // Clear hover state when not interactive
   useEffect(() => {
@@ -140,28 +156,24 @@ export function PolyominoBrick({
     }
   }, [interactive]);
 
-  // Smooth animation for height and rotation (frame-rate independent exponential decay)
-  useFrame((_, delta) => {
+  // Smooth lift animation (frame-rate independent exponential decay)
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+
     // Animate height using exponential decay: lerp factor = 1 - e^(-rate * dt)
-    const heightDiff = targetHeight.current - currentHeight;
+    const heightDiff = targetHeightRef.current - currentHeightRef.current;
     if (Math.abs(heightDiff) > ANIMATION_3D.convergenceThreshold) {
       const heightAlpha = 1 - Math.exp(-ANIMATION_3D.heightDecayRate * delta);
-      setCurrentHeight(prev => prev + heightDiff * heightAlpha);
+      currentHeightRef.current += heightDiff * heightAlpha;
+    } else {
+      currentHeightRef.current = targetHeightRef.current;
     }
 
-    // Animate rotation using exponential decay
-    const rotDiff = targetRotation.current - rotationAngle;
-    if (Math.abs(rotDiff) > ANIMATION_3D.convergenceThreshold) {
-      const rotAlpha = 1 - Math.exp(-ANIMATION_3D.rotationDecayRate * delta);
-      setRotationAngle(prev => prev + rotDiff * rotAlpha);
-    }
-
-    // Gentle floating animation when selected
-    if (groupRef.current && isSelected) {
-      groupRef.current.position.y = currentHeight + Math.sin(Date.now() * ANIMATION_3D.floatSpeed) * ANIMATION_3D.floatAmplitude;
-    } else if (groupRef.current) {
-      groupRef.current.position.y = currentHeight;
-    }
+    // Gentle floating animation when selected.
+    const bobOffset = isSelected
+      ? Math.sin(state.clock.elapsedTime * ANIMATION_3D.floatSpeed * 1000) * ANIMATION_3D.floatAmplitude
+      : 0;
+    groupRef.current.position.y = currentHeightRef.current + bobOffset;
   });
 
   if (!shape) {
@@ -274,13 +286,35 @@ export function PolyominoBrick({
               <meshBasicMaterial
                 color="#000000"
                 transparent
-                opacity={0.3}
+                opacity={0.22}
               />
             </mesh>
           )}
 
+          {/* Outer soft glow */}
+          <mesh position={[centerX, 0.018, centerZ]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[
+              Math.max(
+                Math.max(...rotatedCells.map(c => c[0])) + 1,
+                Math.max(...rotatedCells.map(c => c[1])) + 1
+              ) * 0.68,
+              Math.max(
+                Math.max(...rotatedCells.map(c => c[0])) + 1,
+                Math.max(...rotatedCells.map(c => c[1])) + 1
+              ) * 0.95,
+              48
+            ]} />
+            <meshBasicMaterial
+              color={isSelected ? '#58A6FF' : '#ffffff'}
+              transparent
+              opacity={isSelected ? 0.18 : 0.1}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+
           {/* Selection ring */}
-          <mesh position={[centerX, 0.02, centerZ]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh position={[centerX, 0.022, centerZ]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[
               Math.max(
                 Math.max(...rotatedCells.map(c => c[0])) + 1,
@@ -295,7 +329,8 @@ export function PolyominoBrick({
             <meshBasicMaterial
               color={isSelected ? '#58A6FF' : '#ffffff'}
               transparent
-              opacity={isSelected ? 0.6 : 0.3}
+              opacity={isSelected ? 0.72 : 0.36}
+              depthWrite={false}
             />
           </mesh>
         </>
@@ -347,13 +382,18 @@ export function GhostBrick({
         <mesh
           key={index}
           position={[dx + 0.5, 0.2, dy + 0.5]}
+          castShadow
         >
-          <boxGeometry args={[0.9, 0.4, 0.9]} />
-          <meshBasicMaterial
+          <boxGeometry args={[0.9, 0.38, 0.9]} />
+          <meshStandardMaterial
             color={isValid ? color : '#ff4444'}
             transparent
-            opacity={0.4}
+            opacity={isValid ? 0.45 : 0.5}
             wireframe={!isValid}
+            emissive={isValid ? color : '#ff4444'}
+            emissiveIntensity={isValid ? 0.12 : 0.2}
+            roughness={0.45}
+            metalness={0.05}
           />
         </mesh>
       ))}
