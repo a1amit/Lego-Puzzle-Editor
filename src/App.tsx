@@ -8,9 +8,11 @@ import { PuzzleScene } from './components/3d/PuzzleScene';
 import { PuzzleRenderer, ViewModeIndicator } from './components/renderer';
 import { InventoryPanel } from './components/ui/InventoryPanel';
 import { ValidationPanel } from './components/ui/ValidationPanel';
+import { PuzzleInfoPanel } from './components/ui/PuzzleInfoPanel';
 import { InstructionsModal } from './components/ui/InstructionsModal';
 import { CongratulationsPopup } from './components/ui/CongratulationsPopup';
 import { ChatPanel } from './components/ui/ChatPanel';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/shadcn/tabs';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
 
@@ -57,7 +59,7 @@ function PreviewPanel() {
 
   return (
     <>
-      <ResizablePanels direction="horizontal" defaultSize={75} minSize={40} maxSize={90}>
+      <ResizablePanels direction="horizontal" defaultSize={70} minSize={40} maxSize={82}>
         <div className="h-full bg-[radial-gradient(circle_at_30%_20%,rgba(101,143,222,0.16),rgba(8,12,20,0.15)_35%,rgba(8,12,20,0.9)_100%)] relative">
           {is2D ? (
             <PuzzleRenderer engine={engine} />
@@ -68,10 +70,36 @@ function PreviewPanel() {
             <ViewModeIndicator viewMode={viewMode} />
           </div>
         </div>
-        <div className="h-full bg-gradient-to-b from-card to-background border-l border-border/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-          <ResizablePanels direction="vertical" defaultSize={60} minSize={20} maxSize={85}>
-            <InventoryPanel className="h-full" engine={is2D ? engine : undefined} />
-            <ValidationPanel className="h-full" engine={is2D ? engine : undefined} />
+        <div className="h-full min-w-[320px] bg-gradient-to-b from-card to-background border-l border-border/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+          <ResizablePanels direction="vertical" defaultSize={58} minSize={32} maxSize={78}>
+            <div className="h-full p-2 pb-1">
+              <Tabs defaultValue="inventory" className="h-full gap-0">
+                <div className="px-1 pb-2">
+                  <TabsList variant="line" className="w-full h-9 grid grid-cols-2 rounded-lg bg-card/70 border border-border/70">
+                    <TabsTrigger value="inventory" className="text-xs">
+                      Inventory
+                    </TabsTrigger>
+                    <TabsTrigger value="info" className="text-xs">
+                      Info
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <TabsContent value="inventory" className="min-h-0 overflow-hidden rounded-lg border border-border/70 bg-card/25">
+                  <InventoryPanel className="h-full" engine={is2D ? engine : undefined} />
+                </TabsContent>
+
+                <TabsContent value="info" className="min-h-0 overflow-hidden rounded-lg border border-border/70 bg-card/25">
+                  <PuzzleInfoPanel className="h-full" engine={is2D ? engine : undefined} />
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <div className="h-full p-2 pt-1">
+              <div className="h-full overflow-hidden rounded-lg border border-border/70 bg-card/25">
+                <ValidationPanel className="h-full" engine={is2D ? engine : undefined} />
+              </div>
+            </div>
           </ResizablePanels>
         </div>
       </ResizablePanels>

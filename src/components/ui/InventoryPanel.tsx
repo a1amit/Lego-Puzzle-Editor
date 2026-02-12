@@ -140,6 +140,7 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
     const remaining = inventoryState.get(b.id) ?? 0;
     return sum + (b.quantity - remaining);
   }, 0);
+  const usedPercent = totalBricks > 0 ? (usedBricks / totalBricks) * 100 : 0;
 
   return (
     <div className={`flex flex-col overflow-hidden ${className}`}>
@@ -151,9 +152,9 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
         </h3>
         <div className="mt-1 text-xs text-muted-foreground flex items-center justify-between">
           <span>{usedBricks} / {totalBricks} bricks placed</span>
-          <span className="font-mono tabular-nums text-foreground/90">{Math.round((usedBricks / totalBricks) * 100)}%</span>
+          <span className="font-mono tabular-nums text-foreground/90">{Math.round(usedPercent)}%</span>
         </div>
-        <Progress value={(usedBricks / totalBricks) * 100} className="mt-2 h-1.5" />
+        <Progress value={usedPercent} className="mt-2 h-1.5" />
       </div>
 
       {/* Rotation control when brick is selected */}
@@ -169,30 +170,26 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
 
       {/* Brick grid */}
       <div className="flex-1 min-h-0 overflow-y-auto p-3.5 bg-gradient-to-b from-transparent to-background/40">
-        <div className="grid grid-cols-2 gap-3">
-          {puzzle.inventory.map((brick) => (
-            <BrickItem
-              key={brick.id}
-              id={brick.id}
-              shape={brick.shape}
-              color={brick.color}
-              remaining={inventoryState.get(brick.id) ?? 0}
-              isSelected={selectedBrickId === brick.id}
-              rotation={selectedBrickId === brick.id ? previewRotation : 0}
-              onSelect={() => selectBrick(selectedBrickId === brick.id ? null : brick.id)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Instructions */}
-      <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-card/80 to-card/60 border-t border-border/70">
-        <div className="text-xs text-muted-foreground space-y-1">
-          <p className="font-semibold text-foreground/85 mb-1.5 tracking-wide">Controls</p>
-          <p>Click brick {'->'} <kbd className="px-1.5 py-0.5 bg-secondary text-secondary-foreground rounded font-mono text-[10px]">R</kbd> rotate {'->'} click board</p>
-          <p>Click placed brick to lift</p>
-          <p><kbd className="px-1.5 py-0.5 bg-secondary text-secondary-foreground rounded font-mono text-[10px]">Del</kbd> to remove</p>
-        </div>
+        {puzzle.inventory.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">
+            This puzzle does not use an inventory.
+          </p>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
+            {puzzle.inventory.map((brick) => (
+              <BrickItem
+                key={brick.id}
+                id={brick.id}
+                shape={brick.shape}
+                color={brick.color}
+                remaining={inventoryState.get(brick.id) ?? 0}
+                isSelected={selectedBrickId === brick.id}
+                rotation={selectedBrickId === brick.id ? previewRotation : 0}
+                onSelect={() => selectBrick(selectedBrickId === brick.id ? null : brick.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -118,13 +118,6 @@ export function ValidationPanel({ className = '', engine }: ValidationPanelProps
         )}
       </div>
 
-      {/* Puzzle info */}
-      <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-card/80 to-card/60 border-t border-border/70">
-        <div className="text-xs text-muted-foreground">
-          <div className="font-semibold text-foreground mb-1 tracking-wide">{puzzle.title}</div>
-          <p className="line-clamp-2">{puzzle.description}</p>
-        </div>
-      </div>
     </div>
   );
 }
