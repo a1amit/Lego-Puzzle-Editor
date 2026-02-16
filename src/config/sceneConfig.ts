@@ -191,6 +191,37 @@ export const SCENE_2D = {
   hintCellSize: 24,
   hintFontSize: 14,
   hintGap: 4,
+
+  colors: {
+    background: '#0b101d',
+    backgroundEdge: '#060a12',
+    boardSurface: '#1a2233',
+    boardSurfaceEdge: '#0f1520',
+    boardBorder: '#2a3548',
+    cellBase: '#3a4255',
+    cellBaseLight: '#454e63',
+    cellBlocked: '#252a35',
+    cellBlockedLight: '#2d3240',
+    cellStud: '#2d3344',
+    cellStudHighlight: 'rgba(255,255,255,0.12)',
+    hoverCell: '#4a6fa5',
+    validDest: '#2d6b3f',
+    validDestGlow: '#4ade80',
+    invalidCell: '#6b2a2a',
+    selectionGlow: '#58A6FF',
+    hintBg: '#141b2a',
+    hintText: '#c8d0e0',
+    goalStroke: '#22c55e',
+  },
+
+  shadow: {
+    offsetY: 3,
+    blur: 4,
+    opacity: 0.35,
+    selectedOffsetY: 6,
+    selectedBlur: 8,
+    selectedOpacity: 0.5,
+  },
 } as const;
 
 // ============================================

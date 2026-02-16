@@ -1,6 +1,6 @@
 /**
  * Renderer2D - 2D Puzzle Renderer
- * 
+ *
  * Renders puzzles in a 2D view using SVG. This renderer is completely
  * independent of Three.js and works purely with the engine state.
  */
@@ -26,11 +26,177 @@ const PADDING = SCENE_2D.padding;
 const STUD_RADIUS = SCENE_2D.studRadius;
 const BRICK_OUTER_INSET = SCENE_2D.brickOuterInset;
 const SELECTION_Y_OFFSET = SCENE_2D.selectionYOffset;
+const C = SCENE_2D.colors;
+const SHADOW = SCENE_2D.shadow;
 
 // Nonogram hint display constants
 const HINT_CELL_SIZE = SCENE_2D.hintCellSize;
 const HINT_FONT_SIZE = SCENE_2D.hintFontSize;
 const HINT_GAP = SCENE_2D.hintGap;
+
+// ============================================
+// COLOR HELPERS
+// ============================================
+
+/** Lighten a hex color by a factor (0-1) */
+function lighten(hex: string, factor: number): string {
+  const h = hex.replace('#', '');
+  const r = Math.min(255, parseInt(h.substring(0, 2), 16) + Math.round(255 * factor));
+  const g = Math.min(255, parseInt(h.substring(2, 4), 16) + Math.round(255 * factor));
+  const b = Math.min(255, parseInt(h.substring(4, 6), 16) + Math.round(255 * factor));
+  return `rgb(${r},${g},${b})`;
+}
+
+/** Darken a hex color by a fixed amount */
+function darken(hex: string, amount: number): string {
+  const h = hex.replace('#', '');
+  const r = Math.max(0, parseInt(h.substring(0, 2), 16) - amount);
+  const g = Math.max(0, parseInt(h.substring(2, 4), 16) - amount);
+  const b = Math.max(0, parseInt(h.substring(4, 6), 16) - amount);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ============================================
+// SVG DEFINITIONS COMPONENT
+// ============================================
+
+function SvgDefs({ pieces, inventoryColors, cellSize }: { pieces: PlacedPiece[]; inventoryColors: string[]; cellSize: number }) {
+  // Collect unique piece colors for gradient definitions (placed + inventory)
+  const uniqueColors = useMemo(() => {
+    const colorSet = new Set([...pieces.map(p => p.color), ...inventoryColors]);
+    return Array.from(colorSet);
+  }, [pieces, inventoryColors]);
+
+  return (
+    <defs>
+      {/* Background radial gradient */}
+      <radialGradient id="bg-gradient" cx="50%" cy="45%" r="65%">
+        <stop offset="0%" stopColor={C.background} />
+        <stop offset="100%" stopColor={C.backgroundEdge} />
+      </radialGradient>
+
+      {/* Board surface gradient */}
+      <radialGradient id="board-gradient" cx="50%" cy="40%" r="70%">
+        <stop offset="0%" stopColor={C.boardSurface} />
+        <stop offset="100%" stopColor={C.boardSurfaceEdge} />
+      </radialGradient>
+
+      {/* Board inset shadow filter */}
+      <filter id="board-shadow" x="-5%" y="-5%" width="110%" height="110%">
+        <feDropShadow dx="0" dy="2" stdDeviation="6" floodColor="#000" floodOpacity="0.5" />
+      </filter>
+
+      {/* Piece drop shadow - subtle, always on */}
+      <filter id="piece-shadow" x="-10%" y="-10%" width="130%" height="140%">
+        <feDropShadow dx="0" dy={SHADOW.offsetY} stdDeviation={SHADOW.blur} floodColor="#000" floodOpacity={SHADOW.opacity} />
+      </filter>
+
+      {/* Piece drop shadow - selected (stronger) */}
+      <filter id="piece-shadow-selected" x="-15%" y="-15%" width="140%" height="160%">
+        <feDropShadow dx="0" dy={SHADOW.selectedOffsetY} stdDeviation={SHADOW.selectedBlur} floodColor="#000" floodOpacity={SHADOW.selectedOpacity} />
+      </filter>
+
+      {/* Selection glow */}
+      <filter id="selection-glow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+        <feFlood floodColor={C.selectionGlow} floodOpacity="0.6" result="color" />
+        <feComposite in="color" in2="blur" operator="in" result="coloredBlur" />
+        <feMerge>
+          <feMergeNode in="coloredBlur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
+      {/* Hover glow */}
+      <filter id="hover-glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
+        <feFlood floodColor="#ffffff" floodOpacity="0.2" result="color" />
+        <feComposite in="color" in2="blur" operator="in" result="coloredBlur" />
+        <feMerge>
+          <feMergeNode in="coloredBlur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
+      {/* Valid destination pulse glow */}
+      <filter id="dest-glow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="3" result="blur" />
+        <feFlood floodColor={C.validDestGlow} floodOpacity="0.4" result="color" />
+        <feComposite in="color" in2="blur" operator="in" result="glow" />
+        <feMerge>
+          <feMergeNode in="glow" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
+      {/* Cell stud gradient (board studs) */}
+      <radialGradient id="cell-stud-grad" cx="40%" cy="35%" r="55%">
+        <stop offset="0%" stopColor={C.cellStudHighlight} />
+        <stop offset="50%" stopColor={C.cellStud} />
+        <stop offset="100%" stopColor="rgba(0,0,0,0.15)" />
+      </radialGradient>
+
+      {/* Cell base gradient */}
+      <linearGradient id="cell-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor={C.cellBaseLight} />
+        <stop offset="100%" stopColor={C.cellBase} />
+      </linearGradient>
+
+      {/* Blocked cell gradient */}
+      <linearGradient id="cell-blocked-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor={C.cellBlockedLight} />
+        <stop offset="100%" stopColor={C.cellBlocked} />
+      </linearGradient>
+
+      {/* Per-piece color gradients */}
+      {uniqueColors.map(color => {
+        const id = `piece-grad-${color.replace('#', '')}`;
+        const studId = `stud-grad-${color.replace('#', '')}`;
+        return (
+          <g key={color}>
+            {/* Piece body gradient - top-lit */}
+            <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={lighten(color, 0.12)} />
+              <stop offset="50%" stopColor={color} />
+              <stop offset="100%" stopColor={darken(color, 35)} />
+            </linearGradient>
+            {/* Stud radial gradient */}
+            <radialGradient id={studId} cx="38%" cy="35%" r="58%">
+              <stop offset="0%" stopColor={lighten(color, 0.22)} />
+              <stop offset="55%" stopColor={color} />
+              <stop offset="100%" stopColor={darken(color, 40)} />
+            </radialGradient>
+          </g>
+        );
+      })}
+
+      {/* Stud inner shadow (concavity ring) */}
+      <filter id="stud-inset" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="blur" />
+        <feOffset dx="0" dy="0.8" result="offsetBlur" />
+        <feComposite in="SourceGraphic" in2="offsetBlur" operator="over" />
+      </filter>
+
+      {/* CSS animation for pulsing destination circles */}
+      <style>{`
+        @keyframes pulse-dest {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 0.8; }
+        }
+        @keyframes dash-march {
+          to { stroke-dashoffset: -16; }
+        }
+        .dest-pulse { animation: pulse-dest 1.5s ease-in-out infinite; }
+        .dash-march { animation: dash-march 0.6s linear infinite; }
+      `}</style>
+
+      {/* Grid pattern */}
+      <pattern id="grid" width={cellSize} height={cellSize} patternUnits="userSpaceOnUse">
+        <rect width={cellSize} height={cellSize} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="0.5" />
+      </pattern>
+    </defs>
+  );
+}
 
 // ============================================
 // HELPER COMPONENTS
@@ -61,11 +227,21 @@ function GridCell({
   onMouseEnter,
   onMouseLeave,
 }: GridCellProps) {
-  const baseColor = isBlocked ? '#4a4a4a' : '#5a5a5a';
-  const hoverColor = isValidDestination ? '#4a8f4a' : '#4a6fa5';
-  const invalidColor = '#8b3a3a';
+  const cx = x * cellSize + CELL_GAP / 2;
+  const cy = y * cellSize + CELL_GAP / 2;
+  const size = cellSize - CELL_GAP;
+  const centerX = x * cellSize + cellSize / 2;
+  const centerY = y * cellSize + cellSize / 2;
 
-  const fillColor = isInvalid ? invalidColor : isHovered || isValidDestination ? hoverColor : baseColor;
+  const fill = isInvalid
+    ? C.invalidCell
+    : isHovered
+      ? C.hoverCell
+      : isValidDestination
+        ? C.validDest
+        : isBlocked
+          ? 'url(#cell-blocked-grad)'
+          : 'url(#cell-grad)';
 
   return (
     <g
@@ -74,51 +250,80 @@ function GridCell({
       onMouseLeave={onMouseLeave}
       style={{ cursor: isBlocked ? 'not-allowed' : 'pointer' }}
     >
-      {/* Cell background */}
+      {/* Cell background with gradient */}
       <rect
-        x={x * cellSize + CELL_GAP / 2}
-        y={y * cellSize + CELL_GAP / 2}
-        width={cellSize - CELL_GAP}
-        height={cellSize - CELL_GAP}
-        rx={4}
-        fill={fillColor}
-        stroke={isHovered ? '#58A6FF' : 'none'}
-        strokeWidth={isHovered ? 2 : 0}
+        x={cx}
+        y={cy}
+        width={size}
+        height={size}
+        rx={3}
+        fill={fill}
       />
 
-      {/* Stud */}
-      {!isBlocked && (
-        <>
-          <circle
-            cx={x * cellSize + cellSize / 2}
-            cy={y * cellSize + cellSize / 2}
-            r={STUD_RADIUS}
-            fill="#333"
-          />
-          <circle
-            cx={x * cellSize + cellSize / 2 - 2}
-            cy={y * cellSize + cellSize / 2 - 2}
-            r={STUD_RADIUS * 0.3}
-            fill="rgba(255,255,255,0.1)"
-          />
-        </>
-      )}
-
-      {/* Valid destination indicator */}
-      {isValidDestination && (
-        <circle
-          cx={x * cellSize + cellSize / 2}
-          cy={y * cellSize + cellSize / 2}
-          r={cellSize / 3}
-          fill="none"
-          stroke="#4ade80"
-          strokeWidth={2}
-          strokeDasharray="4,4"
-          opacity={0.6}
+      {/* Subtle top highlight on cell */}
+      {!isBlocked && !isInvalid && !isHovered && !isValidDestination && (
+        <rect
+          x={cx + 2}
+          y={cy}
+          width={size - 4}
+          height={2}
+          rx={1}
+          fill="rgba(255,255,255,0.06)"
         />
       )}
 
-      {/* Goal area indicator removed - shown in main overlay instead */}
+      {/* Hover border glow */}
+      {isHovered && (
+        <rect
+          x={cx}
+          y={cy}
+          width={size}
+          height={size}
+          rx={3}
+          fill="none"
+          stroke={C.selectionGlow}
+          strokeWidth={2}
+          opacity={0.7}
+        />
+      )}
+
+      {/* Stud on non-blocked cells */}
+      {!isBlocked && (
+        <g>
+          {/* Stud body with gradient */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={STUD_RADIUS * 0.85}
+            fill="url(#cell-stud-grad)"
+            stroke="rgba(0,0,0,0.25)"
+            strokeWidth={0.8}
+          />
+          {/* Stud specular highlight */}
+          <circle
+            cx={centerX - STUD_RADIUS * 0.2}
+            cy={centerY - STUD_RADIUS * 0.25}
+            r={STUD_RADIUS * 0.3}
+            fill="rgba(255,255,255,0.1)"
+          />
+        </g>
+      )}
+
+      {/* Valid destination glow indicator */}
+      {isValidDestination && (
+        <g className="dest-pulse">
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={cellSize / 3}
+            fill="none"
+            stroke={C.validDestGlow}
+            strokeWidth={2.5}
+            strokeDasharray="5,3"
+            filter="url(#dest-glow)"
+          />
+        </g>
+      )}
     </g>
   );
 }
@@ -137,7 +342,6 @@ interface PieceProps {
 }
 
 // Helper function to get outer edge segments for brick border rendering
-// Returns an array of line segments that form the outer boundary of the piece
 function getOuterEdgeSegments(cells: [number, number][], cellSize: number, yOffset: number = 0, outerInset: number = BRICK_OUTER_INSET): {
   x1: number; y1: number; x2: number; y2: number;
 }[] {
@@ -150,24 +354,43 @@ function getOuterEdgeSegments(cells: [number, number][], cellSize: number, yOffs
     const top = y * cellSize + outerInset + yOffset;
     const bottom = (y + 1) * cellSize - outerInset + yOffset;
 
-    // Only draw edges that face outward (no neighbor on that side)
     if (!cellSet.has(`${x},${y - 1}`)) {
-      segments.push({ x1: left, y1: top, x2: right, y2: top }); // Top edge
+      segments.push({ x1: left, y1: top, x2: right, y2: top });
     }
     if (!cellSet.has(`${x},${y + 1}`)) {
-      segments.push({ x1: left, y1: bottom, x2: right, y2: bottom }); // Bottom edge
+      segments.push({ x1: left, y1: bottom, x2: right, y2: bottom });
     }
     if (!cellSet.has(`${x - 1},${y}`)) {
-      segments.push({ x1: left, y1: top, x2: left, y2: bottom }); // Left edge
+      segments.push({ x1: left, y1: top, x2: left, y2: bottom });
     }
     if (!cellSet.has(`${x + 1},${y}`)) {
-      segments.push({ x1: right, y1: top, x2: right, y2: bottom }); // Right edge
+      segments.push({ x1: right, y1: top, x2: right, y2: bottom });
     }
   }
 
   return segments;
 }
 
+// Helper: get top-edge-only segments (for highlight shine)
+function getTopEdgeSegments(cells: [number, number][], cellSize: number, yOffset: number = 0, outerInset: number = BRICK_OUTER_INSET): {
+  x1: number; y1: number; x2: number; y2: number;
+}[] {
+  const cellSet = new Set(cells.map(([x, y]) => `${x},${y}`));
+  const segments: { x1: number; y1: number; x2: number; y2: number }[] = [];
+
+  for (const [x, y] of cells) {
+    const left = x * cellSize + outerInset;
+    const right = (x + 1) * cellSize - outerInset;
+    const top = y * cellSize + outerInset + yOffset;
+
+    // Top edge only where no neighbor above
+    if (!cellSet.has(`${x},${y - 1}`)) {
+      segments.push({ x1: left + 1, y1: top + 1, x2: right - 1, y2: top + 1 });
+    }
+  }
+
+  return segments;
+}
 
 function Piece2D({
   piece,
@@ -184,30 +407,35 @@ function Piece2D({
   const cells = useMemo(() => getPieceCells(piece), [piece]);
   const cellSet = useMemo(() => new Set(cells.map(([x, y]) => `${x},${y}`)), [cells]);
 
-  const glowColor = isSelected ? '#58A6FF' : '#ffffff';
-  const glowOpacity = isSelected ? 0.5 : isHovered ? 0.3 : 0;
+  const yOff = isSelected ? -SELECTION_Y_OFFSET : 0;
+  const gradId = `url(#piece-grad-${piece.color.replace('#', '')})`;
+  const studGradId = `url(#stud-grad-${piece.color.replace('#', '')})`;
 
   // Get outer edge segments for border rendering
   const outerEdges = useMemo(() => {
-    return getOuterEdgeSegments(cells, cellSize, isSelected ? -SELECTION_Y_OFFSET : 0, BRICK_OUTER_INSET);
-  }, [cells, cellSize, isSelected]);
+    return getOuterEdgeSegments(cells, cellSize, yOff, BRICK_OUTER_INSET);
+  }, [cells, cellSize, yOff]);
 
-  // Darker border color based on piece color for strong 3D effect
-  const borderColor = useMemo(() => {
-    const hex = piece.color.replace('#', '');
-    const r = Math.max(0, parseInt(hex.substring(0, 2), 16) - 80);
-    const g = Math.max(0, parseInt(hex.substring(2, 4), 16) - 80);
-    const b = Math.max(0, parseInt(hex.substring(4, 6), 16) - 80);
-    return `rgb(${r},${g},${b})`;
-  }, [piece.color]);
+  // Get top highlight edges
+  const topEdges = useMemo(() => {
+    return getTopEdgeSegments(cells, cellSize, yOff, BRICK_OUTER_INSET);
+  }, [cells, cellSize, yOff]);
 
-  // When not interactive, let mouse events pass through to the grid cells beneath
-  const shouldPassThrough = !interactive;
+  // Border color
+  const borderColor = useMemo(() => darken(piece.color, 70), [piece.color]);
 
-  // Check if a cell has a neighbor in a direction
   const hasNeighbor = (x: number, y: number, dx: number, dy: number) => {
     return cellSet.has(`${x + dx},${y + dy}`);
   };
+
+  // Choose filter
+  const filter = isSelected
+    ? 'url(#piece-shadow-selected)'
+    : isHovered
+      ? 'url(#hover-glow)'
+      : 'url(#piece-shadow)';
+
+  const shouldPassThrough = !interactive;
 
   return (
     <g
@@ -216,41 +444,16 @@ function Piece2D({
       onMouseLeave={interactive ? onMouseLeave : undefined}
       style={{ cursor: interactive ? 'pointer' : 'default' }}
       pointerEvents={shouldPassThrough ? 'none' : undefined}
+      filter={filter}
     >
-      {/* Shadow when selected - draw shadow rectangles for each cell */}
-      {isSelected && cells.map(([x, y], i) => {
-        const hasLeft = hasNeighbor(x, y, -1, 0);
-        const hasRight = hasNeighbor(x, y, 1, 0);
-        const hasTop = hasNeighbor(x, y, 0, -1);
-        const hasBottom = hasNeighbor(x, y, 0, 1);
-        const inset = BRICK_OUTER_INSET;
-        const left = hasLeft ? x * cellSize : x * cellSize + inset;
-        const right = hasRight ? (x + 1) * cellSize : (x + 1) * cellSize - inset;
-        const top = hasTop ? y * cellSize + SELECTION_Y_OFFSET : y * cellSize + inset + SELECTION_Y_OFFSET;
-        const bottom = hasBottom ? (y + 1) * cellSize + SELECTION_Y_OFFSET : (y + 1) * cellSize - inset + SELECTION_Y_OFFSET;
-        return (
-          <rect
-            key={`shadow-${i}`}
-            x={left}
-            y={top}
-            width={right - left}
-            height={bottom - top}
-            fill="rgba(0,0,0,0.3)"
-          />
-        );
-      })}
-
-      {/* Connected brick body - fills cells seamlessly with neighbors */}
+      {/* Connected brick body with gradient fill */}
       {cells.map(([x, y], i) => {
-        const yOff = isSelected ? -SELECTION_Y_OFFSET : 0;
-        // Calculate rectangle that extends to meet neighbors (no gap between same-brick cells)
         const hasLeft = hasNeighbor(x, y, -1, 0);
         const hasRight = hasNeighbor(x, y, 1, 0);
         const hasTop = hasNeighbor(x, y, 0, -1);
         const hasBottom = hasNeighbor(x, y, 0, 1);
 
-        // Extend towards neighbors to fill gaps
-        const inset = BRICK_OUTER_INSET; // Small inset for outer edges
+        const inset = BRICK_OUTER_INSET;
         const left = hasLeft ? x * cellSize : x * cellSize + inset;
         const right = hasRight ? (x + 1) * cellSize : (x + 1) * cellSize - inset;
         const top = hasTop ? y * cellSize + yOff : y * cellSize + inset + yOff;
@@ -263,13 +466,12 @@ function Piece2D({
             y={top}
             width={right - left}
             height={bottom - top}
-            fill={piece.color}
-            filter={isSelected ? 'url(#glow)' : undefined}
+            fill={gradId}
           />
         );
       })}
 
-      {/* Strong outline around the entire brick shape - using individual line segments */}
+      {/* Dark border around the entire brick shape */}
       <g pointerEvents="none">
         {outerEdges.map((edge, i) => (
           <line
@@ -278,41 +480,88 @@ function Piece2D({
             y1={edge.y1}
             x2={edge.x2}
             y2={edge.y2}
-            stroke={isSelected || isHovered ? glowColor : borderColor}
-            strokeWidth={isSelected || isHovered ? 4 : 3}
+            stroke={isSelected ? C.selectionGlow : borderColor}
+            strokeWidth={isSelected ? 3.5 : isHovered ? 3 : 2.5}
             strokeLinecap="square"
-            opacity={isSelected || isHovered ? glowOpacity + 0.6 : 1}
+            opacity={isSelected ? 0.9 : 1}
+          />
+        ))}
+      </g>
+
+      {/* Top-edge highlight shine */}
+      <g pointerEvents="none">
+        {topEdges.map((edge, i) => (
+          <line
+            key={`shine-${i}`}
+            x1={edge.x1}
+            y1={edge.y1}
+            x2={edge.x2}
+            y2={edge.y2}
+            stroke="rgba(255,255,255,0.25)"
+            strokeWidth={1.5}
+            strokeLinecap="round"
           />
         ))}
       </g>
 
       {/* Studs on each cell */}
-      {cells.map(([x, y], i) => (
-        <g key={`stud-${i}`}>
-          <circle
-            cx={x * cellSize + cellSize / 2}
-            cy={y * cellSize + cellSize / 2 - (isSelected ? SELECTION_Y_OFFSET : 0)}
-            r={STUD_RADIUS}
-            fill={piece.color}
-            stroke="rgba(255,255,255,0.25)"
-            strokeWidth={1.5}
-          />
+      {cells.map(([x, y], i) => {
+        const centerX = x * cellSize + cellSize / 2;
+        const centerY = y * cellSize + cellSize / 2 + yOff;
+        return (
+          <g key={`stud-${i}`}>
+            {/* Stud body with radial gradient */}
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={STUD_RADIUS}
+              fill={studGradId}
+              stroke={darken(piece.color, 50)}
+              strokeWidth={1.2}
+            />
+            {/* Inner ring for depth */}
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={STUD_RADIUS * 0.72}
+              fill="none"
+              stroke="rgba(0,0,0,0.12)"
+              strokeWidth={0.8}
+            />
+            {/* Specular highlight - top-left */}
+            <ellipse
+              cx={centerX - STUD_RADIUS * 0.22}
+              cy={centerY - STUD_RADIUS * 0.25}
+              rx={STUD_RADIUS * 0.35}
+              ry={STUD_RADIUS * 0.28}
+              fill="rgba(255,255,255,0.3)"
+            />
+          </g>
+        );
+      })}
 
-          {/* Stud highlight */}
-          <circle
-            cx={x * cellSize + cellSize / 2 - 2}
-            cy={y * cellSize + cellSize / 2 - 2 - (isSelected ? 4 : 0)}
-            r={STUD_RADIUS * 0.4}
-            fill="rgba(255,255,255,0.2)"
-          />
+      {/* Selection glow outline */}
+      {isSelected && (
+        <g pointerEvents="none" filter="url(#selection-glow)">
+          {outerEdges.map((edge, i) => (
+            <line
+              key={`glow-${i}`}
+              x1={edge.x1}
+              y1={edge.y1}
+              x2={edge.x2}
+              y2={edge.y2}
+              stroke={C.selectionGlow}
+              strokeWidth={2}
+              strokeLinecap="square"
+              opacity={0.5}
+            />
+          ))}
         </g>
-      ))}
-
+      )}
 
       {/* Selection indicator */}
       {isSelected && (
         <g>
-          {/* Piece ID label - prominently displayed for puzzle designers */}
           <text
             x={cells[0][0] * cellSize + cellSize / 2}
             y={cells[0][1] * cellSize - 22}
@@ -324,12 +573,11 @@ function Piece2D({
           >
             ID: {piece.id}
           </text>
-          {/* Hint text */}
           <text
             x={cells[0][0] * cellSize + cellSize / 2}
             y={cells[0][1] * cellSize - 8}
             textAnchor="middle"
-            fill={isSliderPuzzle && !hasValidMoves ? '#ef4444' : '#58A6FF'}
+            fill={isSliderPuzzle && !hasValidMoves ? '#ef4444' : C.selectionGlow}
             fontSize="10"
             fontFamily="monospace"
             fontWeight="bold"
@@ -370,21 +618,36 @@ function GhostPiece2D({
     return rotated.map(([dx, dy]) => [position.x + dx, position.y + dy] as Coordinate2D);
   }, [shapeDef, rotation, position]);
 
+  const gradId = `url(#piece-grad-${color.replace('#', '')})`;
+
   return (
-    <g opacity={0.6} pointerEvents="none">
+    <g opacity={0.55} pointerEvents="none">
       {cells.map(([x, y], i) => (
-        <rect
-          key={i}
-          x={x * cellSize + CELL_GAP}
-          y={y * cellSize + CELL_GAP}
-          width={cellSize - CELL_GAP * 2}
-          height={cellSize - CELL_GAP * 2}
-          rx={4}
-          fill={isValid ? color : '#ff4444'}
-          stroke={isValid ? 'rgba(255,255,255,0.3)' : '#ff0000'}
-          strokeWidth={2}
-          strokeDasharray={isValid ? 'none' : '4,4'}
-        />
+        <g key={i}>
+          <rect
+            x={x * cellSize + CELL_GAP}
+            y={y * cellSize + CELL_GAP}
+            width={cellSize - CELL_GAP * 2}
+            height={cellSize - CELL_GAP * 2}
+            rx={3}
+            fill={isValid ? gradId : C.invalidCell}
+            stroke={isValid ? 'rgba(255,255,255,0.35)' : '#ff3333'}
+            strokeWidth={2}
+            strokeDasharray={isValid ? 'none' : '6,4'}
+            className={isValid ? undefined : 'dash-march'}
+          />
+          {/* Ghost stud */}
+          {isValid && (
+            <circle
+              cx={x * cellSize + cellSize / 2}
+              cy={y * cellSize + cellSize / 2}
+              r={STUD_RADIUS * 0.7}
+              fill="rgba(255,255,255,0.15)"
+              stroke="rgba(255,255,255,0.2)"
+              strokeWidth={0.8}
+            />
+          )}
+        </g>
       ))}
     </g>
   );
@@ -403,10 +666,6 @@ interface NonogramHintsProps {
   hintsTopHeight: number;
 }
 
-/**
- * Renders row and column hints for Nonogram puzzles.
- * Row hints appear on the left side, column hints appear on top.
- */
 function NonogramHintsDisplay({
   hints,
   cellSize,
@@ -415,14 +674,12 @@ function NonogramHintsDisplay({
   hintsLeftWidth,
   hintsTopHeight,
 }: NonogramHintsProps) {
-  // Render row hints (left side of board)
   const rowHints = hints.rows.map((row, rowIndex) => {
     const y = hintsTopHeight + rowIndex * cellSize + cellSize / 2;
 
     return (
       <g key={`row-${rowIndex}`}>
         {row.map((num, numIndex) => {
-          // Position from right to left, ending at board edge
           const x = hintsLeftWidth - (row.length - numIndex) * HINT_CELL_SIZE + HINT_CELL_SIZE / 2;
           return (
             <text
@@ -431,7 +688,7 @@ function NonogramHintsDisplay({
               y={y}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill="#e0e0e0"
+              fill={C.hintText}
               fontSize={HINT_FONT_SIZE}
               fontFamily="monospace"
               fontWeight="bold"
@@ -444,14 +701,12 @@ function NonogramHintsDisplay({
     );
   });
 
-  // Render column hints (top of board)
   const colHints = hints.columns.map((col, colIndex) => {
     const x = hintsLeftWidth + colIndex * cellSize + cellSize / 2;
 
     return (
       <g key={`col-${colIndex}`}>
         {col.map((num, numIndex) => {
-          // Position from bottom to top, ending at board edge
           const y = hintsTopHeight - (col.length - numIndex) * HINT_CELL_SIZE + HINT_CELL_SIZE / 2;
           return (
             <text
@@ -460,7 +715,7 @@ function NonogramHintsDisplay({
               y={y}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill="#e0e0e0"
+              fill={C.hintText}
               fontSize={HINT_FONT_SIZE}
               fontFamily="monospace"
               fontWeight="bold"
@@ -481,7 +736,7 @@ function NonogramHintsDisplay({
         y={hintsTopHeight}
         width={hintsLeftWidth - HINT_GAP}
         height={boardHeight * cellSize}
-        fill="#1a1a1a"
+        fill={C.hintBg}
         rx={4}
       />
       <rect
@@ -489,7 +744,7 @@ function NonogramHintsDisplay({
         y={0}
         width={boardWidth * cellSize}
         height={hintsTopHeight - HINT_GAP}
-        fill="#1a1a1a"
+        fill={C.hintBg}
         rx={4}
       />
       {rowHints}
@@ -538,10 +793,9 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
 
   const { width, height } = board.dimensions;
 
-  // Dynamic cell size: fit the board in the container while clamping to config min/max
+  // Dynamic cell size
   const cellSize = useMemo(() => {
     if (!containerSize) return SCENE_2D.defaultCellSize;
-    // Calculate nonogram hint space first (needs cellSize-independent estimate)
     const nonHints = puzzle?.nonogram_hints;
     const maxRow = nonHints ? Math.max(...nonHints.rows.map(r => r.length), 1) : 0;
     const maxCol = nonHints ? Math.max(...nonHints.columns.map(c => c.length), 1) : 0;
@@ -565,20 +819,15 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   const hintsLeftWidth = maxRowHints * HINT_CELL_SIZE;
   const hintsTopHeight = maxColHints * HINT_CELL_SIZE;
 
-  // Adjust SVG size to include hints area
   const svgWidth = hintsLeftWidth + width * cellSize + PADDING * 2;
   const svgHeight = hintsTopHeight + height * cellSize + PADDING * 2;
 
-  // Get invalid cells from validation (skip certain rules that shouldn't show as red errors)
+  // Get invalid cells from validation
   const invalidCells = useMemo(() => {
     const cells = new Set<string>();
     for (const result of validationResults) {
-      // Skip GOAL_REACHED - goal area is shown with dotted border, not red background
       if (result.rule === 'GOAL_REACHED') continue;
-      // Skip ALL_BOARD_SQUARES_MUST_BE_COVERED - uncovered cells are not "errors", 
-      // they're just cells that need to be filled. Showing all cells as red is confusing.
       if (result.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED') continue;
-      // Skip PATTERN_MATCH - cells that need the correct color aren't errors, just incomplete
       if (result.rule === 'PATTERN_MATCH') continue;
 
       if (!result.isValid && result.affectedCells) {
@@ -590,13 +839,12 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     return cells;
   }, [validationResults]);
 
-
   // Get blocked cells
   const blockedCells = useMemo(() => {
     return new Set(board.blockedCells.map(([x, y]) => `${x},${y}`));
   }, [board.blockedCells]);
 
-  // Find selected piece (placed or inventory)
+  // Find selected piece
   const selectedPlacedPiece = useMemo(() => {
     return board.placedPieces.find(p => p.instanceId === selectedPieceId);
   }, [board.placedPieces, selectedPieceId]);
@@ -606,8 +854,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     return puzzle?.inventory.find(p => p.id === selectedPieceId);
   }, [puzzle, selectedPieceId, selectedPlacedPiece]);
 
-  // Get valid slide destinations for selected placed piece
-  // Shows ALL cells that would be covered by valid slide positions
+  // Get valid slide destinations
   const validDestinations = useMemo(() => {
     if (!selectedPlacedPiece || config.movementRule !== 'SLIDING_ONLY') {
       return new Set<string>();
@@ -620,7 +867,6 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
       return new Set(destinations.map(([x, y]) => `${x},${y}`));
     }
 
-    // Get all cells that would be covered by ANY valid destination
     const allValidCells = new Set<string>();
     const rotatedCells = rotateShape(shapeDef.cells, selectedPlacedPiece.rotation);
 
@@ -663,9 +909,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
       return;
     }
 
-    // If we have a placed piece selected, try to move it
     if (selectedPlacedPiece) {
-      // Clicking on the piece's current position deselects it
       const currentCells = getPieceCells(selectedPlacedPiece);
       const clickedOnSelf = currentCells.some(([cx, cy]) => cx === x && cy === y);
       if (clickedOnSelf) {
@@ -674,7 +918,6 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
         return;
       }
 
-      // For slider puzzles, find which valid destination would cover the clicked cell
       if (config.movementRule === 'SLIDING_ONLY') {
         console.log('[Renderer2D] Slider mode - checking valid destinations');
         const validDests = getValidSlideDestinations(board, selectedPlacedPiece);
@@ -683,7 +926,6 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
         if (shapeDef) {
           const rotatedCells = rotateShape(shapeDef.cells, selectedPlacedPiece.rotation);
 
-          // Find a valid destination where the piece would cover the clicked cell
           const matchingDest = validDests.find(([destX, destY]) => {
             return rotatedCells.some(([dx, dy]) =>
               destX + dx === x && destY + dy === y
@@ -698,25 +940,18 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
           }
         }
       } else {
-        // Free placement mode - calculate anchor so clicked cell is covered by the piece
         const shapeDef = SHAPE_LIBRARY[selectedPlacedPiece.shape];
         if (shapeDef) {
           const rotatedCells = rotateShape(shapeDef.cells, selectedPlacedPiece.rotation);
 
-          // Calculate shape bounds (how far the shape extends from its anchor)
           const minDx = Math.min(...rotatedCells.map(([dx]) => dx));
           const maxDx = Math.max(...rotatedCells.map(([dx]) => dx));
           const minDy = Math.min(...rotatedCells.map(([, dy]) => dy));
           const maxDy = Math.max(...rotatedCells.map(([, dy]) => dy));
 
-          // Calculate anchor so clicked cell would be covered
-          // But constrain to valid board positions
           let anchorX = x - minDx;
           let anchorY = y - minDy;
 
-          // Constrain anchor so piece stays within bounds
-          // Max anchor X: board.width - shape width
-          // Max anchor Y: board.height - shape height
           anchorX = Math.max(-minDx, Math.min(anchorX, board.dimensions.width - 1 - maxDx));
           anchorY = Math.max(-minDy, Math.min(anchorY, board.dimensions.height - 1 - maxDy));
 
@@ -727,7 +962,6 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
             console.log('[Renderer2D] Move failed - possibly overlap or out of bounds');
           }
         } else {
-          // Fallback for pieces without shapes
           console.log('[Renderer2D] Free placement mode - moving piece to:', { x, y });
           movePiece(selectedPlacedPiece.instanceId, { x, y, z: 0 });
         }
@@ -736,16 +970,13 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
       return;
     }
 
-    // If we have an inventory piece selected, place it
     if (selectedInventoryPiece) {
       console.log('[Renderer2D] Placing inventory piece');
-      // Check remaining count BEFORE placing - if more than 1 remains, keep selected for continuous placement
       const remainingCount = engine.inventory.get(selectedInventoryPiece.id) ?? 0;
       const keepSelected = remainingCount > 1;
 
       placePiece(selectedInventoryPiece.id, { x, y, z: 0 }, previewRotation);
 
-      // Only deselect if this was the last brick of this type
       if (!keepSelected) {
         selectPiece(null);
       }
@@ -770,34 +1001,49 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     if (!shapeDef) return false;
 
     const rotatedCells = rotateShape(shapeDef.cells, previewRotation);
+    const maxDepth = board.dimensions.depth ?? 1;
+    const allowStacking = maxDepth > 1;
 
     for (const [dx, dy] of rotatedCells) {
       const x = hoveredCell.x + dx;
       const y = hoveredCell.y + dy;
 
-      // Check bounds
       if (x < 0 || x >= width || y < 0 || y >= height) return false;
-
-      // Check blocked
       if (blockedCells.has(`${x},${y}`)) return false;
 
-      // Check overlap with placed pieces
-      for (const placed of board.placedPieces) {
-        const placedCells = getPieceCells(placed);
-        if (placedCells.some(([px, py]) => px === x && py === y)) {
-          return false;
+      if (!allowStacking) {
+        // No stacking: any overlap is invalid
+        for (const placed of board.placedPieces) {
+          const placedCells = getPieceCells(placed);
+          if (placedCells.some(([px, py]) => px === x && py === y)) {
+            return false;
+          }
         }
       }
     }
 
-    return true;
-  }, [selectedInventoryPiece, hoveredCell, previewRotation, width, height, blockedCells, board.placedPieces]);
+    // When stacking is allowed, check that the auto-calculated z won't exceed depth
+    if (allowStacking) {
+      const targetCells = rotatedCells.map(([dx, dy]) => [hoveredCell.x + dx, hoveredCell.y + dy] as [number, number]);
+      let maxZ = -1;
+      for (const placed of board.placedPieces) {
+        const placedCells = getPieceCells(placed);
+        const placedCellSet = new Set(placedCells.map(([px, py]) => `${px},${py}`));
+        for (const [tx, ty] of targetCells) {
+          if (placedCellSet.has(`${tx},${ty}`)) {
+            maxZ = Math.max(maxZ, placed.position.z);
+          }
+        }
+      }
+      if (maxZ + 1 > maxDepth - 1) return false;
+    }
 
-  // Calculate goal area cells (for slider puzzles)
+    return true;
+  }, [selectedInventoryPiece, hoveredCell, previewRotation, width, height, blockedCells, board.placedPieces, board.dimensions.depth]);
+
+  // Goal area cells
   const goalAreaCells = useMemo(() => {
     if (!puzzle?.goal?.cells) return new Set<string>();
-
-    // Goal cells are now explicitly defined
     return new Set(puzzle.goal.cells.map(([x, y]) => `${x},${y}`));
   }, [puzzle]);
 
@@ -810,7 +1056,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   }
 
   return (
-    <div ref={containerRef} className={`w-full h-full flex items-center justify-center bg-editor-bg ${className}`}>
+    <div ref={containerRef} className={`w-full h-full flex items-center justify-center ${className}`} style={{ background: C.background }}>
       <svg
         width="100%"
         height="100%"
@@ -820,25 +1066,16 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
         aria-label={`${puzzle.title ?? 'Puzzle'} board, ${width} columns by ${height} rows`}
         tabIndex={0}
       >
-        {/* Definitions */}
-        <defs>
-          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
+        {/* SVG Definitions - filters, gradients, patterns */}
+        <SvgDefs pieces={board.placedPieces} inventoryColors={puzzle.inventory.map(p => p.color)} cellSize={cellSize} />
 
-          <pattern id="grid" width={cellSize} height={cellSize} patternUnits="userSpaceOnUse">
-            <rect width={cellSize} height={cellSize} fill="none" stroke="#333" strokeWidth="0.5" />
-          </pattern>
-        </defs>
+        {/* Background with radial gradient */}
+        <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="url(#bg-gradient)" />
 
-        {/* Background */}
-        <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="#0a0a0a" />
+        {/* Vignette overlay */}
+        <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="url(#bg-gradient)" opacity="0.3" />
 
-        {/* Nonogram hints (if puzzle has them) */}
+        {/* Nonogram hints */}
         {nonogramHints && (
           <g transform={`translate(${PADDING}, ${PADDING})`}>
             <NonogramHintsDisplay
@@ -852,16 +1089,30 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
           </g>
         )}
 
-        {/* Main board area - offset by hints dimensions */}
+        {/* Main board area */}
         <g transform={`translate(${PADDING + hintsLeftWidth}, ${PADDING + hintsTopHeight})`}>
-          {/* Board background */}
+          {/* Board background with gradient and shadow */}
           <rect
-            x={-4}
-            y={-4}
-            width={width * cellSize + 8}
-            height={height * cellSize + 8}
-            rx={8}
-            fill="#1a1a1a"
+            x={-6}
+            y={-6}
+            width={width * cellSize + 12}
+            height={height * cellSize + 12}
+            rx={10}
+            fill="url(#board-gradient)"
+            filter="url(#board-shadow)"
+          />
+
+          {/* Board border accent */}
+          <rect
+            x={-6}
+            y={-6}
+            width={width * cellSize + 12}
+            height={height * cellSize + 12}
+            rx={10}
+            fill="none"
+            stroke={C.boardBorder}
+            strokeWidth={1}
+            opacity={0.5}
           />
 
           {/* Grid cells */}
@@ -891,14 +1142,12 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
             })
           )}
 
+          {/* Placed pieces */}
           {board.placedPieces.map(piece => {
             const isSelected = selectedPieceId === piece.instanceId;
             const isHovered = hoveredPieceId === piece.instanceId;
-            // Pieces are only interactive when NO piece is selected (so we can click to select one)
-            // Once a piece is selected, all pieces become non-interactive so grid cells receive clicks
             const isInteractive = !selectedInventoryPiece && !selectedPlacedPiece;
 
-            // Calculate if this piece has valid moves (for slider puzzles)
             const pieceValidMoves = isSelected && config.movementRule === 'SLIDING_ONLY'
               ? getValidSlideDestinations(board, piece)
               : [];
@@ -932,10 +1181,9 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
             />
           )}
 
-          {/* Goal area overlay (for slider puzzles) */}
+          {/* Goal area overlay */}
           {puzzle.goal && !puzzle.goal.hideGoalVisualization && (
             <g>
-              {/* Goal position indicator */}
               {Array.from(goalAreaCells).map((key) => {
                 const [x, y] = key.split(',').map(Number);
                 return (
@@ -947,7 +1195,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                     height={cellSize - 4}
                     rx={4}
                     fill="none"
-                    stroke="#22c55e"
+                    stroke={C.goalStroke}
                     strokeWidth={3}
                     strokeDasharray="8,4"
                     opacity={0.7}
@@ -955,12 +1203,11 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                   />
                 );
               })}
-              {/* Goal label - position at center of goal area */}
               {puzzle.goal.cells && puzzle.goal.cells.length > 0 && (
                 <text
                   x={(Math.min(...puzzle.goal.cells.map(c => c[0])) + Math.max(...puzzle.goal.cells.map(c => c[0])) + 1) / 2 * cellSize}
                   y={Math.min(...puzzle.goal.cells.map(c => c[1])) * cellSize - 8}
-                  fill="#22c55e"
+                  fill={C.goalStroke}
                   fontSize="12"
                   fontFamily="monospace"
                   fontWeight="bold"
@@ -977,7 +1224,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
         <text
           x={PADDING}
           y={svgHeight - 8}
-          fill="#666"
+          fill="rgba(255,255,255,0.25)"
           fontSize="10"
           fontFamily="monospace"
         >
@@ -988,4 +1235,3 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     </div>
   );
 }
-
