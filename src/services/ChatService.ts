@@ -18,7 +18,8 @@ export interface ChatResponse {
 }
 
 const OPENROUTER_API_URL = import.meta.env.VITE_OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
-const MODEL = import.meta.env.VITE_CHAT_MODEL || 'google/gemma-3-27b-it:free';
+const MODEL = import.meta.env.VITE_CHAT_MODEL || 'stepfun/step-3.5-flash:free';
+const FALLBACK_MODEL = 'google/gemma-3-27b-it:free';
 const MAX_TOKENS = Number(import.meta.env.VITE_CHAT_MAX_TOKENS) || 1000;
 const TEMPERATURE = Number(import.meta.env.VITE_CHAT_TEMPERATURE) || 0.7;
 
@@ -27,6 +28,46 @@ const TEMPERATURE = Number(import.meta.env.VITE_CHAT_TEMPERATURE) || 0.7;
  */
 function getApiKey(): string | null {
     return import.meta.env.VITE_OPENROUTER_API_KEY || null;
+}
+
+/**
+ * Calls OpenRouter with a specific model and returns the result
+ */
+async function callModel(apiKey: string, messages: ChatMessage[], model: string): Promise<ChatResponse> {
+    try {
+        const response = await fetch(OPENROUTER_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': window.location.origin,
+                'X-Title': 'Virtual Lego Puzzle Editor',
+            },
+            body: JSON.stringify({
+                model,
+                messages,
+                max_tokens: MAX_TOKENS,
+                temperature: TEMPERATURE,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.error?.message || `API error: ${response.status}`;
+            return { success: false, message: '', error: errorMessage };
+        }
+
+        const data = await response.json();
+        const assistantMessage = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+        return { success: true, message: assistantMessage };
+    } catch (error) {
+        console.error(`Chat API error (${model}):`, error);
+        return {
+            success: false,
+            message: '',
+            error: error instanceof Error ? error.message : 'Failed to connect to the chat service.',
+        };
+    }
 }
 
 /**
@@ -47,58 +88,27 @@ export async function sendChatMessage(
         };
     }
 
-    try {
-        const systemPromptWithContext = puzzleContext
-            ? `${CHATBOT_SYSTEM_PROMPT}\n\nCURRENT PUZZLE CONTEXT:\n${puzzleContext}`
-            : CHATBOT_SYSTEM_PROMPT;
+    const systemPromptWithContext = puzzleContext
+        ? `${CHATBOT_SYSTEM_PROMPT}\n\nCURRENT PUZZLE CONTEXT:\n${puzzleContext}`
+        : CHATBOT_SYSTEM_PROMPT;
 
-        const messages: ChatMessage[] = [
-            { role: 'system', content: systemPromptWithContext },
-            ...conversationHistory,
-            { role: 'user', content: userMessage },
-        ];
+    const messages: ChatMessage[] = [
+        { role: 'system', content: systemPromptWithContext },
+        ...conversationHistory,
+        { role: 'user', content: userMessage },
+    ];
 
-        const response = await fetch(OPENROUTER_API_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': window.location.origin,
-                'X-Title': 'Virtual Lego Puzzle Editor',
-            },
-            body: JSON.stringify({
-                model: MODEL,
-                messages,
-                max_tokens: MAX_TOKENS,
-                temperature: TEMPERATURE,
-            }),
-        });
+    const result = await callModel(apiKey, messages, MODEL);
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.error?.message || `API error: ${response.status}`;
-            return {
-                success: false,
-                message: '',
-                error: errorMessage,
-            };
-        }
+    if (result.success) return result;
 
-        const data = await response.json();
-        const assistantMessage = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
-
-        return {
-            success: true,
-            message: assistantMessage,
-        };
-    } catch (error) {
-        console.error('Chat API error:', error);
-        return {
-            success: false,
-            message: '',
-            error: error instanceof Error ? error.message : 'Failed to connect to the chat service.',
-        };
+    // Primary model failed — retry with fallback
+    if (MODEL !== FALLBACK_MODEL) {
+        console.warn(`Primary model "${MODEL}" failed, falling back to "${FALLBACK_MODEL}"`);
+        return callModel(apiKey, messages, FALLBACK_MODEL);
     }
+
+    return result;
 }
 
 /**
