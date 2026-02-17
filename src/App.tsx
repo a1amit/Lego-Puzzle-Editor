@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { Toaster, toast } from 'sonner';
 import { ResizablePanels } from './components/layout/ResizablePanels';
 import { Header } from './components/layout/Header';
@@ -181,6 +182,7 @@ function App() {
 
       <InstructionsModal isOpen={showInstructions} onClose={() => setShowInstructions(false)} />
       <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} />
+      <Analytics />
     </div>
   );
 }
