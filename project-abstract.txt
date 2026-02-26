@@ -1,0 +1,11 @@
+Lego Puzzle Editor - Project Abstract
+
+Lego Puzzle Editor is a browser-based interactive puzzle platform developed for the Computer Science Escape Room at the CS Department in Ben-Gurion University. The project provides a sustainable system where any user can create, edit, and publish puzzles for students to solve. The Lego concept was chosen as a fun and engaging theme, branding the experience as the Lego Escape Room.
+
+The platform supports both 3D and 2D rendering modes. 3D puzzles are rendered using Three.js with cinematic effects including bloom, vignette, dynamic lighting, and Lego-accurate stud geometry. 2D puzzles use SVG with dynamic cell sizing. A built-in Monaco Editor allows any user to author puzzles as JSON directly in the browser, validated at runtime by Zod schemas.
+
+The core technologies include React 19.2, TypeScript 5.9, Vite 7.3, Three.js 0.182, @react-three/fiber 9.5, Zustand 5.0 for state management, Tailwind CSS 4.1, Monaco Editor 0.55, Zod 4.3, Motion 12.34, and Radix UI 1.4.
+
+A key design goal was composability. We created a set of validation rules - coverage, overlap, bounds, goal reaching, pattern matching, movement constraints, and more - that can be layered and composed on top of each other. This allows anyone to create entirely new puzzle types by combining existing rules without writing code. The platform ships with 15+ preset puzzles across 6 categories including coverage, fit-all, slider/Klotski, binary pattern, nonogram, and brain teasers, all built from these same composable rules.
+
+The architecture cleanly separates rendering from logic, making the system extensible to new puzzle types, validators, and renderers as the escape room evolves.
