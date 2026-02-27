@@ -65,7 +65,11 @@ async function callModel(apiKey: string, messages: ChatMessage[], model: string)
         }
 
         const data = await response.json();
-        const assistantMessage = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+        const assistantMessage = data.choices?.[0]?.message?.content;
+        if (!assistantMessage) {
+            console.warn(`Empty response from ${model}:`, JSON.stringify(data));
+            return { success: false, message: '', error: `Model returned an empty response. It may be temporarily unavailable.` };
+        }
         return { success: true, message: assistantMessage };
     } catch (error) {
         console.error(`Chat API error (${model}):`, error);
