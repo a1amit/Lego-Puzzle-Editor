@@ -6,7 +6,7 @@ export function CinematicEffects() {
 
   return (
     <>
-      <EffectComposer multisampling={4} enableNormalPass={false}>
+      <EffectComposer multisampling={4}>
         <Bloom
           intensity={postprocessing.bloom.intensity}
           luminanceThreshold={postprocessing.bloom.luminanceThreshold}

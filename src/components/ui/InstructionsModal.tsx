@@ -669,7 +669,7 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-[100vw] sm:max-w-3xl max-h-[100vh] sm:max-h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
@@ -683,7 +683,7 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
-          <TabsList className="flex-shrink-0 mx-6 mt-2 !h-auto flex-wrap justify-start bg-transparent gap-1 p-0 border-b border-border pb-2">
+          <TabsList className="flex-shrink-0 mx-6 mt-2 !h-auto overflow-x-auto flex-nowrap justify-start bg-transparent gap-1 p-0 border-b border-border pb-2 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <TabsTrigger value="overview" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Layers className="w-3.5 h-3.5" />
               Overview

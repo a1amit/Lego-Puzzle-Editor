@@ -14,7 +14,7 @@
  * - Server-side validation
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   Coordinate2D,
   Coordinate3D,
@@ -28,6 +28,8 @@ import type {
   ViewMode,
   MovementRule,
 } from './types';
+import { SoundManager } from '../services/SoundManager';
+import { haptics } from '../services/haptics';
 import {
   rotateShape,
   calculateZLevel,
@@ -46,6 +48,18 @@ import type { PuzzleDefinition } from '../types/puzzle';
 import { SHAPE_LIBRARY } from '../types/puzzle';
 
 // ============================================
+// UNDO / REDO SNAPSHOT
+// ============================================
+
+interface EngineSnapshot {
+  board: EngineBoard;
+  inventory: InventoryState;
+  moveCount: number;
+}
+
+const MAX_UNDO_HISTORY = 50;
+
+// ============================================
 // HOOK CONFIGURATION
 // ============================================
 
@@ -62,6 +76,14 @@ interface UsePuzzleEngineReturn extends EngineState, EngineActions {
   config: EngineConfig;
   /** Load a new puzzle */
   loadPuzzle: (puzzle: PuzzleDefinition) => void;
+  /** Undo the last action */
+  undo: () => void;
+  /** Redo the last undone action */
+  redo: () => void;
+  /** Whether undo is available */
+  canUndo: boolean;
+  /** Whether redo is available */
+  canRedo: boolean;
 }
 
 // ============================================
@@ -115,6 +137,24 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
+
+  // Undo / Redo stacks (using refs to avoid stale closures in callbacks)
+  const undoStackRef = useRef<EngineSnapshot[]>([]);
+  const redoStackRef = useRef<EngineSnapshot[]>([]);
+  const [undoLen, setUndoLen] = useState(0);
+  const [redoLen, setRedoLen] = useState(0);
+
+  const pushSnapshot = useCallback(() => {
+    const snapshot: EngineSnapshot = {
+      board: { ...board, placedPieces: [...board.placedPieces] },
+      inventory: new Map(inventory),
+      moveCount,
+    };
+    undoStackRef.current = [...undoStackRef.current.slice(-(MAX_UNDO_HISTORY - 1)), snapshot];
+    redoStackRef.current = [];
+    setUndoLen(undoStackRef.current.length);
+    setRedoLen(0);
+  }, [board, inventory, moveCount]);
 
   // Derived configuration
   const config = useMemo(() => deriveConfig(puzzle, viewModeOverride), [puzzle, viewModeOverride]);
@@ -206,6 +246,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       return false;
     }
 
+    // Save snapshot for undo
+    pushSnapshot();
+
     // Create new placed piece
     const placedPiece: PlacedPiece = {
       id: pieceId,
@@ -229,11 +272,11 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     });
 
     setPreviewRotation(0);
-
-    // Validation runs automatically via useEffect when board changes
+    SoundManager.getInstance().play('snap');
+    haptics.medium();
 
     return true;
-  }, [puzzle, inventory, board, config, previewRotation]);
+  }, [puzzle, inventory, board, config, previewRotation, pushSnapshot]);
 
   // ============================================
   // PIECE REMOVAL
@@ -246,6 +289,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
 
     const piece = board.placedPieces.find(p => p.instanceId === instanceId);
     if (!piece) return;
+
+    // Save snapshot for undo
+    pushSnapshot();
 
     // Find all pieces stacked on top
     const stackedIds = findPiecesStackedOnTop(board, piece);
@@ -270,8 +316,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       return newInventory;
     });
 
-    // Validation runs automatically via useEffect when board changes
-  }, [board, puzzle]);
+    SoundManager.getInstance().play('undo');
+    haptics.light();
+  }, [board, puzzle, pushSnapshot]);
 
   // ============================================
   // PIECE MOVEMENT
@@ -285,6 +332,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     if (piece.position.x === destination.x && piece.position.y === destination.y) {
       return true; // No change needed
     }
+
+    // Save snapshot for undo before mutation
+    pushSnapshot();
 
     // For sliding puzzles, validate the move
     if (config.movementRule === 'SLIDING_ONLY') {
@@ -374,10 +424,11 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     }
     // Increment move count for successful moves
     setMoveCount(prev => prev + 1);
+    SoundManager.getInstance().play('slide');
+    haptics.light();
 
-    // Validation runs automatically via useEffect when board changes
     return true;
-  }, [board, config]);
+  }, [board, config, pushSnapshot]);
 
   // ============================================
   // PIECE ROTATION
@@ -386,9 +437,10 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   const rotatePiece = useCallback((instanceId: string) => {
     // Check if rotation is disabled
     if (!config.rotationEnabled) {
-      console.log('Rotation is disabled for this puzzle');
       return;
     }
+
+    pushSnapshot();
 
     setBoard(prev => ({
       ...prev,
@@ -399,8 +451,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       ),
     }));
 
-    // Validation runs automatically via useEffect when board changes
-  }, [config.rotationEnabled]);
+    SoundManager.getInstance().play('rotate');
+    haptics.light();
+  }, [config.rotationEnabled, pushSnapshot]);
 
   // ============================================
   // SELECTION
@@ -409,6 +462,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   const selectPiece = useCallback((pieceId: string | null) => {
     if (pieceId !== selectedPieceId) {
       setPreviewRotation(0);
+      if (pieceId) SoundManager.getInstance().play('select');
     }
     setSelectedPieceId(pieceId);
   }, [selectedPieceId]);
@@ -447,6 +501,10 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     setSelectedPieceId(null);
     setPreviewRotation(0);
     setMoveCount(0);
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    setUndoLen(0);
+    setRedoLen(0);
   }, [puzzle]);
 
   const loadPuzzle = useCallback((newPuzzle: PuzzleDefinition) => {
@@ -458,7 +516,67 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     setSelectedPieceId(null);
     setPreviewRotation(0);
     setMoveCount(0);
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    setUndoLen(0);
+    setRedoLen(0);
   }, []);
+
+  // ============================================
+  // UNDO / REDO
+  // ============================================
+
+  const undo = useCallback(() => {
+    const stack = undoStackRef.current;
+    if (stack.length === 0) return;
+
+    const currentSnapshot: EngineSnapshot = {
+      board: { ...board, placedPieces: [...board.placedPieces] },
+      inventory: new Map(inventory),
+      moveCount,
+    };
+
+    const prev = stack[stack.length - 1];
+    undoStackRef.current = stack.slice(0, -1);
+    redoStackRef.current = [...redoStackRef.current, currentSnapshot];
+    setUndoLen(undoStackRef.current.length);
+    setRedoLen(redoStackRef.current.length);
+
+    setBoard(prev.board);
+    setInventory(prev.inventory);
+    setMoveCount(prev.moveCount);
+    setSelectedPieceId(null);
+    setPreviewRotation(0);
+
+    SoundManager.getInstance().play('undo');
+    haptics.light();
+  }, [board, inventory, moveCount]);
+
+  const redo = useCallback(() => {
+    const stack = redoStackRef.current;
+    if (stack.length === 0) return;
+
+    const currentSnapshot: EngineSnapshot = {
+      board: { ...board, placedPieces: [...board.placedPieces] },
+      inventory: new Map(inventory),
+      moveCount,
+    };
+
+    const next = stack[stack.length - 1];
+    redoStackRef.current = stack.slice(0, -1);
+    undoStackRef.current = [...undoStackRef.current, currentSnapshot];
+    setUndoLen(undoStackRef.current.length);
+    setRedoLen(redoStackRef.current.length);
+
+    setBoard(next.board);
+    setInventory(next.inventory);
+    setMoveCount(next.moveCount);
+    setSelectedPieceId(null);
+    setPreviewRotation(0);
+
+    SoundManager.getInstance().play('undo');
+    haptics.light();
+  }, [board, inventory, moveCount]);
 
   // ============================================
   // RETURN
@@ -488,6 +606,12 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     validateBoard,
     resetBoard,
     loadPuzzle,
+
+    // Undo / Redo
+    undo,
+    redo,
+    canUndo: undoLen > 0,
+    canRedo: redoLen > 0,
   };
 }
 

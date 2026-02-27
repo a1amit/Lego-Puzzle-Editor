@@ -69,7 +69,7 @@ function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onS
           ? 'bg-primary/12 border-primary/60 ring-1 ring-primary/70 shadow-lg shadow-primary/15 scale-[1.03]'
           : 'bg-card/65 border-border/70 hover:bg-card/90 hover:border-primary/30'
         }
-        ${!isAvailable ? 'opacity-40 cursor-not-allowed saturate-0' : 'cursor-pointer hover:scale-[1.01] active:scale-[0.99]'}
+        ${!isAvailable ? 'opacity-40 cursor-not-allowed saturate-0' : 'cursor-pointer hover:scale-[1.01] active:scale-[0.97]'}
       `}
       onClick={() => isAvailable && onSelect()}
       disabled={!isAvailable}
@@ -162,14 +162,14 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
           <span>{usedBricks} / {totalBricks} bricks placed</span>
           <span className="font-mono tabular-nums text-foreground/90">{Math.round(usedPercent)}%</span>
         </div>
-        <Progress value={usedPercent} className="mt-2 h-1.5" />
+        <Progress value={usedPercent} className="mt-2 h-1.5 [&>[data-slot=progress-indicator]]:transition-all [&>[data-slot=progress-indicator]]:duration-500 [&>[data-slot=progress-indicator]]:ease-out" />
       </div>
 
       {/* Rotation control when brick is selected */}
       {isInventorySelection && (
         <div className="flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-primary/15 via-primary/10 to-transparent border-b border-primary/30 flex items-center justify-between">
           <span className="text-xs text-primary font-semibold tracking-wide">Pre-rotate before placing</span>
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 border-primary/35 text-primary hover:bg-primary/20 shadow-sm" onClick={() => rotatePreview()}>
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 border-primary/35 text-primary hover:bg-primary/20 shadow-sm active:scale-[0.97]" onClick={() => rotatePreview()}>
             <RotateCw className="w-3 h-3" />
             Rotate ({previewRotation}°)
           </Button>
@@ -183,7 +183,7 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
             This puzzle does not use an inventory.
           </p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-3">
             {puzzle.inventory.map((brick) => (
               <BrickItem
                 key={brick.id}

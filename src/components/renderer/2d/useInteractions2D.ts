@@ -73,16 +73,22 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
     return allValidCells;
   }, [selectedPlacedPiece, board, config.movementRule]);
 
+  // ---- rotation handler (shared by keyboard R key and on-screen button) ----
+
+  const handleRotate = useCallback(() => {
+    if (selectedPlacedPiece) {
+      rotatePiece(selectedPlacedPiece.instanceId);
+    } else if (selectedInventoryPiece) {
+      rotatePreview();
+    }
+  }, [selectedPlacedPiece, selectedInventoryPiece, rotatePiece, rotatePreview]);
+
   // ---- keyboard handler ----
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'KeyR') {
-        if (selectedPlacedPiece) {
-          rotatePiece(selectedPlacedPiece.instanceId);
-        } else if (selectedInventoryPiece) {
-          rotatePreview();
-        }
+        handleRotate();
       } else if (e.code === 'Escape') {
         selectPiece(null);
       } else if ((e.code === 'Delete' || e.code === 'Backspace') && selectedPlacedPiece) {
@@ -93,7 +99,7 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPlacedPiece, selectedInventoryPiece, rotatePiece, rotatePreview, selectPiece, removePiece]);
+  }, [handleRotate, selectedPlacedPiece, selectPiece, removePiece]);
 
   // ---- cell click ----
 
@@ -255,5 +261,6 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
     isGhostValid,
     handleCellClick,
     handlePieceClick,
+    handleRotate,
   };
 }

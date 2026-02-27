@@ -126,6 +126,23 @@ export function SvgDefs({ pieces, inventoryColors, cellSize }: SvgDefsProps) {
         <feComposite in="SourceGraphic" in2="offsetBlur" operator="over" />
       </filter>
 
+      {/* Brick inner shadow for depth effect */}
+      <filter id="brick-inner-shadow" x="-5%" y="-5%" width="110%" height="120%">
+        {/* Invert the source alpha to create an inner shadow mask */}
+        <feComponentTransfer in="SourceAlpha" result="inverse">
+          <feFuncA type="table" tableValues="1 0" />
+        </feComponentTransfer>
+        <feGaussianBlur in="inverse" stdDeviation="1.5" result="blur" />
+        <feOffset in="blur" dx="0" dy="1" result="offsetBlur" />
+        <feFlood floodColor="#000" floodOpacity="0.25" result="color" />
+        <feComposite in="color" in2="offsetBlur" operator="in" result="shadow" />
+        <feComposite in="shadow" in2="SourceAlpha" operator="in" result="clipped" />
+        <feMerge>
+          <feMergeNode in="SourceGraphic" />
+          <feMergeNode in="clipped" />
+        </feMerge>
+      </filter>
+
       {/* CSS animation for pulsing destination circles */}
       <style>{`
         @keyframes pulse-dest {
@@ -135,8 +152,18 @@ export function SvgDefs({ pieces, inventoryColors, cellSize }: SvgDefsProps) {
         @keyframes dash-march {
           to { stroke-dashoffset: -16; }
         }
+        @keyframes piece-place {
+          from { transform: scale(0.85); }
+          to { transform: scale(1.0); }
+        }
         .dest-pulse { animation: pulse-dest 1.5s ease-in-out infinite; }
         .dash-march { animation: dash-march 0.6s linear infinite; }
+        .piece-place {
+          animation: piece-place 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .piece-slide {
+          transition: transform 200ms ease-out;
+        }
       `}</style>
 
       {/* Grid pattern */}

@@ -13,6 +13,8 @@ import { getValidSlideDestinations, generateInstanceId } from '../engine/utils';
 import type { EngineBoard, PlacedPiece } from '../engine/types';
 import { createInitialBoard, createInitialInventory } from '../engine/boardFactory';
 import { enrichValidationRules, hasSlidingOnlyRule, hasNoBrickRemovalRule } from '../engine/validationHelpers';
+import { SoundManager } from '../services/SoundManager';
+import { haptics } from '../services/haptics';
 
 // ============================================
 // UNDO / REDO SNAPSHOT
@@ -51,6 +53,8 @@ interface PuzzleStore {
 
   // Action feedback
   lastActionError: string | null;
+  shakeBoard: boolean;
+  completionProgress: 'normal' | 'building' | 'almost';
 
   // Undo / Redo
   undoStack: BoardSnapshot[];
@@ -172,7 +176,10 @@ function engineBoardToBoardState(engine: EngineBoard): BoardState {
 }
 
 function setActionError(set: (partial: Partial<PuzzleStore>) => void, message: string) {
-  set({ lastActionError: message });
+  set({ lastActionError: message, shakeBoard: true });
+  SoundManager.getInstance().play('invalid');
+  haptics.error();
+  setTimeout(() => set({ shakeBoard: false }), 400);
   setTimeout(() => set({ lastActionError: null }), 3000);
 }
 
@@ -184,12 +191,54 @@ function computeValidation(
   puzzle: PuzzleDefinition | null,
   boardState: BoardState,
   moveCount: number,
-): { validationResults: ValidationResult[]; isComplete: boolean } {
-  if (!puzzle) return { validationResults: [], isComplete: false };
+): { validationResults: ValidationResult[]; isComplete: boolean; completionProgress: 'normal' | 'building' | 'almost' } {
+  if (!puzzle) return { validationResults: [], isComplete: false, completionProgress: 'normal' };
   const rulesWithParams = enrichValidationRules(puzzle, moveCount);
   const results = ValidationRegistry.validate(boardState, rulesWithParams);
   const isComplete = ValidationRegistry.isAllValid(results);
-  return { validationResults: results, isComplete };
+
+  const passCount = results.filter(r => r.isValid).length;
+  const total = results.length;
+  const ratio = total > 0 ? passCount / total : 0;
+  let completionProgress: 'normal' | 'building' | 'almost' = 'normal';
+  if (ratio >= 0.9) completionProgress = 'almost';
+  else if (ratio >= 0.75) completionProgress = 'building';
+
+  return { validationResults: results, isComplete, completionProgress };
+}
+
+// ============================================
+// localStorage persistence helpers
+// ============================================
+
+const STORAGE_PREFIX = 'lego-puzzle-progress:';
+
+function savePuzzleProgress(puzzleTitle: string, boardState: BoardState, inventoryState: Map<string, number>, moveCount: number) {
+  try {
+    const data = {
+      placedBricks: boardState.placedBricks,
+      inventory: Array.from(inventoryState.entries()),
+      moveCount,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(STORAGE_PREFIX + puzzleTitle, JSON.stringify(data));
+  } catch { /* quota exceeded or unavailable */ }
+}
+
+function loadPuzzleProgress(puzzleTitle: string): { placedBricks: BoardState['placedBricks']; inventory: [string, number][]; moveCount: number } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + puzzleTitle);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function clearPuzzleProgress(puzzleTitle: string) {
+  try {
+    localStorage.removeItem(STORAGE_PREFIX + puzzleTitle);
+  } catch { /* ignore */ }
 }
 
 // ============================================
@@ -223,6 +272,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   draggedBrick: null,
 
   lastActionError: null,
+  shakeBoard: false,
+  completionProgress: 'normal',
 
   undoStack: [],
   redoStack: [],
@@ -232,19 +283,35 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   // ------------------------------------------
 
   setPuzzle: (puzzle) => {
+    const freshBoard = engineBoardToBoardState(createInitialBoard(puzzle));
+    const freshInventory = createInitialInventory(puzzle);
+    let boardState = freshBoard;
+    let inventoryState = freshInventory;
+    let moveCount = 0;
+
+    // Silently restore saved progress if available
+    if (puzzle.title) {
+      const saved = loadPuzzleProgress(puzzle.title);
+      if (saved && saved.placedBricks.length > 0) {
+        boardState = { ...freshBoard, placedBricks: saved.placedBricks };
+        inventoryState = new Map(saved.inventory);
+        moveCount = saved.moveCount ?? 0;
+      }
+    }
+
     set({
       puzzle,
       jsonSource: JSON.stringify(puzzle, null, 2),
-      boardState: engineBoardToBoardState(createInitialBoard(puzzle)),
-      inventoryState: createInitialInventory(puzzle),
-      validationResults: [],
-      isComplete: false,
-      moveCount: 0,
+      boardState,
+      inventoryState,
+      moveCount,
       selectedBrickId: null,
       previewRotation: 0,
       undoStack: [],
       redoStack: [],
       lastActionError: null,
+      shakeBoard: false,
+      ...computeValidation(puzzle, boardState, moveCount),
     });
   },
 
@@ -269,6 +336,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
         undoStack: [],
         redoStack: [],
         lastActionError: null,
+        shakeBoard: false,
+        completionProgress: 'normal',
       });
 
       return true;
@@ -342,6 +411,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       redoStack: [],
       ...computeValidation(get().puzzle, newBoardState, get().moveCount),
     });
+    SoundManager.getInstance().play('snap');
+    haptics.medium();
   },
 
   removeBrick: (instanceId) => {
@@ -386,6 +457,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       redoStack: [],
       ...computeValidation(get().puzzle, newBoardState, get().moveCount),
     });
+    SoundManager.getInstance().play('undo');
+    haptics.light();
   },
 
   moveBrick: (instanceId, newPosition) => {
@@ -467,6 +540,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       redoStack: [],
       ...computeValidation(get().puzzle, newBoardState, newMoveCount),
     });
+    SoundManager.getInstance().play('slide');
+    haptics.light();
   },
 
   rotateBrick: (instanceId) => {
@@ -493,6 +568,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       redoStack: [],
       ...computeValidation(get().puzzle, newBoardState, get().moveCount),
     });
+    SoundManager.getInstance().play('rotate');
+    haptics.light();
   },
 
   // ------------------------------------------
@@ -503,6 +580,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     const { selectedBrickId } = get();
     if (brickId !== selectedBrickId) {
       set({ selectedBrickId: brickId, previewRotation: 0 });
+      if (brickId) SoundManager.getInstance().play('select');
     } else {
       set({ selectedBrickId: brickId });
     }
@@ -523,6 +601,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
 
   resetPuzzle: () => {
     const { puzzle } = get();
+    if (puzzle?.title) clearPuzzleProgress(puzzle.title);
     set({
       boardState: engineBoardToBoardState(createInitialBoard(puzzle)),
       inventoryState: createInitialInventory(puzzle),
@@ -534,6 +613,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       undoStack: [],
       redoStack: [],
       lastActionError: null,
+      shakeBoard: false,
+      completionProgress: 'normal',
     });
   },
 
@@ -577,6 +658,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       previewRotation: 0,
       ...computeValidation(get().puzzle, prev.boardState, prev.moveCount),
     });
+    SoundManager.getInstance().play('undo');
+    haptics.light();
   },
 
   redo: () => {
@@ -600,6 +683,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       previewRotation: 0,
       ...computeValidation(get().puzzle, next.boardState, next.moveCount),
     });
+    SoundManager.getInstance().play('undo');
+    haptics.light();
   },
 
   // ------------------------------------------
@@ -623,3 +708,21 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     return hasSlidingOnlyRule(puzzle);
   },
 }));
+
+// ============================================
+// localStorage auto-save (debounced via subscribe)
+// ============================================
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+usePuzzleStore.subscribe((state, prevState) => {
+  // Only save when board actually changes
+  if (state.boardState === prevState.boardState) return;
+  const title = state.puzzle?.title;
+  if (!title) return;
+
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    savePuzzleProgress(title, state.boardState, state.inventoryState, state.moveCount);
+  }, 500);
+});

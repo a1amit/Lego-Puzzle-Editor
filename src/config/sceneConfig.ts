@@ -40,8 +40,8 @@ export const SCENE_3D = {
     ambient: { intensity: 0.44 },
     hemisphere: {
       intensity: 0.36,
-      skyColor: '#e3ecff',
-      groundColor: '#1c2637',
+      skyColor: '#fff5e6',
+      groundColor: '#2a2035',
     },
     main: { intensity: 1.26, position: [11, 18, 9] as const },
     fill: { intensity: 0.32, position: [-8, 10, -6] as const },
@@ -84,11 +84,11 @@ export const BRICK_3D = {
   stackHeight: 0.55,   // height + studHeight
   roughness: 0.32,
   metalness: 0.06,
-  clearcoat: 0.8,
+  clearcoat: 0.55,
   clearcoatRoughness: 0.26,
   studRoughness: 0.26,
   studMetalness: 0.08,
-  studClearcoat: 0.9,
+  studClearcoat: 0.75,
   studClearcoatRoughness: 0.2,
   reflectionRadius: 0.1,  // studRadius * 0.4
   reflectionOpacity: 0.2,
@@ -112,8 +112,9 @@ export const BOARD_3D = {
   studMetalness: 0.08,
   basePlateOffset: 0.1,
   rimOverhang: 0.3,
+  underGlowOpacity: 0.18,
   colors: {
-    normal: '#f4f6fa',
+    normal: '#A0A5A9',
     blocked: '#2f384a',
     goal: '#73611f',
     goalStud: '#8d7a33',
@@ -180,7 +181,7 @@ export const SCENE_2D = {
   /** Base cell size in pixels — used as the maximum when auto-sizing */
   maxCellSize: 80,
   /** Minimum cell size to keep things usable */
-  minCellSize: 30,
+  minCellSize: 40,
   /** Default cell size when container dimensions are unknown */
   defaultCellSize: 60,
   cellGap: 2,

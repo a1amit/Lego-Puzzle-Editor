@@ -1,16 +1,17 @@
 /**
  * Chat Panel Component
  *
- * Dark-themed chat interface with draggable positioning.
+ * Dark-themed chat interface with draggable positioning (desktop)
+ * and bottom-sheet pattern (mobile).
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { sendChatMessage, isApiKeyConfigured, ChatMessage } from '../../services/ChatService';
 import { usePuzzleStore } from '../../store/puzzleStore';
-import { ArrowUp, Square, X, Plus, Lightbulb, ClipboardCheck, BarChart3, Zap } from 'lucide-react';
+import { ArrowUp, Square, X, Plus, Lightbulb, ClipboardCheck, BarChart3, Zap, GripHorizontal } from 'lucide-react';
 import legoAvatarImg from '../../assets/lego-avatar.png';
 
 // Lego Minifigure Helper Icon
@@ -40,23 +41,44 @@ function isRTL(text: string) {
   return rtlRegex.test(text);
 }
 
+/** Hook to detect mobile viewport (<768px) */
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < breakpoint : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Draggable state
+  const isMobile = useIsMobile();
+
+  // Desktop draggable state (pointer-based)
   const [position, setPosition] = useState<{ x: number, y: number } | null>(null);
   const isDragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
+
+  // Mobile bottom-sheet state
+  const [sheetTranslateY, setSheetTranslateY] = useState(0);
+  const sheetDragStartY = useRef<number | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Initialize position from storage or default
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !isMobile) {
       const saved = localStorage.getItem('chat_panel_position');
       if (saved) {
         try {
@@ -69,47 +91,65 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
       const defaultY = Math.max(20, window.innerHeight - 680);
       setPosition({ x: 20, y: defaultY });
     }
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
+
+  // Reset bottom-sheet translate when opened
+  useEffect(() => {
+    if (isOpen && isMobile) setSheetTranslateY(0);
+  }, [isOpen, isMobile]);
 
   // Connect to puzzle store for context
   const { puzzle, isComplete, moveCount, boardState } = usePuzzleStore();
 
-  // Drag Handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!position) return;
+  // Desktop Drag Handlers (pointer events)
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (isMobile || !position) return;
     isDragging.current = true;
     dragOffset.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y
     };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging.current) return;
-      setPosition({
-        x: e.clientX - dragOffset.current.x,
-        y: e.clientY - dragOffset.current.y
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    setPosition({
+      x: e.clientX - dragOffset.current.x,
+      y: e.clientY - dragOffset.current.y
+    });
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    if (isDragging.current) {
+      isDragging.current = false;
+      setPosition(prev => {
+        if (prev) localStorage.setItem('chat_panel_position', JSON.stringify(prev));
+        return prev;
       });
-    };
+    }
+  }, []);
 
-    const handleMouseUp = () => {
-      if (isDragging.current) {
-        isDragging.current = false;
-        if (position) {
-          localStorage.setItem('chat_panel_position', JSON.stringify(position));
-        }
-      }
-    };
+  // Mobile bottom-sheet swipe handlers
+  const handleSheetPointerDown = (e: React.PointerEvent) => {
+    sheetDragStartY.current = e.clientY;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+  const handleSheetPointerMove = (e: React.PointerEvent) => {
+    if (sheetDragStartY.current === null) return;
+    const dy = e.clientY - sheetDragStartY.current;
+    // Only allow dragging downward
+    setSheetTranslateY(Math.max(0, dy));
+  };
 
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [position]);
+  const handleSheetPointerUp = () => {
+    if (sheetTranslateY > 100) {
+      onClose();
+    }
+    setSheetTranslateY(0);
+    sheetDragStartY.current = null;
+  };
 
   const getConversationHistory = (): ChatMessage[] => {
     return messages.map(m => ({
@@ -205,7 +245,9 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
   const apiConfigured = isApiKeyConfigured();
   const isInputRTL = isRTL(inputValue);
 
-  if (!isOpen || !position) return null;
+  if (!isOpen) return null;
+  // Desktop needs position loaded
+  if (!isMobile && !position) return null;
 
   // Suggestion blocks for empty state
   const suggestions = [
@@ -231,21 +273,204 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
     },
   ];
 
+  /** Shared chat content (used in both desktop and mobile layouts) */
+  const chatContent = (
+    <>
+      {/* Suggestion cards (empty state) */}
+      {messages.length === 0 && (
+        <div className="px-4 py-5 grid grid-cols-2 gap-2.5 overflow-y-auto">
+          {!apiConfigured && (
+            <div className="col-span-2 px-3 py-2 bg-warning/10 rounded-lg border border-warning/30 text-xs text-warning mb-1">
+              API key not configured in .env file
+            </div>
+          )}
+          {suggestions.map((block, index) => (
+            <button
+              key={block.title}
+              onClick={() => sendMessage(block.content)}
+              disabled={!apiConfigured}
+              className="p-3.5 flex flex-col text-left gap-3 rounded-xl w-full bg-secondary/50 hover:bg-secondary/80 border border-border/50 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed animate-suggestion-in"
+              style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'both' }}
+            >
+              {block.icon}
+              <div>
+                <div className="text-sm font-semibold text-foreground">{block.title}</div>
+                <div className="text-xs text-muted-foreground leading-snug mt-0.5">{block.content}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Messages area */}
+      {messages.length > 0 && (
+        <div className="flex-1 overflow-y-auto p-3" role="log" aria-live="polite">
+          <div className="flex flex-col gap-1">
+            {messages.map((message, index) => {
+              const isMsgRTL = isRTL(message.content);
+              return message.role === "user" ? (
+                <UserBubble key={index} content={message.content} rtl={isMsgRTL} />
+              ) : (
+                <AIBubble key={index} content={message.content} rtl={isMsgRTL} />
+              );
+            })}
+
+            {/* Loading dots */}
+            {isLoading && (
+              <div className="p-2 flex gap-2 items-start animate-message-in">
+                <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-primary/60 to-primary">
+                  <LegoHelperIcon className="w-5 h-5" />
+                </div>
+                <div className="px-4 py-3 rounded-xl bg-secondary border border-border/50">
+                  <div className="flex gap-1.5">
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error */}
+            {error && (
+              <div className="flex justify-center py-2 animate-message-in">
+                <div className="bg-destructive/10 text-destructive rounded-xl px-4 py-2 text-xs border border-destructive/30">
+                  {error}
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} className="pb-2" />
+          </div>
+        </div>
+      )}
+
+      {/* Spacer when empty */}
+      {messages.length === 0 && <div className="flex-1" />}
+
+      {/* Input area */}
+      <div className="py-2 px-4 shrink-0">
+        <div className="flex items-end gap-2 bg-secondary/80 rounded-xl border border-border/50 focus-within:border-primary/50 transition-colors duration-150">
+          <textarea
+            ref={textareaRef}
+            value={inputValue}
+            dir={isInputRTL ? 'rtl' : 'ltr'}
+            onChange={handleTextareaChange}
+            onKeyDown={handleKeyDown}
+            placeholder={apiConfigured ? "Type a message..." : "Setup API key in .env..."}
+            disabled={!apiConfigured || isLoading}
+            rows={1}
+            className="flex-1 min-w-0 px-4 py-3 bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-none overflow-hidden disabled:opacity-50"
+            style={{ resize: 'none' }}
+          />
+          {/* Send / Stop button */}
+          <div className="shrink-0 pb-2 pr-2">
+            {isLoading ? (
+              <button
+                onClick={() => {/* stop not implemented for non-streaming */}}
+                className="w-8 h-8 rounded-full bg-destructive flex items-center justify-center text-destructive-foreground transition-colors hover:bg-destructive/80 cursor-pointer"
+              >
+                <Square className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={() => sendMessage()}
+                disabled={!inputValue.trim() || !apiConfigured}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                  inputValue.trim() && apiConfigured
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/80'
+                    : 'bg-secondary text-muted-foreground cursor-not-allowed'
+                }`}
+              >
+                <ArrowUp className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  // ── Mobile bottom-sheet layout ──
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-50 font-sans" style={{ isolation: 'isolate' }}>
+        {/* Backdrop */}
+        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+        {/* Bottom sheet */}
+        <div
+          className="absolute bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border/50 rounded-t-2xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
+          style={{
+            maxHeight: '70vh',
+            transform: `translateY(${sheetTranslateY}px)`,
+            transition: sheetDragStartY.current !== null ? 'none' : 'transform 0.2s ease-out',
+          }}
+        >
+          {/* Drag handle */}
+          <div
+            className="flex items-center justify-center py-2 cursor-grab active:cursor-grabbing touch-none"
+            onPointerDown={handleSheetPointerDown}
+            onPointerMove={handleSheetPointerMove}
+            onPointerUp={handleSheetPointerUp}
+          >
+            <GripHorizontal className="w-8 h-1.5 text-muted-foreground/50" />
+          </div>
+
+          {/* Title bar */}
+          <div className="h-10 w-full flex items-center justify-between px-4 border-b border-border/50 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-primary/20">
+                <LegoHelperIcon className="w-4 h-4" />
+              </div>
+              <span className="text-foreground/90 text-sm font-medium tracking-tight">
+                Puzzle Assistant
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              {messages.length > 0 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleNewConversation(); }}
+                  className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-secondary transition-colors cursor-pointer"
+                  title="New conversation"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); onClose(); }}
+                className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-secondary transition-colors cursor-pointer"
+                aria-label="Close chat"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {chatContent}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Desktop floating window layout ──
   return (
-    <div className="fixed inset-0 z-[9999] font-sans pointer-events-none">
+    <div className="fixed inset-0 z-50 font-sans pointer-events-none" style={{ isolation: 'isolate' }}>
       {/* Chat Window */}
       <div
-        className="pointer-events-auto absolute w-full md:w-[420px] h-[600px] md:h-[620px] md:max-h-[80vh] bg-card/95 backdrop-blur-xl border border-border/50 md:rounded-xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
+        className="pointer-events-auto absolute w-[420px] h-[620px] max-h-[80vh] bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
         style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
+          left: `${position!.x}px`,
+          top: `${position!.y}px`,
           margin: 0,
         }}
       >
         {/* Title bar - dark, draggable */}
         <div
-          onMouseDown={handleMouseDown}
-          className="h-11 w-full flex items-center justify-between px-4 bg-background/90 backdrop-blur-md border-b border-border/50 cursor-move select-none shrink-0"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          className="h-11 w-full flex items-center justify-between px-4 bg-background/90 backdrop-blur-md border-b border-border/50 cursor-move select-none shrink-0 touch-none"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/20">
@@ -275,118 +500,7 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
           </div>
         </div>
 
-        {/* Suggestion cards (empty state) */}
-        {messages.length === 0 && (
-          <div className="px-4 py-5 grid grid-cols-2 gap-2.5 overflow-y-auto">
-            {!apiConfigured && (
-              <div className="col-span-2 px-3 py-2 bg-warning/10 rounded-lg border border-warning/30 text-xs text-warning mb-1">
-                API key not configured in .env file
-              </div>
-            )}
-            {suggestions.map((block, index) => (
-              <button
-                key={block.title}
-                onClick={() => sendMessage(block.content)}
-                disabled={!apiConfigured}
-                className="p-3.5 flex flex-col text-left gap-3 rounded-xl w-full bg-secondary/50 hover:bg-secondary/80 border border-border/50 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed animate-suggestion-in"
-                style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'both' }}
-              >
-                {block.icon}
-                <div>
-                  <div className="text-sm font-semibold text-foreground">{block.title}</div>
-                  <div className="text-xs text-muted-foreground leading-snug mt-0.5">{block.content}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Messages area */}
-        {messages.length > 0 && (
-          <div className="flex-1 overflow-y-auto p-3" role="log" aria-live="polite">
-            <div className="flex flex-col gap-1">
-              {messages.map((message, index) => {
-                const isMsgRTL = isRTL(message.content);
-                return message.role === "user" ? (
-                  <UserBubble key={index} content={message.content} rtl={isMsgRTL} />
-                ) : (
-                  <AIBubble key={index} content={message.content} rtl={isMsgRTL} />
-                );
-              })}
-
-              {/* Loading dots */}
-              {isLoading && (
-                <div className="p-2 flex gap-2 items-start animate-message-in">
-                  <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-primary/60 to-primary">
-                    <LegoHelperIcon className="w-5 h-5" />
-                  </div>
-                  <div className="px-4 py-3 rounded-xl bg-secondary border border-border/50">
-                    <div className="flex gap-1.5">
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Error */}
-              {error && (
-                <div className="flex justify-center py-2 animate-message-in">
-                  <div className="bg-destructive/10 text-destructive rounded-xl px-4 py-2 text-xs border border-destructive/30">
-                    {error}
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} className="pb-2" />
-            </div>
-          </div>
-        )}
-
-        {/* Spacer when empty */}
-        {messages.length === 0 && <div className="flex-1" />}
-
-        {/* Input area */}
-        <div className="py-2 px-4 shrink-0">
-          <div className="flex items-end gap-2 bg-secondary/80 rounded-xl border border-border/50 focus-within:border-primary/50 transition-colors duration-150">
-            <textarea
-              ref={textareaRef}
-              value={inputValue}
-              dir={isInputRTL ? 'rtl' : 'ltr'}
-              onChange={handleTextareaChange}
-              onKeyDown={handleKeyDown}
-              placeholder={apiConfigured ? "Type a message..." : "Setup API key in .env..."}
-              disabled={!apiConfigured || isLoading}
-              rows={1}
-              className="flex-1 min-w-0 px-4 py-3 bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-none overflow-hidden disabled:opacity-50"
-              style={{ resize: 'none' }}
-            />
-            {/* Send / Stop button */}
-            <div className="shrink-0 pb-2 pr-2">
-              {isLoading ? (
-                <button
-                  onClick={() => {/* stop not implemented for non-streaming */}}
-                  className="w-8 h-8 rounded-full bg-destructive flex items-center justify-center text-destructive-foreground transition-colors hover:bg-destructive/80 cursor-pointer"
-                >
-                  <Square className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  onClick={() => sendMessage()}
-                  disabled={!inputValue.trim() || !apiConfigured}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                    inputValue.trim() && apiConfigured
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/80'
-                      : 'bg-secondary text-muted-foreground cursor-not-allowed'
-                  }`}
-                >
-                  <ArrowUp className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        {chatContent}
       </div>
     </div>
   );

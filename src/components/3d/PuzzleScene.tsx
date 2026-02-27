@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, ContactShadows, Line } from '@react-three/drei';
 import * as THREE from 'three';
@@ -10,6 +10,32 @@ import { useHoverStore } from '../../store/hoverStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { getBrickCells, rotateShape } from '../../validation/ValidationRegistry';
 import { SCENE_3D, GOAL_INDICATOR_3D, COLORS } from '../../config/sceneConfig';
+
+// Error boundary to catch Three.js / WebGL crashes gracefully
+class SceneErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: string }
+> {
+  state = { hasError: false, error: '' };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-background/80 text-muted-foreground text-sm p-4 text-center">
+          <div>
+            <p className="mb-2 font-medium text-foreground">3D scene failed to load</p>
+            <p className="text-xs opacity-70">{this.state.error}</p>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Floating Goal Area Indicator - renders a visible frame above bricks
 function GoalAreaIndicator({
@@ -125,7 +151,7 @@ function FloatingPreviewBrick({
   color: string;
   rotation: number;
 }) {
-  const { camera, raycaster, pointer } = useThree();
+  const { camera, raycaster, pointer, invalidate } = useThree();
   const groupRef = useRef<THREE.Group>(null);
 
   // Refs for performance optimization - avoid recalculating when pointer hasn't moved
@@ -180,8 +206,10 @@ function FloatingPreviewBrick({
       const co = centerOffsetRef.current;
       groupRef.current.position.set(target.x - co.x, 0.5, target.z - co.z);
       groupRef.current.visible = true;
+      invalidate();
     } else if (groupRef.current) {
       groupRef.current.visible = false;
+      invalidate();
     }
   });
 
@@ -228,19 +256,19 @@ function FloatingPreviewBrick({
         {/* Circular arc */}
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.35, 0.04, 8, 24, Math.PI * 1.5]} />
-          <meshBasicMaterial color="#58A6FF" transparent opacity={0.9} />
+          <meshBasicMaterial color={COLORS.selection} transparent opacity={0.9} />
         </mesh>
         {/* Arrow head */}
         <mesh position={[0.35, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
           <coneGeometry args={[0.08, 0.16, 6]} />
-          <meshBasicMaterial color="#58A6FF" />
+          <meshBasicMaterial color={COLORS.selection} />
         </mesh>
       </group>
 
       {/* "Press R" hint - small indicator */}
       <mesh position={[centerOffset.x, 1.1, centerOffset.z]} rotation={[-Math.PI / 4, 0, 0]}>
         <planeGeometry args={[0.6, 0.25]} />
-        <meshBasicMaterial color="#58A6FF" transparent opacity={0.6} />
+        <meshBasicMaterial color={COLORS.selection} transparent opacity={0.6} />
       </mesh>
     </group>
   );
@@ -569,6 +597,22 @@ function DragDropManager() {
   );
 }
 
+// Invalidates the demand-mode render loop when store or hover state changes
+function StoreInvalidator() {
+  const { invalidate } = useThree();
+  const boardState = usePuzzleStore(s => s.boardState);
+  const selectedBrickId = usePuzzleStore(s => s.selectedBrickId);
+  const previewRotation = usePuzzleStore(s => s.previewRotation);
+  const validationResults = usePuzzleStore(s => s.validationResults);
+  const hoveredCell = useHoverStore(s => s.hoveredCell);
+
+  useEffect(() => {
+    invalidate();
+  }, [boardState, selectedBrickId, previewRotation, validationResults, hoveredCell, invalidate]);
+
+  return null;
+}
+
 // Scene lighting and environment
 function SceneLighting() {
   const { lighting, shadow } = SCENE_3D;
@@ -649,7 +693,7 @@ function FloatingPreviewWrapper() {
   );
 }
 
-export function PuzzleScene() {
+function PuzzleSceneInner() {
   const { selectedBrickId, boardState, rotatePreview } = usePuzzleStore();
 
   // Check if we have an inventory brick selected (not a placed brick)
@@ -681,6 +725,7 @@ export function PuzzleScene() {
     >
       <Canvas
         shadows
+        frameloop="demand"
         dpr={effectiveDpr}
         gl={{
           antialias: !isLargeBoard,
@@ -696,6 +741,7 @@ export function PuzzleScene() {
           scene.background = new THREE.Color(SCENE_3D.background.color);
         }}
         style={{ cursor: shouldHideCursor ? 'none' : 'auto' }}
+        onPointerMove={() => { /* demand mode: r3f auto-invalidates on pointer events */ }}
         onContextMenu={(e) => e.preventDefault()}
       >
         <PerspectiveCamera
@@ -717,6 +763,7 @@ export function PuzzleScene() {
           target={SCENE_3D.camera.target as unknown as [number, number, number]}
         />
 
+        <StoreInvalidator />
         <SceneLighting />
 
         <Suspense fallback={null}>
@@ -740,5 +787,13 @@ export function PuzzleScene() {
         <fog attach="fog" args={[SCENE_3D.fog.color, SCENE_3D.fog.near, SCENE_3D.fog.far]} />
       </Canvas>
     </div>
+  );
+}
+
+export function PuzzleScene() {
+  return (
+    <SceneErrorBoundary>
+      <PuzzleSceneInner />
+    </SceneErrorBoundary>
   );
 }

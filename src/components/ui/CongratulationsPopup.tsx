@@ -84,9 +84,17 @@ export function CongratulationsPopup({
 }: CongratulationsPopupProps) {
   const [phase, setPhase] = useState<'hidden' | 'enter' | 'visible'>('hidden');
 
+  // Detect reduced-motion preference
+  const prefersReducedMotion = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
+
   // Pre-compute random confetti positions so they don't change on re-render
-  const confettiPieces = useMemo(() =>
-    Array.from({ length: CONFETTI.particleCount + 10 }).map((_, i) => ({
+  const confettiPieces = useMemo(() => {
+    // No confetti for reduced-motion users
+    if (prefersReducedMotion) return [];
+    return Array.from({ length: CONFETTI.particleCount + 10 }).map((_, i) => ({
       left: Math.random() * 100,
       delay: Math.random() * 1.8,
       rotation: Math.random() * 360,
@@ -94,8 +102,9 @@ export function CongratulationsPopup({
       drift: (Math.random() - 0.5) * 120,
       color: CONFETTI.colors[i % CONFETTI.colors.length],
       isMinifig: i % 8 === 0, // every 8th piece is a minifig head
-    })),
-    [isVisible] // eslint-disable-line react-hooks/exhaustive-deps
+    }));
+  },
+    [isVisible, prefersReducedMotion] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   useEffect(() => {
@@ -146,7 +155,7 @@ export function CongratulationsPopup({
         </div>
 
         {/* ── Main card ── */}
-        <div className={`celebration-card ${phase !== 'hidden' ? 'celebration-card-enter' : ''}`}>
+        <div className={`celebration-card ${phase !== 'hidden' ? 'celebration-card-enter' : ''} ${prefersReducedMotion ? 'motion-reduce' : ''}`}>
           {/* Stud pattern background */}
           <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none opacity-[0.06]">
             <div className="grid grid-cols-8 gap-3 p-3">
@@ -175,7 +184,7 @@ export function CongratulationsPopup({
           {/* ── Content ── */}
           <div className="relative z-10 text-center px-8 pt-10 pb-8">
             {/* Animated Lego trophy brick */}
-            <div className="celebration-trophy">
+            <div className={prefersReducedMotion ? '' : 'celebration-trophy'}>
               <svg width="64" height="56" viewBox="0 0 64 56" fill="none" className="drop-shadow-lg">
                 {/* Main brick body */}
                 <rect x="4" y="16" width="56" height="36" rx="4" fill="#F5CD2F" />
@@ -198,20 +207,26 @@ export function CongratulationsPopup({
 
             {/* Title with staggered letter animation */}
             <DialogTitle className="celebration-title">
-              <span className="celebration-letter" style={{ animationDelay: '0.3s' }}>P</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.35s' }}>u</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.4s' }}>z</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.45s' }}>z</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.5s' }}>l</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.55s' }}>e</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.6s' }}>&nbsp;</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.65s' }}>S</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.7s' }}>o</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.75s' }}>l</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.8s' }}>v</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.85s' }}>e</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.9s' }}>d</span>
-              <span className="celebration-letter" style={{ animationDelay: '0.95s' }}>!</span>
+              {prefersReducedMotion ? (
+                <span>Puzzle Solved!</span>
+              ) : (
+                <>
+                  <span className="celebration-letter" style={{ animationDelay: '0.3s' }}>P</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.35s' }}>u</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.4s' }}>z</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.45s' }}>z</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.5s' }}>l</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.55s' }}>e</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.6s' }}>&nbsp;</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.65s' }}>S</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.7s' }}>o</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.75s' }}>l</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.8s' }}>v</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.85s' }}>e</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.9s' }}>d</span>
+                  <span className="celebration-letter" style={{ animationDelay: '0.95s' }}>!</span>
+                </>
+              )}
             </DialogTitle>
 
             {puzzleTitle && (
@@ -255,7 +270,7 @@ export function CongratulationsPopup({
             { pos: '-bottom-3.5 -left-3.5', color: 'bg-lego-yellow' },
             { pos: '-bottom-3.5 -right-3.5', color: 'bg-lego-green' },
           ].map(({ pos, color }, i) => (
-            <div key={i} className={`absolute ${pos} w-8 h-8 ${color} rounded-full border-2 border-background shadow-lg celebration-corner-stud`} style={{ animationDelay: `${0.6 + i * 0.1}s` }}>
+            <div key={i} className={`absolute ${pos} w-8 h-8 ${color} rounded-full border-2 border-background shadow-lg ${prefersReducedMotion ? '' : 'celebration-corner-stud'}`} style={prefersReducedMotion ? undefined : { animationDelay: `${0.6 + i * 0.1}s` }}>
               <div className="absolute inset-1.5 rounded-full border border-white/20" />
             </div>
           ))}

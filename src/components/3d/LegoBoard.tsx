@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { useHoverStore } from '../../store/hoverStore';
 import type { ValidationResult, NonogramHints } from '../../types/puzzle';
-import { BOARD_3D } from '../../config/sceneConfig';
+import { BOARD_3D, COLORS } from '../../config/sceneConfig';
 
 interface LegoBoardProps {
   width: number;
@@ -286,11 +286,11 @@ export function LegoBoard({
         const isGoal = goalCellSet.has(key);
 
         const highlightColor = isInvalid
-          ? '#F85149'
+          ? COLORS.invalidCell
           : isSlideDestination
-            ? '#3FB950'
+            ? COLORS.slideDestination
             : isHovered
-              ? '#58A6FF'
+              ? COLORS.selection
               : null;
 
         if (isBlocked) {
@@ -417,9 +417,9 @@ export function LegoBoard({
       <mesh position={[width / 2, -BOARD_DEPTH - 0.25, height / 2]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[Math.max(width, height) * 0.45, Math.max(width, height) * 0.72, 64]} />
         <meshBasicMaterial
-          color="#73b6ff"
+          color={COLORS.selection}
           transparent
-          opacity={0.1}
+          opacity={BOARD_3D.underGlowOpacity}
           side={THREE.DoubleSide}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
@@ -515,7 +515,7 @@ export function LegoBoard({
       <instancedMesh ref={goalRingRef} args={[undefined, undefined, maxInstances]}>
         <ringGeometry args={[0.32, 0.4, 4]} />
         <meshBasicMaterial
-          color="#F5C300"
+          color={COLORS.goalPost}
           transparent
           opacity={0.78}
           depthWrite={false}
