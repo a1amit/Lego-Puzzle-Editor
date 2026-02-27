@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../../config/puzzleCategories';
 import type { PuzzleCategory } from '../../config/puzzleCategories';
@@ -32,6 +33,9 @@ import {
   Columns2,
   Code2,
   Eye,
+  Menu,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 
 // 2x2 Lego brick grid logo
@@ -99,18 +103,57 @@ function CategorySubMenu({ cat }: { cat: PuzzleCategory }) {
   );
 }
 
+/** View mode toggle group (reused in desktop header + mobile menu) */
+function ViewModeToggle({ viewMode, onViewModeChange }: { viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void }) {
+  return (
+    <div className="flex items-center gap-0.5 p-1 bg-secondary/60 rounded-lg border border-border/50">
+      <Button
+        variant={viewMode === 'split' ? 'default' : 'ghost'}
+        size="sm"
+        className="h-7 px-3 text-xs gap-1.5"
+        onClick={() => onViewModeChange('split')}
+      >
+        <Columns2 className="h-3.5 w-3.5" />
+        Split
+      </Button>
+      <Button
+        variant={viewMode === 'editor' ? 'default' : 'ghost'}
+        size="sm"
+        className="h-7 px-3 text-xs gap-1.5"
+        onClick={() => onViewModeChange('editor')}
+      >
+        <Code2 className="h-3.5 w-3.5" />
+        Editor
+      </Button>
+      <Button
+        variant={viewMode === 'preview' ? 'default' : 'ghost'}
+        size="sm"
+        className="h-7 px-3 text-xs gap-1.5"
+        onClick={() => onViewModeChange('preview')}
+      >
+        <Eye className="h-3.5 w-3.5" />
+        Preview
+      </Button>
+    </div>
+  );
+}
+
 export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode, onViewModeChange }: HeaderProps) {
-  const { puzzle, isComplete, setPuzzle, resetPuzzle } = usePuzzleStore();
+  const { puzzle, isComplete, setPuzzle, resetPuzzle, undoStack, redoStack } = usePuzzleStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleBlankPuzzle = () => {
     setPuzzle(BLANK_PUZZLE);
     resetPuzzle();
   };
 
+  const handleUndo = () => usePuzzleStore.getState().undo();
+  const handleRedo = () => usePuzzleStore.getState().redo();
+
   return (
-    <header className="relative h-14 bg-background/95 backdrop-blur-md border-b border-border/50 flex items-center px-4 justify-between z-40">
+    <header className="relative h-12 md:h-14 bg-background/95 backdrop-blur-md border-b border-border/50 flex items-center px-4 z-40">
       {/* Left: Logo + Puzzle selector */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 min-w-0 flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <LegoLogo className="w-8 h-8" />
           <span className="font-semibold text-lg text-foreground tracking-tight hidden sm:inline">
@@ -118,11 +161,11 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
           </span>
         </div>
 
-        <div className="h-6 w-px bg-border/50" />
+        <div className="h-6 w-px bg-border/50 hidden sm:block" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 px-3 h-9">
+            <Button variant="ghost" className="gap-2 px-3 h-9 hidden sm:flex">
               <Puzzle className="h-4 w-4 text-lego-red" />
               <span className="text-muted-foreground text-sm">Puzzle:</span>
               <span className="font-medium text-foreground">{puzzle?.title || 'Select'}</span>
@@ -155,42 +198,47 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
         </DropdownMenu>
       </div>
 
-      {/* Center: View mode toggle */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center">
-        <div className="flex items-center gap-0.5 p-1 bg-secondary/60 rounded-lg border border-border/50">
-          <Button
-            variant={viewMode === 'split' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-7 px-3 text-xs gap-1.5"
-            onClick={() => onViewModeChange('split')}
-          >
-            <Columns2 className="h-3.5 w-3.5" />
-            Split
-          </Button>
-          <Button
-            variant={viewMode === 'editor' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-7 px-3 text-xs gap-1.5"
-            onClick={() => onViewModeChange('editor')}
-          >
-            <Code2 className="h-3.5 w-3.5" />
-            Editor
-          </Button>
-          <Button
-            variant={viewMode === 'preview' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-7 px-3 text-xs gap-1.5"
-            onClick={() => onViewModeChange('preview')}
-          >
-            <Eye className="h-3.5 w-3.5" />
-            Preview
-          </Button>
-        </div>
+      {/* Center: View mode toggle (hidden on small screens) */}
+      <div className="hidden sm:flex flex-1 items-center justify-center">
+        <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
       </div>
 
-      {/* Right: Actions */}
+      {/* Right: Actions (desktop) */}
       <TooltipProvider delayDuration={300}>
-        <div className="flex items-center gap-1.5">
+        <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
+          {/* Undo/Redo buttons */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleUndo}
+                disabled={undoStack.length === 0}
+              >
+                <Undo2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Undo</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleRedo}
+                disabled={redoStack.length === 0}
+              >
+                <Redo2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Redo</TooltipContent>
+          </Tooltip>
+
+          <div className="h-5 w-px bg-border/50 mx-0.5" />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -202,7 +250,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
                 <div className="w-5 h-5">
                   <LegoHelperIcon className="w-full h-full" />
                 </div>
-                <span className="text-xs font-medium hidden sm:inline">Assistant</span>
+                <span className="text-xs font-medium hidden md:inline">Assistant</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>Puzzle Assistant</TooltipContent>
@@ -212,7 +260,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
             <TooltipTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-2 h-8" onClick={onShowInstructions}>
                 <BookOpen className="h-4 w-4" />
-                <span className="text-xs hidden sm:inline">Guide</span>
+                <span className="text-xs hidden md:inline">Guide</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>Puzzle Creator Guide</TooltipContent>
@@ -230,6 +278,88 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
           </Tooltip>
         </div>
       </TooltipProvider>
+
+      {/* Right: Mobile hamburger menu (visible on <640px) */}
+      <div className="flex sm:hidden items-center gap-1.5 ml-auto">
+        {/* Undo/Redo always visible on mobile */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={handleUndo}
+          disabled={undoStack.length === 0}
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={handleRedo}
+          disabled={redoStack.length === 0}
+        >
+          <Redo2 className="h-4 w-4" />
+        </Button>
+
+        <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            {/* Puzzle selector sub-menu */}
+            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Puzzle</DropdownMenuLabel>
+            <DropdownMenuItem onClick={handleBlankPuzzle} className="gap-3 py-2">
+              <Plus className="h-4 w-4 text-primary" />
+              <span>Blank Puzzle</span>
+            </DropdownMenuItem>
+            {PUZZLE_CATEGORIES.map((cat) => (
+              <CategorySubMenu key={cat.category} cat={cat} />
+            ))}
+
+            <DropdownMenuSeparator />
+
+            {/* View mode */}
+            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">View Mode</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => { onViewModeChange('split'); setMobileMenuOpen(false); }} className="gap-3 py-2">
+              <Columns2 className="h-4 w-4" />
+              <span>Split</span>
+              {viewMode === 'split' && <CheckCircle2 className="h-3.5 w-3.5 text-primary ml-auto" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { onViewModeChange('editor'); setMobileMenuOpen(false); }} className="gap-3 py-2">
+              <Code2 className="h-4 w-4" />
+              <span>Editor</span>
+              {viewMode === 'editor' && <CheckCircle2 className="h-3.5 w-3.5 text-primary ml-auto" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { onViewModeChange('preview'); setMobileMenuOpen(false); }} className="gap-3 py-2">
+              <Eye className="h-4 w-4" />
+              <span>Preview</span>
+              {viewMode === 'preview' && <CheckCircle2 className="h-3.5 w-3.5 text-primary ml-auto" />}
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            {/* Actions */}
+            <DropdownMenuItem onClick={() => { onChatToggle(); setMobileMenuOpen(false); }} className="gap-3 py-2">
+              <div className="w-4 h-4">
+                <LegoHelperIcon className="w-full h-full" />
+              </div>
+              <span>Assistant</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { onShowInstructions(); setMobileMenuOpen(false); }} className="gap-3 py-2">
+              <BookOpen className="h-4 w-4" />
+              <span>Guide</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-3 py-2">
+              <a href="https://github.com/a1amit/Lego-Puzzle-Editor" target="_blank" rel="noopener noreferrer">
+                <Github className="h-4 w-4" />
+                <span>GitHub</span>
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }

@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { ThreeEvent, useFrame } from '@react-three/fiber';
+import { ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { SHAPE_LIBRARY, PlacedBrick, ShapeDefinition } from '../../types/puzzle';
 import { rotateShape } from '../../validation/ValidationRegistry';
-import { BRICK_3D, ANIMATION_3D } from '../../config/sceneConfig';
+import { BRICK_3D, ANIMATION_3D, COLORS } from '../../config/sceneConfig';
 
 interface PolyominoBrickProps {
   brick: PlacedBrick;
@@ -127,10 +127,22 @@ export function PolyominoBrick({
 }: PolyominoBrickProps) {
   // Note: _onDragEnd is available for future drag-and-drop functionality
   void _onDragEnd;
+  const { invalidate } = useThree();
   const groupRef = useRef<THREE.Group>(null);
+  const pivotRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
   const currentHeightRef = useRef(0);
   const targetHeightRef = useRef(0);
+
+  // Snap animation refs: scale bounce on placement/move
+  const currentScaleRef = useRef(1);
+  const prevPositionRef = useRef<string>(`${brick.position.x},${brick.position.y}`);
+
+  // Rotation tween refs: offset-based approach
+  // When rotation changes, we set an offset that counteracts the instant cell layout change,
+  // then decay the offset to 0 for a smooth visual transition.
+  const rotationOffsetRef = useRef(0);
+  const prevRotationRef = useRef(brick.rotation || 0);
 
   // Get shape definition
   const shape: ShapeDefinition | undefined = SHAPE_LIBRARY[brick.shape];
@@ -149,6 +161,30 @@ export function PolyominoBrick({
     targetHeightRef.current = isSelected ? baseHeight + HOVER_HEIGHT : baseHeight;
   }, [baseHeight, isSelected]);
 
+  // Detect position changes to trigger snap bounce
+  useEffect(() => {
+    const posKey = `${brick.position.x},${brick.position.y}`;
+    if (prevPositionRef.current !== posKey) {
+      prevPositionRef.current = posKey;
+      currentScaleRef.current = 1.08; // Start bounce from enlarged
+    }
+  }, [brick.position.x, brick.position.y]);
+
+  // When rotation changes, set a visual offset to animate from old to new rotation
+  useEffect(() => {
+    const newRot = brick.rotation || 0;
+    const oldRot = prevRotationRef.current;
+    if (newRot !== oldRot) {
+      // Calculate shortest-path delta in degrees
+      let delta = newRot - oldRot;
+      // Normalize to [-180, 180]
+      delta = delta - Math.round(delta / 360) * 360;
+      // Set offset to counteract the instant layout change (negative of the delta)
+      rotationOffsetRef.current -= delta * (Math.PI / 180);
+      prevRotationRef.current = newRot;
+    }
+  }, [brick.rotation]);
+
   // Clear hover state when not interactive
   useEffect(() => {
     if (!interactive) {
@@ -156,7 +192,7 @@ export function PolyominoBrick({
     }
   }, [interactive]);
 
-  // Smooth lift animation (frame-rate independent exponential decay)
+  // Smooth lift, scale bounce, and rotation animation (frame-rate independent exponential decay)
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
@@ -174,6 +210,38 @@ export function PolyominoBrick({
       ? Math.sin(state.clock.elapsedTime * ANIMATION_3D.floatSpeed * 1000) * ANIMATION_3D.floatAmplitude
       : 0;
     groupRef.current.position.y = currentHeightRef.current + bobOffset;
+
+    // Scale bounce animation (snap on placement): 1.08 -> 1.0
+    const scaleDiff = 1.0 - currentScaleRef.current;
+    if (Math.abs(scaleDiff) > ANIMATION_3D.convergenceThreshold) {
+      const scaleAlpha = 1 - Math.exp(-ANIMATION_3D.heightDecayRate * delta);
+      currentScaleRef.current += scaleDiff * scaleAlpha;
+      groupRef.current.scale.setScalar(currentScaleRef.current);
+    } else if (currentScaleRef.current !== 1) {
+      currentScaleRef.current = 1;
+      groupRef.current.scale.setScalar(1);
+    }
+
+    // Smooth rotation offset decay (visual tween around brick center)
+    if (pivotRef.current) {
+      if (Math.abs(rotationOffsetRef.current) > ANIMATION_3D.convergenceThreshold) {
+        const rotAlpha = 1 - Math.exp(-ANIMATION_3D.rotationDecayRate * delta);
+        rotationOffsetRef.current *= (1 - rotAlpha);
+        pivotRef.current.rotation.y = rotationOffsetRef.current;
+      } else if (rotationOffsetRef.current !== 0) {
+        rotationOffsetRef.current = 0;
+        pivotRef.current.rotation.y = 0;
+      }
+    }
+
+    // Request next frame if any animation is still active (demand mode)
+    const hasActiveAnimation = isSelected
+      || Math.abs(targetHeightRef.current - currentHeightRef.current) > ANIMATION_3D.convergenceThreshold
+      || Math.abs(1 - currentScaleRef.current) > ANIMATION_3D.convergenceThreshold
+      || Math.abs(rotationOffsetRef.current) > ANIMATION_3D.convergenceThreshold;
+    if (hasActiveAnimation) {
+      invalidate();
+    }
   });
 
   if (!shape) {
@@ -265,6 +333,9 @@ export function PolyominoBrick({
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
     >
+      {/* Rotation pivot centered on the brick */}
+      <group ref={pivotRef} position={[centerX, 0, centerZ]}>
+      <group position={[-centerX, 0, -centerZ]}>
       {/* Brick cells */}
       <group>
         {cells}
@@ -305,7 +376,7 @@ export function PolyominoBrick({
               48
             ]} />
             <meshBasicMaterial
-              color={isSelected ? '#58A6FF' : '#ffffff'}
+              color={isSelected ? COLORS.selection : '#ffffff'}
               transparent
               opacity={isSelected ? 0.18 : 0.1}
               blending={THREE.AdditiveBlending}
@@ -327,7 +398,7 @@ export function PolyominoBrick({
               32
             ]} />
             <meshBasicMaterial
-              color={isSelected ? '#58A6FF' : '#ffffff'}
+              color={isSelected ? COLORS.selection : '#ffffff'}
               transparent
               opacity={isSelected ? 0.72 : 0.36}
               depthWrite={false}
@@ -341,15 +412,17 @@ export function PolyominoBrick({
         <group position={[centerX, BRICK_HEIGHT + 0.8, centerZ]}>
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[0.4, 0.05, 8, 32, Math.PI * 1.5]} />
-            <meshBasicMaterial color="#58A6FF" transparent opacity={0.8} />
+            <meshBasicMaterial color={COLORS.selection} transparent opacity={0.8} />
           </mesh>
           {/* Arrow head */}
           <mesh position={[0.4, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
             <coneGeometry args={[0.1, 0.2, 8]} />
-            <meshBasicMaterial color="#58A6FF" />
+            <meshBasicMaterial color={COLORS.selection} />
           </mesh>
         </group>
       )}
+      </group>{/* end offset */}
+      </group>{/* end rotation pivot */}
     </group>
   );
 }

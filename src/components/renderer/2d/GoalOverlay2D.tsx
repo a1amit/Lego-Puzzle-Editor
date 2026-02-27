@@ -39,17 +39,26 @@ export function GoalOverlay2D({ goalCells, cellSize, allCells }: GoalOverlay2DPr
           />
         );
       })}
-      <text
-        x={labelX}
-        y={labelY}
-        fill={C.goalStroke}
-        fontSize="12"
-        fontFamily="monospace"
-        fontWeight="bold"
-        textAnchor="middle"
-      >
-        {'\uD83C\uDFAF'} GOAL
-      </text>
+      {/* Crosshair icon + GOAL label */}
+      <g transform={`translate(${labelX - 30}, ${labelY - 12})`}>
+        {/* SVG crosshair/target icon */}
+        <circle cx="8" cy="6" r="5" fill="none" stroke={C.goalStroke} strokeWidth="1.5" />
+        <circle cx="8" cy="6" r="2" fill={C.goalStroke} />
+        <line x1="8" y1="0" x2="8" y2="2" stroke={C.goalStroke} strokeWidth="1.2" />
+        <line x1="8" y1="10" x2="8" y2="12" stroke={C.goalStroke} strokeWidth="1.2" />
+        <line x1="2" y1="6" x2="0" y2="6" stroke={C.goalStroke} strokeWidth="1.2" />
+        <line x1="14" y1="6" x2="16" y2="6" stroke={C.goalStroke} strokeWidth="1.2" />
+        <text
+          x="20"
+          y="10"
+          fill={C.goalStroke}
+          fontSize="12"
+          fontFamily="monospace"
+          fontWeight="bold"
+        >
+          GOAL
+        </text>
+      </g>
     </g>
   );
 }

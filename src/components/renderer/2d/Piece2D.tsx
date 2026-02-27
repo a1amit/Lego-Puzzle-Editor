@@ -2,7 +2,7 @@
  * Piece2D - Placed piece and ghost-preview rendering for the 2D renderer.
  */
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef, useEffect, useState } from 'react';
 import type { PlacedPiece, Coordinate2D } from '../../../engine';
 import { rotateShape, getPieceCells } from '../../../engine';
 import { SHAPE_LIBRARY } from '../../../types/puzzle';
@@ -30,8 +30,8 @@ export interface PieceProps {
   isSliderPuzzle: boolean;
   hasValidMoves: boolean;
   onClick: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
+  onPointerEnter: () => void;
+  onPointerLeave: () => void;
 }
 
 export const Piece2D = memo(function Piece2D({
@@ -43,11 +43,47 @@ export const Piece2D = memo(function Piece2D({
   isSliderPuzzle,
   hasValidMoves,
   onClick,
-  onMouseEnter,
-  onMouseLeave,
+  onPointerEnter,
+  onPointerLeave,
 }: PieceProps) {
   const cells = useMemo(() => getPieceCells(piece), [piece]);
   const cellSet = useMemo(() => new Set(cells.map(([x, y]) => `${x},${y}`)), [cells]);
+
+  // Track previous position for slide animation (Klotski puzzles)
+  const prevPosRef = useRef<{ x: number; y: number } | null>(null);
+  const [isJustPlaced, setIsJustPlaced] = useState(false);
+  const [slideTransform, setSlideTransform] = useState<string | null>(null);
+  const hasRenderedRef = useRef(false);
+
+  useEffect(() => {
+    const prevPos = prevPosRef.current;
+    const curPos = piece.position;
+
+    if (!hasRenderedRef.current) {
+      // First render of this piece - it was just placed
+      hasRenderedRef.current = true;
+      setIsJustPlaced(true);
+      const timer = setTimeout(() => setIsJustPlaced(false), 300);
+      prevPosRef.current = { x: curPos.x, y: curPos.y };
+      return () => clearTimeout(timer);
+    }
+
+    if (prevPos && (prevPos.x !== curPos.x || prevPos.y !== curPos.y)) {
+      // Position changed - animate slide
+      const dx = (prevPos.x - curPos.x) * cellSize;
+      const dy = (prevPos.y - curPos.y) * cellSize;
+      // Start at old position offset, then transition to 0
+      setSlideTransform(`translate(${dx}px, ${dy}px)`);
+      // Force a reflow then clear to trigger the CSS transition
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setSlideTransform(null);
+        });
+      });
+    }
+
+    prevPosRef.current = { x: curPos.x, y: curPos.y };
+  }, [piece.position.x, piece.position.y, cellSize]);
 
   const yOff = isSelected ? -SELECTION_Y_OFFSET : 0;
   const gradId = `url(#piece-grad-${piece.color.replace('#', '')})`;
@@ -76,16 +112,25 @@ export const Piece2D = memo(function Piece2D({
 
   const shouldPassThrough = !interactive;
 
+  // Build CSS class and style for animations
+  const animClass = isJustPlaced ? 'piece-place' : slideTransform ? '' : 'piece-slide';
+  const animStyle: React.CSSProperties = {
+    cursor: interactive ? 'pointer' : 'default',
+    touchAction: 'none',
+    ...(slideTransform ? { transform: slideTransform, transition: 'transform 200ms ease-out' } : {}),
+  };
+
   return (
     <g
-      onClick={interactive ? onClick : undefined}
-      onMouseEnter={interactive ? onMouseEnter : undefined}
-      onMouseLeave={interactive ? onMouseLeave : undefined}
-      style={{ cursor: interactive ? 'pointer' : 'default' }}
+      onPointerDown={interactive ? onClick : undefined}
+      onPointerEnter={interactive ? onPointerEnter : undefined}
+      onPointerLeave={interactive ? onPointerLeave : undefined}
+      className={animClass}
+      style={animStyle}
       pointerEvents={shouldPassThrough ? 'none' : undefined}
       filter={filter}
     >
-      {/* Connected brick body with gradient fill */}
+      {/* Connected brick body with gradient fill + inner shadow overlays */}
       {cells.map(([x, y], i) => {
         const hasLeft = hasNeighbor(x, y, -1, 0);
         const hasRight = hasNeighbor(x, y, 1, 0);
@@ -97,16 +142,37 @@ export const Piece2D = memo(function Piece2D({
         const right = hasRight ? (x + 1) * cellSize : (x + 1) * cellSize - inset;
         const top = hasTop ? y * cellSize + yOff : y * cellSize + inset + yOff;
         const bottom = hasBottom ? (y + 1) * cellSize + yOff : (y + 1) * cellSize - inset + yOff;
+        const w = right - left;
+        const h = bottom - top;
 
         return (
-          <rect
-            key={`body-${i}`}
-            x={left}
-            y={top}
-            width={right - left}
-            height={bottom - top}
-            fill={gradId}
-          />
+          <g key={`body-${i}`}>
+            <rect
+              x={left}
+              y={top}
+              width={w}
+              height={h}
+              fill={gradId}
+            />
+            {/* Inner shadow: dark top edge for depth */}
+            <rect
+              x={left}
+              y={top}
+              width={w}
+              height={Math.min(2, h * 0.15)}
+              fill="rgba(0,0,0,0.12)"
+              pointerEvents="none"
+            />
+            {/* Inner highlight: light bottom edge */}
+            <rect
+              x={left}
+              y={bottom - Math.min(1.5, h * 0.1)}
+              width={w}
+              height={Math.min(1.5, h * 0.1)}
+              fill="rgba(255,255,255,0.08)"
+              pointerEvents="none"
+            />
+          </g>
         );
       })}
 

@@ -1,11 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { Toaster, toast } from 'sonner';
 import { ResizablePanels } from './components/layout/ResizablePanels';
 import { Header } from './components/layout/Header';
 import type { ViewMode } from './components/layout/Header';
-import { PuzzleEditor } from './components/editor/PuzzleEditor';
-import { PuzzleScene } from './components/3d/PuzzleScene';
 import { PuzzleRenderer, ViewModeIndicator } from './components/renderer';
 import { InventoryPanel } from './components/ui/InventoryPanel';
 import { ValidationPanel } from './components/ui/ValidationPanel';
@@ -16,17 +14,47 @@ import { ChatPanel } from './components/ui/ChatPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/shadcn/tabs';
 import { usePuzzleStore } from './store/puzzleStore';
 import { usePuzzleEngine } from './engine';
+import { SoundManager } from './services/SoundManager';
+
+// Lazy-loaded heavy components
+const PuzzleEditor = React.lazy(() =>
+  import('./components/editor/PuzzleEditor').then(m => ({ default: m.PuzzleEditor }))
+);
+const PuzzleScene = React.lazy(() =>
+  import('./components/3d/PuzzleScene').then(m => ({ default: m.PuzzleScene }))
+);
+
+function EditorSkeleton() {
+  return (
+    <div className="h-full flex flex-col bg-background animate-pulse">
+      <div className="flex-1 m-2 rounded-lg bg-muted/30" />
+    </div>
+  );
+}
+
+function SceneSkeleton() {
+  return (
+    <div className="h-full w-full flex items-center justify-center bg-background/50 animate-pulse">
+      <div className="w-32 h-32 rounded-xl bg-muted/30" />
+    </div>
+  );
+}
 
 function EditorPanel() {
   return (
     <div className="h-full flex flex-col bg-background">
-      <PuzzleEditor className="flex-1" />
+      <Suspense fallback={<EditorSkeleton />}>
+        <PuzzleEditor className="flex-1" />
+      </Suspense>
     </div>
   );
 }
 
 function PreviewPanel() {
-  const { puzzle, isComplete: storeIsComplete, resetPuzzle } = usePuzzleStore();
+  const puzzle = usePuzzleStore((s) => s.puzzle);
+  const storeIsComplete = usePuzzleStore((s) => s.isComplete);
+  const resetPuzzle = usePuzzleStore((s) => s.resetPuzzle);
+
   const viewMode = puzzle?.viewMode ?? '3D';
   const is2D = viewMode === '2D';
 
@@ -40,14 +68,22 @@ function PreviewPanel() {
 
   const isComplete = is2D ? engine.isComplete : storeIsComplete;
   const [showCongrats, setShowCongrats] = useState(false);
-  const [prevComplete, setPrevComplete] = useState(false);
+  const prevCompleteRef = useRef(false);
+  const congratsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (isComplete && !prevComplete) {
-      setShowCongrats(true);
+    if (isComplete && !prevCompleteRef.current) {
+      // Delay showing congratulations by 300ms so the player registers their last move
+      congratsTimerRef.current = setTimeout(() => {
+        setShowCongrats(true);
+        SoundManager.getInstance().play('complete');
+      }, 300);
     }
-    setPrevComplete(isComplete);
-  }, [isComplete, prevComplete]);
+    prevCompleteRef.current = isComplete;
+    return () => {
+      if (congratsTimerRef.current) clearTimeout(congratsTimerRef.current);
+    };
+  }, [isComplete]);
 
   const handlePlayAgain = () => {
     setShowCongrats(false);
@@ -65,7 +101,9 @@ function PreviewPanel() {
           {is2D ? (
             <PuzzleRenderer engine={engine} />
           ) : (
-            <PuzzleScene />
+            <Suspense fallback={<SceneSkeleton />}>
+              <PuzzleScene />
+            </Suspense>
           )}
           <div className="absolute top-3 right-3 z-10">
             <ViewModeIndicator viewMode={viewMode} />
@@ -116,7 +154,14 @@ function PreviewPanel() {
 }
 
 function App() {
-  const [viewMode, setViewMode] = useState<ViewMode>('split');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const hasVisited = localStorage.getItem('lego-puzzle-hasVisited');
+    if (!hasVisited) {
+      localStorage.setItem('lego-puzzle-hasVisited', 'true');
+      return 'preview';
+    }
+    return 'split';
+  });
   const [showChat, setShowChat] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const lastActionError = usePuzzleStore((s) => s.lastActionError);

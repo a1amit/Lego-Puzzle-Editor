@@ -14,8 +14,8 @@ export interface GridCellProps {
   isInvalid: boolean;
   isValidDestination: boolean;
   onClick: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
+  onPointerEnter: () => void;
+  onPointerLeave: () => void;
 }
 
 export const GridCell = memo(function GridCell({
@@ -27,8 +27,8 @@ export const GridCell = memo(function GridCell({
   isInvalid,
   isValidDestination,
   onClick,
-  onMouseEnter,
-  onMouseLeave,
+  onPointerEnter,
+  onPointerLeave,
 }: GridCellProps) {
   const cx = x * cellSize + CELL_GAP / 2;
   const cy = y * cellSize + CELL_GAP / 2;
@@ -48,10 +48,10 @@ export const GridCell = memo(function GridCell({
 
   return (
     <g
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      style={{ cursor: isBlocked ? 'not-allowed' : 'pointer' }}
+      onPointerDown={onClick}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+      style={{ cursor: isBlocked ? 'not-allowed' : 'pointer', touchAction: 'none' }}
     >
       {/* Cell background with gradient */}
       <rect

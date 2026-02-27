@@ -71,7 +71,7 @@ export function PuzzleInfoPanel({ className = '', engine }: PuzzleInfoPanelProps
           </div>
           <div className="space-y-2">
             {puzzle.validation_rules.map((rule, index) => (
-              <div key={`${rule.rule}-${index}`} className="rounded-lg border border-border/60 bg-background/35 p-2.5">
+              <div key={`${rule.rule}-${index}`} className="rounded-lg border border-border/60 bg-background/35 p-2.5 active:scale-[0.97] transition-transform">
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground/90">
                   {rule.rule.replace(/_/g, ' ')}
                 </div>

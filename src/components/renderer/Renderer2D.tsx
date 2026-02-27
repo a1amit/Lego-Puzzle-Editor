@@ -101,19 +101,26 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     isGhostValid,
     handleCellClick,
     handlePieceClick,
+    handleRotate,
   } = useInteractions2D({ engine, blockedCells });
 
   // Stable cell-level callbacks via useCallback to keep GridCell memo effective.
   // We pass x/y through closures created at render time which is fine because
   // GridCell already receives primitive props for memo comparison.
-  const onCellMouseEnter = useCallback(
+  const onCellPointerEnter = useCallback(
     (x: number, y: number) => setHoveredCell({ x, y }),
     [setHoveredCell],
   );
-  const onCellMouseLeave = useCallback(
+  const onCellPointerLeave = useCallback(
     () => setHoveredCell(null),
     [setHoveredCell],
   );
+
+  // Whether this puzzle is a slider type (has goal)
+  const isSliderPuzzle = config.movementRule === 'SLIDING_ONLY';
+
+  // Show rotate button when an inventory piece is selected (for mobile users)
+  const showRotateButton = !!selectedInventoryPiece || !!selectedPlacedPiece;
 
   if (!puzzle) {
     return (
@@ -129,7 +136,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
         width="100%"
         height="100%"
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-        style={{ maxWidth: svgWidth, maxHeight: svgHeight }}
+        style={{ maxWidth: svgWidth, maxHeight: svgHeight, touchAction: 'none' }}
         role="grid"
         aria-label={`${puzzle.title ?? 'Puzzle'} board, ${width} columns by ${height} rows`}
         tabIndex={0}
@@ -203,8 +210,8 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                   isInvalid={isInvalid}
                   isValidDestination={isValidDest}
                   onClick={() => handleCellClick(x, y)}
-                  onMouseEnter={() => onCellMouseEnter(x, y)}
-                  onMouseLeave={onCellMouseLeave}
+                  onPointerEnter={() => onCellPointerEnter(x, y)}
+                  onPointerLeave={onCellPointerLeave}
                 />
               );
             })
@@ -228,11 +235,11 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                 isSelected={isSelected}
                 isHovered={isHovered}
                 interactive={isInteractive}
-                isSliderPuzzle={config.movementRule === 'SLIDING_ONLY'}
+                isSliderPuzzle={isSliderPuzzle}
                 hasValidMoves={pieceValidMoves.length > 0}
                 onClick={() => handlePieceClick(piece)}
-                onMouseEnter={() => setHoveredPieceId(piece.instanceId)}
-                onMouseLeave={() => setHoveredPieceId(null)}
+                onPointerEnter={() => setHoveredPieceId(piece.instanceId)}
+                onPointerLeave={() => setHoveredPieceId(null)}
               />
             );
           })}
@@ -256,6 +263,37 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
               cellSize={cellSize}
               allCells={puzzle.goal.cells ?? []}
             />
+          )}
+
+          {/* On-screen rotate button (for mobile users) */}
+          {showRotateButton && (
+            <g
+              transform={`translate(${width * cellSize - 36}, ${height * cellSize - 36})`}
+              onPointerDown={(e) => { e.stopPropagation(); handleRotate(); }}
+              style={{ cursor: 'pointer', touchAction: 'none' }}
+            >
+              <circle cx="16" cy="16" r="16" fill="rgba(0,0,0,0.55)" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" />
+              {/* Rotation arrow icon */}
+              <path
+                d="M16 8 A8 8 0 1 1 8 16"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <polygon points="16,6 18,10 14,10" fill="white" />
+              <text x="16" y="28" textAnchor="middle" fill="rgba(255,255,255,0.5)" fontSize="7" fontFamily="monospace">R</text>
+            </g>
+          )}
+
+          {/* Move counter for slider puzzles */}
+          {isSliderPuzzle && (
+            <g transform={`translate(${width * cellSize - 80}, 4)`}>
+              <rect x="0" y="0" width="76" height="20" rx="4" fill="rgba(0,0,0,0.5)" />
+              <text x="38" y="14" textAnchor="middle" fill="rgba(255,255,255,0.8)" fontSize="11" fontFamily="monospace" fontWeight="bold">
+                Moves: {engine.moveCount}
+              </text>
+            </g>
           )}
         </g>
 

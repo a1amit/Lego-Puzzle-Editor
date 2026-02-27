@@ -23,13 +23,14 @@ export function ResizablePanels({
 
   const isHorizontal = direction === 'horizontal';
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
     setIsDragging(true);
   }, []);
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
       if (!isDragging || !containerRef.current) return;
 
       const rect = containerRef.current.getBoundingClientRect();
@@ -48,21 +49,22 @@ export function ResizablePanels({
     [isDragging, isHorizontal, minSize, maxSize]
   );
 
-  const handleMouseUp = useCallback(() => {
+  const handlePointerUp = useCallback(() => {
     setIsDragging(false);
   }, []);
 
+  // Fallback: stop dragging if pointer leaves window
   useEffect(() => {
     if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
+      const handleGlobalUp = () => setIsDragging(false);
+      window.addEventListener('pointerup', handleGlobalUp);
+      return () => window.removeEventListener('pointerup', handleGlobalUp);
     }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isDragging]);
+
+  const handleDoubleClick = useCallback(() => {
+    setSize(defaultSize);
+  }, [defaultSize]);
 
   const cursorStyle = isHorizontal ? 'col-resize' : 'row-resize';
 
@@ -84,24 +86,36 @@ export function ResizablePanels({
         {children[0]}
       </div>
 
-      {/* Resize handle */}
+      {/* Resize handle — outer hit area (12px) wrapping visual handle (6px) */}
       <div
         className={`
-          flex-shrink-0 relative
-          ${isHorizontal ? 'w-1 h-full cursor-col-resize' : 'h-1 w-full cursor-row-resize'}
-          bg-border hover:bg-primary transition-colors
-          ${isDragging ? 'bg-primary' : ''}
+          flex-shrink-0 relative flex items-center justify-center
+          ${isHorizontal ? 'w-3 h-full cursor-col-resize' : 'h-3 w-full cursor-row-resize'}
+          touch-none
         `}
-        onMouseDown={handleMouseDown}
+        role="separator"
+        aria-orientation={isHorizontal ? 'vertical' : 'horizontal'}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
       >
-        {/* Handle indicator */}
+        {/* Visual handle bar */}
+        <div
+          className={`
+            ${isHorizontal ? 'w-1.5 h-full' : 'h-1.5 w-full'}
+            bg-border hover:bg-primary transition-colors
+            ${isDragging ? 'bg-primary' : ''}
+          `}
+        />
+        {/* Handle indicator dots */}
         <div
           className={`
             absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
             flex items-center justify-center gap-1
             ${isHorizontal ? 'flex-col w-4 h-12' : 'flex-row h-4 w-12'}
             ${isDragging ? 'opacity-100' : 'opacity-0 hover:opacity-100'}
-            transition-opacity
+            transition-opacity pointer-events-none
           `}
         >
           {[0, 1, 2].map((i) => (
@@ -124,4 +138,3 @@ export function ResizablePanels({
     </div>
   );
 }
-

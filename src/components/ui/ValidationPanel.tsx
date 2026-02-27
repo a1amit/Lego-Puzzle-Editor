@@ -5,6 +5,28 @@ import { Progress } from '../ui/shadcn/progress';
 import { ShieldCheck, Check, X, RefreshCw, Trophy } from 'lucide-react';
 import type { UsePuzzleEngineReturn } from '../../engine';
 
+const FRIENDLY_RULE_NAMES: Record<string, string> = {
+  'ALL_BOARD_SQUARES_MUST_BE_COVERED': 'Cover every cell on the board',
+  'ALL_PIECES_MUST_BE_PLACED': 'Place all pieces',
+  'ALL_BRICKS_MUST_BE_USED': 'Place all bricks',
+  'NO_OVERLAPPING': 'No overlapping pieces',
+  'NO_BRICK_OVERLAP': 'No overlapping pieces',
+  'NO_ROTATION': 'Rotation is disabled',
+  'SLIDING_ONLY': 'Pieces can only slide',
+  'EXACT_COVERAGE': 'Cover exactly the right cells',
+  'GOAL_REACHED': 'Move the piece to the goal',
+  'MAX_MOVES': 'Complete within move limit',
+  'MATCH_PATTERN': 'Match the target pattern',
+  'PATTERN_MATCH': 'Match the target pattern',
+  'NO_ADJACENT_SAME_COLOR': 'No same colors touching',
+  'BINARY_ENCODING': 'Encode the binary pattern',
+  'ROWS_AND_COLUMNS': 'Match row and column clues',
+  'NO_BRICKS_OUT_OF_BOUNDS': 'Keep all bricks on the board',
+  'NO_BLOCKED_CELLS': 'Avoid blocked cells',
+  'FREE_PLACEMENT': 'Free placement allowed',
+  'NO_BRICK_REMOVAL': 'Bricks cannot be removed',
+};
+
 interface ValidationPanelProps {
   className?: string;
   engine?: UsePuzzleEngineReturn;
@@ -80,11 +102,11 @@ export function ValidationPanel({ className = '', engine }: ValidationPanelProps
             Place bricks to see validation
           </p>
         ) : (
-          validationResults.map((result, index) => (
+          validationResults.map((result) => (
             <div
-              key={index}
+              key={result.rule}
               className={`
-                p-3 rounded-xl border transition-all duration-200
+                p-3 rounded-xl border transition-all duration-300
                 ${result.isValid
                   ? 'bg-success/10 border-success/30 shadow-[0_0_0_1px_rgba(63,185,80,0.08)]'
                   : 'bg-destructive/10 border-destructive/30 shadow-[0_0_0_1px_rgba(248,81,73,0.08)]'
@@ -103,10 +125,10 @@ export function ValidationPanel({ className = '', engine }: ValidationPanelProps
                 )}
                 <div className="flex-1 min-w-0">
                   <div className={`
-                    text-xs font-semibold tracking-wide uppercase
+                    text-xs font-semibold tracking-wide
                     ${result.isValid ? 'text-success' : 'text-destructive'}
                   `}>
-                    {result.rule.replace(/_/g, ' ')}
+                    {FRIENDLY_RULE_NAMES[result.rule] || result.rule.replace(/_/g, ' ')}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {result.message}
