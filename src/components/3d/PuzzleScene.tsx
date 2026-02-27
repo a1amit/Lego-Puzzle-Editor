@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, ContactShadows, Line } from '@react-three/drei';
 import * as THREE from 'three';
@@ -6,6 +6,7 @@ import { LegoBoard } from './LegoBoard';
 import { PolyominoBrick, GhostBrick } from './PolyominoBrick';
 import { CinematicEffects } from './CinematicEffects';
 import { usePuzzleStore } from '../../store/puzzleStore';
+import { useHoverStore } from '../../store/hoverStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { getBrickCells, rotateShape } from '../../validation/ValidationRegistry';
 import { SCENE_3D, GOAL_INDICATOR_3D, COLORS } from '../../config/sceneConfig';
@@ -126,7 +127,6 @@ function FloatingPreviewBrick({
 }) {
   const { camera, raycaster, pointer } = useThree();
   const groupRef = useRef<THREE.Group>(null);
-  const [worldPosition, setWorldPosition] = useState<THREE.Vector3 | null>(null);
 
   // Refs for performance optimization - avoid recalculating when pointer hasn't moved
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
@@ -150,7 +150,11 @@ function FloatingPreviewBrick({
     return { x: maxX / 2, z: maxZ / 2 };
   }, [rotatedCells]);
 
-  // Update position on each frame based on mouse
+  // Cache center offset in a ref so useFrame always has the latest value
+  const centerOffsetRef = useRef(centerOffset);
+  centerOffsetRef.current = centerOffset;
+
+  // Update position on each frame via ref (no React state updates)
   useFrame(() => {
     // Skip expensive work if pointer position hasn't changed
     if (
@@ -164,9 +168,7 @@ function FloatingPreviewBrick({
 
     // Only update if pointer is valid (inside canvas)
     if (pointer.x < -1 || pointer.x > 1 || pointer.y < -1 || pointer.y > 1) {
-      if (worldPosition !== null) {
-        setWorldPosition(null);
-      }
+      if (groupRef.current) groupRef.current.visible = false;
       return;
     }
 
@@ -174,24 +176,19 @@ function FloatingPreviewBrick({
     const target = raycastTargetRef.current;
     const result = raycaster.ray.intersectPlane(boardPlane, target);
 
-    if (result) {
-      // Avoid unnecessary state updates if the position hasn't changed significantly
-      if (!worldPosition || !worldPosition.equals(target)) {
-        setWorldPosition(target.clone());
-      }
-    } else if (worldPosition !== null) {
-      setWorldPosition(null);
+    if (result && groupRef.current) {
+      const co = centerOffsetRef.current;
+      groupRef.current.position.set(target.x - co.x, 0.5, target.z - co.z);
+      groupRef.current.visible = true;
+    } else if (groupRef.current) {
+      groupRef.current.visible = false;
     }
   });
 
-  if (!shapeDefinition || !worldPosition) return null;
-
-  // Position centered on cursor
-  const posX = worldPosition.x - centerOffset.x;
-  const posZ = worldPosition.z - centerOffset.z;
+  if (!shapeDefinition) return null;
 
   return (
-    <group ref={groupRef} position={[posX, 0.5, posZ]}>
+    <group ref={groupRef} visible={false}>
       {/* Brick cells */}
       {rotatedCells.map(([dx, dy], index) => (
         <mesh
@@ -256,8 +253,6 @@ function DragDropManager() {
     boardState,
     selectedBrickId,
     previewRotation,
-    hoveredCell,
-    setHoveredCell,
     placeBrick,
     moveBrick,
     removeBrick,
@@ -267,6 +262,8 @@ function DragDropManager() {
     isSlidingPuzzle,
     getValidSlideDestinationsFor,
   } = usePuzzleStore();
+  const hoveredCell = useHoverStore(s => s.hoveredCell);
+  const setHoveredCell = useHoverStore(s => s.setHoveredCell);
 
   const { width, height } = boardState.dimensions;
   const boardOffset = { x: width / 2, y: height / 2 };
@@ -627,7 +624,8 @@ function BackgroundGrid() {
 // Wrapper component to render floating preview when needed
 // This must be inside Canvas to use useThree hooks
 function FloatingPreviewWrapper() {
-  const { selectedBrickId, boardState, hoveredCell, puzzle, previewRotation } = usePuzzleStore();
+  const { selectedBrickId, boardState, puzzle, previewRotation } = usePuzzleStore();
+  const hoveredCell = useHoverStore(s => s.hoveredCell);
 
   // Check if we have an inventory brick selected (not a placed brick)
   const hasInventorySelection = selectedBrickId &&

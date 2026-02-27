@@ -1,8 +1,9 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { ThreeEvent } from '@react-three/fiber';
-import { Text } from '@react-three/drei';
 import * as THREE from 'three';
+
 import { usePuzzleStore } from '../../store/puzzleStore';
+import { useHoverStore } from '../../store/hoverStore';
 import type { ValidationResult, NonogramHints } from '../../types/puzzle';
 import { BOARD_3D } from '../../config/sceneConfig';
 
@@ -87,73 +88,113 @@ interface NonogramHints3DProps {
   hints: NonogramHints;
 }
 
+/** Draw a rounded rectangle path on a 2D canvas context. */
+function canvasRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+
+/** High-quality canvas texture for a hint number with badge background. */
+function createHintTexture(num: number): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.clearRect(0, 0, size, size);
+
+  // Badge background
+  const pad = 30;
+  canvasRoundRect(ctx, pad, pad, size - pad * 2, size - pad * 2, 26);
+  ctx.fillStyle = 'rgba(18, 25, 40, 0.88)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(180, 195, 220, 0.14)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Number with drop shadow
+  ctx.font = `600 ${Math.round(size * 0.44)}px "Inter", system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = '#d0d8e8';
+  ctx.fillText(String(num), size / 2, size / 2 + 1);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/** Cache hint textures so identical numbers share a single texture. */
+const hintTextureCache = new Map<number, THREE.CanvasTexture>();
+function getHintTexture(num: number): THREE.CanvasTexture {
+  let tex = hintTextureCache.get(num);
+  if (!tex) {
+    tex = createHintTexture(num);
+    hintTextureCache.set(num, tex);
+  }
+  return tex;
+}
+
 /**
- * Renders Nonogram hints in 3D using Text components.
- * Row hints appear on the left side (negative X), column hints on the front (negative Z).
+ * Renders nonogram hints in 3D with badge-styled number sprites.
+ * Row hints appear on the left (negative X, right-aligned toward board).
+ * Column hints appear in front (negative Z, bottom-aligned toward board).
  */
 function NonogramHints3D({ hints }: NonogramHints3DProps) {
-  const HINT_SPACING = 0.5; // Space between hint numbers
-  const HINT_HEIGHT = 0.3; // Height above the board
-  const TEXT_SIZE = 0.4;
+  const SP = 0.52;       // spacing between hint numbers
+  const MG = 0.25;       // margin from board edge to nearest hint
+  const SY = 0.25;       // sprite elevation above board
+  const SS = 0.44;       // sprite scale
 
-  // Calculate max hints for proper spacing
-  const maxRowHints = Math.max(...hints.rows.map(r => r.length), 1);
-  const maxColHints = Math.max(...hints.columns.map(c => c.length), 1);
+  // Row hint sprites (right-aligned: shorter rows stay close to the board)
+  const rowSprites = hints.rows.flatMap((row, ri) =>
+    row.map((num, ni) => (
+      <sprite
+        key={`r${ri}-${ni}`}
+        position={[-(row.length - ni) * SP - MG, SY, ri * CELL_SIZE + CELL_SIZE / 2]}
+        scale={[SS, SS, 1]}
+      >
+        <spriteMaterial map={getHintTexture(num)} transparent depthTest={false} />
+      </sprite>
+    )),
+  );
 
-  // Render row hints (left side of board, along Z axis)
-  const rowHintElements = hints.rows.map((row, rowIndex) => {
-    return row.map((num, numIndex) => {
-      // Position from right to left (closer numbers are closer to board)
-      const xOffset = -(maxRowHints - row.length + numIndex + 1) * HINT_SPACING - 0.3;
-      const zPosition = rowIndex * CELL_SIZE + CELL_SIZE / 2;
-
-      return (
-        <Text
-          key={`row-${rowIndex}-${numIndex}`}
-          position={[xOffset, HINT_HEIGHT, zPosition]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          fontSize={TEXT_SIZE}
-          color="#ecf2ff"
-          outlineWidth={0.03}
-          outlineColor="#0d1523"
-          anchorX="center"
-          anchorY="middle"
-        >
-          {num}
-        </Text>
-      );
-    });
-  });
-
-  // Render column hints (front of board, along X axis)
-  const colHintElements = hints.columns.map((col, colIndex) => {
-    return col.map((num, numIndex) => {
-      // Position from bottom to top (closer numbers are closer to board)
-      const zOffset = -(maxColHints - col.length + numIndex + 1) * HINT_SPACING - 0.3;
-      const xPosition = colIndex * CELL_SIZE + CELL_SIZE / 2;
-
-      return (
-        <Text
-          key={`col-${colIndex}-${numIndex}`}
-          position={[xPosition, HINT_HEIGHT, zOffset]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          fontSize={TEXT_SIZE}
-          color="#ecf2ff"
-          outlineWidth={0.03}
-          outlineColor="#0d1523"
-          anchorX="center"
-          anchorY="middle"
-        >
-          {num}
-        </Text>
-      );
-    });
-  });
+  // Column hint sprites (bottom-aligned: shorter columns stay close to the board)
+  const colSprites = hints.columns.flatMap((col, ci) =>
+    col.map((num, ni) => (
+      <sprite
+        key={`c${ci}-${ni}`}
+        position={[ci * CELL_SIZE + CELL_SIZE / 2, SY, -(col.length - ni) * SP - MG]}
+        scale={[SS, SS, 1]}
+      >
+        <spriteMaterial map={getHintTexture(num)} transparent depthTest={false} />
+      </sprite>
+    )),
+  );
 
   return (
     <group>
-      {rowHintElements.flat()}
-      {colHintElements.flat()}
+      {rowSprites}
+      {colSprites}
     </group>
   );
 }
@@ -181,9 +222,10 @@ export function LegoBoard({
   const goalRingRef = useRef<THREE.InstancedMesh>(null);
 
   const store = usePuzzleStore();
+  const hoverStoreCell = useHoverStore(s => s.hoveredCell);
 
   // Use override props if provided, otherwise fall back to store
-  const hoveredCell = hoveredCellOverride !== undefined ? hoveredCellOverride : store.hoveredCell;
+  const hoveredCell = hoveredCellOverride !== undefined ? hoveredCellOverride : hoverStoreCell;
   const validationResults = validationResultsOverride ?? store.validationResults;
   const blockedCellsArray = blockedCellsOverride ?? store.boardState.blockedCells;
 
@@ -483,9 +525,7 @@ export function LegoBoard({
 
       {/* Nonogram hints (if puzzle has them) */}
       {store.puzzle?.nonogram_hints && (
-        <NonogramHints3D
-          hints={store.puzzle.nonogram_hints}
-        />
+        <NonogramHints3D hints={store.puzzle.nonogram_hints} />
       )}
 
       {/* Invisible interaction plane - rotated to face up for proper raycasting */}

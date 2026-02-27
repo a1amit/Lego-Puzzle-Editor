@@ -23,6 +23,13 @@ const FALLBACK_MODEL = 'google/gemma-3-27b-it:free';
 const MAX_TOKENS = Number(import.meta.env.VITE_CHAT_MAX_TOKENS) || 1000;
 const TEMPERATURE = Number(import.meta.env.VITE_CHAT_TEMPERATURE) || 0.7;
 
+// Rate limiting
+const COOLDOWN_MS = 2000;
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+let lastRequestTime = 0;
+let requestTimestamps: number[] = [];
+
 /**
  * Gets the OpenRouter API key from environment variables
  */
@@ -58,7 +65,11 @@ async function callModel(apiKey: string, messages: ChatMessage[], model: string)
         }
 
         const data = await response.json();
-        const assistantMessage = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+        const assistantMessage = data.choices?.[0]?.message?.content;
+        if (!assistantMessage) {
+            console.warn(`Empty response from ${model}:`, JSON.stringify(data));
+            return { success: false, message: '', error: `Model returned an empty response. It may be temporarily unavailable.` };
+        }
         return { success: true, message: assistantMessage };
     } catch (error) {
         console.error(`Chat API error (${model}):`, error);
@@ -91,6 +102,26 @@ export async function sendChatMessage(
     const systemPromptWithContext = puzzleContext
         ? `${CHATBOT_SYSTEM_PROMPT}\n\nCURRENT PUZZLE CONTEXT:\n${puzzleContext}`
         : CHATBOT_SYSTEM_PROMPT;
+
+    // Rate limiting checks
+    const now = Date.now();
+    if (now - lastRequestTime < COOLDOWN_MS) {
+        return {
+            success: false,
+            message: '',
+            error: 'Please wait a moment before sending another message.',
+        };
+    }
+    requestTimestamps = requestTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+    if (requestTimestamps.length >= RATE_LIMIT_MAX) {
+        return {
+            success: false,
+            message: '',
+            error: 'Rate limit reached. Please wait a few minutes before sending more messages.',
+        };
+    }
+    lastRequestTime = now;
+    requestTimestamps.push(now);
 
     const messages: ChatMessage[] = [
         { role: 'system', content: systemPromptWithContext },
