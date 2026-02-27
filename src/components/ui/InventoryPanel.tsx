@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { rotateShape } from '../../validation/ValidationRegistry';
@@ -113,7 +114,14 @@ interface InventoryPanelProps {
 }
 
 export function InventoryPanel({ className = '', engine }: InventoryPanelProps) {
-  const store = usePuzzleStore();
+  const store = usePuzzleStore(useShallow(s => ({
+    puzzle: s.puzzle,
+    inventoryState: s.inventoryState,
+    selectedBrickId: s.selectedBrickId,
+    previewRotation: s.previewRotation,
+    selectBrick: s.selectBrick,
+    rotatePreview: s.rotatePreview,
+  })));
 
   const puzzle = engine?.puzzle ?? store.puzzle;
   const inventoryState = engine?.inventory ?? store.inventoryState;

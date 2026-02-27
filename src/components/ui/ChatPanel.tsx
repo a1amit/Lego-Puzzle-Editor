@@ -303,7 +303,7 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
 
         {/* Messages area */}
         {messages.length > 0 && (
-          <div className="flex-1 overflow-y-auto p-3">
+          <div className="flex-1 overflow-y-auto p-3" role="log" aria-live="polite">
             <div className="flex flex-col gap-1">
               {messages.map((message, index) => {
                 const isMsgRTL = isRTL(message.content);
@@ -418,7 +418,24 @@ function AIBubble({ content, rtl }: { content: string; rtl: boolean }) {
         className="text-sm px-4 py-2.5 rounded-xl w-fit max-w-[80%] bg-secondary text-foreground break-words border border-border/50"
       >
         <div className="chat-prose">
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkBreaks]}
+            components={{
+              a: ({ href, children, ...props }) => {
+                const isSafe = href && !href.match(/^(javascript|data|vbscript):/i);
+                return (
+                  <a
+                    href={isSafe ? href : '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    {...props}
+                  >
+                    {children}
+                  </a>
+                );
+              }
+            }}
+          >
             {content}
           </ReactMarkdown>
         </div>

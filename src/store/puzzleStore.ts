@@ -176,6 +176,22 @@ function setActionError(set: (partial: Partial<PuzzleStore>) => void, message: s
   setTimeout(() => set({ lastActionError: null }), 3000);
 }
 
+/**
+ * Run validation and return partial state to merge into a single set() call.
+ * This avoids the double set() overhead of calling validate() separately.
+ */
+function computeValidation(
+  puzzle: PuzzleDefinition | null,
+  boardState: BoardState,
+  moveCount: number,
+): { validationResults: ValidationResult[]; isComplete: boolean } {
+  if (!puzzle) return { validationResults: [], isComplete: false };
+  const rulesWithParams = enrichValidationRules(puzzle, moveCount);
+  const results = ValidationRegistry.validate(boardState, rulesWithParams);
+  const isComplete = ValidationRegistry.isAllValid(results);
+  return { validationResults: results, isComplete };
+}
+
 // ============================================
 // INITIAL STATE (uses shared boardFactory)
 // ============================================
@@ -313,18 +329,19 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     const newInventory = new Map(inventoryState);
     newInventory.set(brick.id, remaining - 1);
 
+    const newBoardState = {
+      ...boardState,
+      placedBricks: [...boardState.placedBricks, placedBrick],
+    };
+
     set({
-      boardState: {
-        ...boardState,
-        placedBricks: [...boardState.placedBricks, placedBrick],
-      },
+      boardState: newBoardState,
       inventoryState: newInventory,
       previewRotation: 0,
       undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
       redoStack: [],
+      ...computeValidation(get().puzzle, newBoardState, get().moveCount),
     });
-
-    get().validate();
   },
 
   removeBrick: (instanceId) => {
@@ -357,17 +374,18 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     }
 
     const instanceIdsToRemove = new Set([instanceId, ...stackedBrickIds]);
+    const newBoardState = {
+      ...boardState,
+      placedBricks: boardState.placedBricks.filter(b => !instanceIdsToRemove.has(b.instanceId)),
+    };
+
     set({
-      boardState: {
-        ...boardState,
-        placedBricks: boardState.placedBricks.filter(b => !instanceIdsToRemove.has(b.instanceId)),
-      },
+      boardState: newBoardState,
       inventoryState: newInventory,
       undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
       redoStack: [],
+      ...computeValidation(get().puzzle, newBoardState, get().moveCount),
     });
-
-    get().validate();
   },
 
   moveBrick: (instanceId, newPosition) => {
@@ -431,22 +449,24 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       return;
     }
 
+    const newBoardState = {
+      ...boardState,
+      placedBricks: bricksWithoutStacked.map(b =>
+        b.instanceId === instanceId
+          ? { ...b, position: newPosition, z: zLevel }
+          : b
+      ),
+    };
+    const newMoveCount = get().moveCount + 1;
+
     set({
-      boardState: {
-        ...boardState,
-        placedBricks: bricksWithoutStacked.map(b =>
-          b.instanceId === instanceId
-            ? { ...b, position: newPosition, z: zLevel }
-            : b
-        ),
-      },
+      boardState: newBoardState,
       inventoryState: newInventory,
-      moveCount: get().moveCount + 1,
+      moveCount: newMoveCount,
       undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
       redoStack: [],
+      ...computeValidation(get().puzzle, newBoardState, newMoveCount),
     });
-
-    get().validate();
   },
 
   rotateBrick: (instanceId) => {
@@ -458,20 +478,21 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       moveCount: get().moveCount,
     };
 
+    const newBoardState = {
+      ...boardState,
+      placedBricks: boardState.placedBricks.map(b =>
+        b.instanceId === instanceId
+          ? { ...b, rotation: (b.rotation + 90) % 360 }
+          : b
+      ),
+    };
+
     set({
-      boardState: {
-        ...boardState,
-        placedBricks: boardState.placedBricks.map(b =>
-          b.instanceId === instanceId
-            ? { ...b, rotation: (b.rotation + 90) % 360 }
-            : b
-        ),
-      },
+      boardState: newBoardState,
       undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
       redoStack: [],
+      ...computeValidation(get().puzzle, newBoardState, get().moveCount),
     });
-
-    get().validate();
   },
 
   // ------------------------------------------
@@ -554,9 +575,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       redoStack: [...redoStack, currentSnapshot],
       selectedBrickId: null,
       previewRotation: 0,
+      ...computeValidation(get().puzzle, prev.boardState, prev.moveCount),
     });
-
-    get().validate();
   },
 
   redo: () => {
@@ -578,9 +598,8 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       undoStack: [...undoStack, currentSnapshot],
       selectedBrickId: null,
       previewRotation: 0,
+      ...computeValidation(get().puzzle, next.boardState, next.moveCount),
     });
-
-    get().validate();
   },
 
   // ------------------------------------------

@@ -1,7 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Editor, { OnMount, OnChange } from '@monaco-editor/react';
-import { editor } from 'monaco-editor';
+import * as monaco from 'monaco-editor';
+import Editor, { OnMount, OnChange, loader } from '@monaco-editor/react';
 import { usePuzzleStore } from '../../store/puzzleStore';
+
+// Use locally bundled Monaco (not CDN) — required by CSP and saves ~8.7MB of unused workers
+self.MonacoEnvironment = {
+  getWorker(_: string, label: string) {
+    if (label === 'json') {
+      return new Worker(
+        new URL('monaco-editor/esm/vs/language/json/json.worker.js', import.meta.url),
+        { type: 'module' },
+      );
+    }
+    return new Worker(
+      new URL('monaco-editor/esm/vs/editor/editor.worker.js', import.meta.url),
+      { type: 'module' },
+    );
+  },
+};
+loader.config({ monaco });
 import { PuzzleDefinitionSchema } from '../../types/puzzle';
 import { Button } from '../ui/shadcn/button';
 import { Badge } from '../ui/shadcn/badge';
@@ -131,7 +148,7 @@ interface PuzzleEditorProps {
 }
 
 export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof import('monaco-editor') | null>(null);
   const { jsonSource, setJsonSource, parseAndLoadPuzzle, parseError } = usePuzzleStore();
   const [localErrors, setLocalErrors] = useState<string[]>([]);
@@ -197,7 +214,7 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
     if (!editorRef.current || !monacoRef.current) return;
     const model = editorRef.current.getModel();
     if (!model) return;
-    const markers: editor.IMarkerData[] = errors.map((error) => ({
+    const markers: monaco.editor.IMarkerData[] = errors.map((error) => ({
       severity: monacoRef.current!.MarkerSeverity.Error,
       message: error,
       startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1,

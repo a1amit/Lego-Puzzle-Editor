@@ -16,11 +16,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
-          'vendor-monaco': ['monaco-editor', '@monaco-editor/react'],
-          'vendor-utils': ['zustand', 'zod'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom')) return 'vendor-react'
+          if (id.includes('node_modules/react/')) return 'vendor-react'
+          if (id.includes('node_modules/three') || id.includes('node_modules/@react-three')) return 'vendor-three'
+          if (id.includes('node_modules/monaco-editor')) return 'vendor-monaco'
+          if (id.includes('node_modules/zustand') || id.includes('node_modules/zod')) return 'vendor-utils'
         },
       },
     },
