@@ -472,7 +472,7 @@ export function Renderer3D({ engine, className = '' }: Renderer3DProps) {
             zIndex: 1200,
           }}
         >
-          <div className="p-1.5 bg-card/85 rounded-xl shadow-2xl border border-border/60 backdrop-blur-md">
+          <div className="p-1.5 bg-[var(--surface-raised)]/90 rounded-xl shadow-2xl border border-[var(--border-subtle)] backdrop-blur-md">
             <svg width={72} height={72} viewBox="0 0 72 72">
               {(() => {
                 const shapeDef = SHAPE_LIBRARY[selectedInventoryPiece.shape];

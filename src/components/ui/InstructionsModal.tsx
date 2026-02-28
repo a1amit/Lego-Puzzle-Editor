@@ -27,6 +27,8 @@ import {
   Mouse,
   Move,
   Keyboard,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface InstructionsModalProps {
@@ -42,11 +44,69 @@ function KBD({ children }: { children: React.ReactNode }) {
   );
 }
 
+function CopyableCode({ children }: { children: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(children);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative group">
+      <pre className="bg-[var(--surface-sunken)] rounded-lg p-4 pr-12 text-sm overflow-x-auto text-muted-foreground font-mono">
+        {children}
+      </pre>
+      <button
+        onClick={handleCopy}
+        className="absolute top-2 right-2 p-1.5 rounded-md bg-secondary/80 border border-[var(--border-subtle)] text-muted-foreground hover:text-foreground hover:bg-secondary transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+        aria-label="Copy code"
+      >
+        {copied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+      </button>
+    </div>
+  );
+}
+
+function ShapePreviewMini({ cells, color = 'var(--primary)' }: { cells: number[][]; color?: string }) {
+  if (!cells.length) return null;
+  const xs = cells.map(c => c[0]);
+  const ys = cells.map(c => c[1]);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const maxX = Math.max(...xs);
+  const maxY = Math.max(...ys);
+  const cols = maxX - minX + 1;
+  const rows = maxY - minY + 1;
+  const cellSize = 8;
+  const gap = 1;
+  const w = cols * (cellSize + gap) - gap;
+  const h = rows * (cellSize + gap) - gap;
+
+  return (
+    <svg width={w} height={h} className="shrink-0">
+      {cells.map((c, i) => (
+        <rect
+          key={i}
+          x={(c[0] - minX) * (cellSize + gap)}
+          y={(c[1] - minY) * (cellSize + gap)}
+          width={cellSize}
+          height={cellSize}
+          rx={1.5}
+          fill={color}
+          opacity={0.85}
+        />
+      ))}
+    </svg>
+  );
+}
+
 function OverviewTab() {
   return (
     <div className="space-y-4">
       {/* Getting Started */}
-      <div className="bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/30 rounded-xl p-5">
+      <div className="bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/40 rounded-xl p-5">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
             <Layers className="w-6 h-6 text-primary" />
@@ -91,7 +151,7 @@ function OverviewTab() {
         <Layers className="w-4 h-4 text-primary" />
         View Modes
       </h4>
-      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+      <div className="bg-secondary rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
           <Badge variant="default" className="text-xs">3D</Badge>
           <span className="text-muted-foreground">Interactive 3D view with rotation & zoom (default)</span>
@@ -107,7 +167,7 @@ function OverviewTab() {
         <Mouse className="w-4 h-4 text-primary" />
         3D View Controls
       </h4>
-      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+      <div className="bg-secondary rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
           <KBD>Left-click + Drag</KBD>
           <span className="text-muted-foreground">Rotate the camera view</span>
@@ -127,7 +187,7 @@ function OverviewTab() {
         <Move className="w-4 h-4 text-primary" />
         2D View Controls (Slider Puzzles)
       </h4>
-      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+      <div className="bg-secondary rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
           <KBD>Click piece</KBD>
           <span className="text-muted-foreground">Select a piece (shows valid moves as green)</span>
@@ -147,7 +207,7 @@ function OverviewTab() {
         <Keyboard className="w-4 h-4 text-primary" />
         Brick Controls
       </h4>
-      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+      <div className="bg-secondary rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
           <KBD>Click inventory brick</KBD>
           <span className="text-muted-foreground">Select a brick to place</span>
@@ -175,8 +235,7 @@ function OverviewTab() {
       </div>
 
       <h4 className="text-foreground font-semibold mt-6">JSON Structure</h4>
-      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-        {`{
+      <CopyableCode>{`{
   "puzzle_id": "unique-id",
   "title": "Puzzle Name",
   "description": "Instructions for the player",
@@ -194,8 +253,7 @@ function OverviewTab() {
     "difficulty": "easy|medium|hard",
     "tags": ["tag1", "tag2"]
   }
-}`}
-      </pre>
+}`}</CopyableCode>
 
       <h4 className="text-foreground font-semibold mt-6">Board Configuration</h4>
       <ul className="list-disc list-inside text-muted-foreground space-y-1">
@@ -236,33 +294,36 @@ function ShapesTab() {
       </p>
 
       <div className="grid gap-3">
-        {shapes.map((shape) => (
-          <div key={shape.name} className="bg-secondary/50 rounded-lg p-3 flex items-start gap-4">
-            <div className="flex-1">
-              <div className="font-semibold text-foreground">{shape.name}</div>
-              <div className="text-sm text-muted-foreground">{shape.desc}</div>
-              <code className="text-xs text-primary mt-1 block">{shape.cells}</code>
+        {shapes.map((shape) => {
+          const parsedCells = JSON.parse(shape.cells) as number[][];
+          return (
+            <div key={shape.name} className="bg-secondary rounded-lg p-3 flex items-start gap-4">
+              <div className="w-10 h-10 flex items-center justify-center shrink-0">
+                <ShapePreviewMini cells={parsedCells} color="oklch(0.65 0.15 250)" />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-foreground">{shape.name}</div>
+                <div className="text-sm text-muted-foreground">{shape.desc}</div>
+                <code className="text-xs text-primary mt-1 block">{shape.cells}</code>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <h4 className="text-foreground font-semibold mt-6">Inventory Item Format (for 3D puzzles)</h4>
-      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-        {`{
+      <CopyableCode>{`{
   "id": "brick-1",
   "shape": "T-tetromino",
   "color": "#D01012",
   "quantity": 2
-}`}
-      </pre>
+}`}</CopyableCode>
 
       <h4 className="text-foreground font-semibold mt-6">Cell-Based Piece Definition (for Slider Puzzles)</h4>
       <p className="text-muted-foreground text-sm mb-3">
         For slider puzzles, pieces are defined by the exact cells they cover in <code className="text-primary">initial_state</code>:
       </p>
-      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-        {`"initial_state": [
+      <CopyableCode>{`"initial_state": [
   {
     "id": "red-block",
     "cells": [[1,0], [2,0], [1,1], [2,1]],
@@ -273,8 +334,7 @@ function ShapesTab() {
     "cells": [[0,0], [0,1]],
     "color": "#0055BF"
   }
-]`}
-      </pre>
+]`}</CopyableCode>
       <p className="text-muted-foreground text-sm mt-2">
         Each cell is <code className="text-primary">[x, y]</code> — the exact grid positions the piece covers.
       </p>
@@ -341,7 +401,7 @@ function ValidationTab() {
 
       <div className="space-y-3">
         {rules.map((rule) => (
-          <div key={rule.name} className="bg-secondary/50 rounded-lg p-4">
+          <div key={rule.name} className="bg-secondary rounded-lg p-4">
             <div className="flex items-center gap-2 mb-1">
               <span className={`px-2 py-0.5 text-xs rounded ${getTypeColor(rule.type)}`}>
                 {rule.type}
@@ -369,23 +429,19 @@ function ValidationTab() {
       </div>
 
       <h4 className="text-foreground font-semibold mt-6">Rule Format (Coverage Puzzle)</h4>
-      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-        {`"validation_rules": [
+      <CopyableCode>{`"validation_rules": [
   { "type": "COVERAGE", "rule": "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
   { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
   { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
-]`}
-      </pre>
+]`}</CopyableCode>
 
       <h4 className="text-foreground font-semibold mt-6">Rule Format (Slider Puzzle)</h4>
-      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-        {`"validation_rules": [
+      <CopyableCode>{`"validation_rules": [
   { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
   { "type": "ROTATION", "rule": "NO_ROTATION" },
   { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
   { "type": "GOAL", "rule": "GOAL_REACHED" }
-]`}
-      </pre>
+]`}</CopyableCode>
     </div>
   );
 }
@@ -409,7 +465,7 @@ function SliderTab() {
       </div>
 
       <h4 className="text-foreground font-semibold">Key Differences from 3D Puzzles</h4>
-      <div className="bg-secondary/50 rounded-lg p-4 space-y-3">
+      <div className="bg-secondary rounded-lg p-4 space-y-3">
         <div className="flex items-start gap-3 text-sm">
           <Badge className="bg-blue-500/20 text-blue-300 text-xs shrink-0">viewMode</Badge>
           <span className="text-muted-foreground">Set to <code className="text-primary">"2D"</code> for flat 2D rendering</span>
@@ -436,19 +492,16 @@ function SliderTab() {
       <p className="text-muted-foreground text-sm mb-3">
         The <code className="text-primary">goal</code> property defines the win condition:
       </p>
-      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-        {`"goal": {
+      <CopyableCode>{`"goal": {
   "targetPieceId": "goal",
   "targetPieceIds": ["p1", "p2"],
   "allowAnyPiece": true,
   "cells": [[1,4], [2,4], [1,5], [2,5]],
   "hideGoalVisualization": true
-}`}
-      </pre>
+}`}</CopyableCode>
 
       <h4 className="text-foreground font-semibold mt-6">Example: Minimal Slider</h4>
-      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-        {`{
+      <CopyableCode>{`{
   "puzzle_id": "mini-slider",
   "title": "Mini Slider",
   "description": "Slide the red block to the bottom",
@@ -469,11 +522,10 @@ function SliderTab() {
     { "type": "GOAL", "rule": "GOAL_REACHED" }
   ],
   "goal": { "targetPieceId": "goal", "cells": [[1,4],[2,4],[1,5],[2,5]] }
-}`}
-      </pre>
+}`}</CopyableCode>
 
       <h4 className="text-foreground font-semibold mt-6">How Sliding Works</h4>
-      <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+      <div className="bg-secondary rounded-lg p-4 space-y-2">
         {[
           'Click a piece to select it',
           'Valid slide destinations appear as green cells',
@@ -510,7 +562,7 @@ function NonogramTab() {
       </div>
 
       <h4 className="text-foreground font-semibold">Key Components</h4>
-      <div className="bg-secondary/50 rounded-lg p-4 space-y-3">
+      <div className="bg-secondary rounded-lg p-4 space-y-3">
         <div className="flex items-start gap-3 text-sm">
           <Badge className="bg-emerald-500/20 text-emerald-300 text-xs shrink-0">nonogram_hints</Badge>
           <span className="text-muted-foreground">Defines row and column number hints displayed around the grid.</span>
@@ -530,8 +582,7 @@ function NonogramTab() {
       </div>
 
       <h4 className="text-foreground font-semibold mt-6">Nonogram Hints Format</h4>
-      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-        {`"nonogram_hints": {
+      <CopyableCode>{`"nonogram_hints": {
   "rows": [
     [4],      // Row 0: 4 consecutive filled cells
     [1, 1],   // Row 1: two separate single cells
@@ -542,12 +593,10 @@ function NonogramTab() {
   "columns": [
     [1, 1], [1, 2], [5], [1, 2], [2]
   ]
-}`}
-      </pre>
+}`}</CopyableCode>
 
       <h4 className="text-foreground font-semibold mt-6">Target Pattern Format</h4>
-      <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-        {`"target_pattern": {
+      <CopyableCode>{`"target_pattern": {
   "rows": [
     [1, 1, 1, 1, 0],
     [0, 0, 1, 0, 1],
@@ -556,10 +605,9 @@ function NonogramTab() {
     [1, 0, 1, 1, 0]
   ],
   "color_mapping": { "1": "#05131D" }
-}`}
-      </pre>
+}`}</CopyableCode>
 
-      <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mt-4">
+      <div className="bg-primary/10 border border-primary/40 rounded-lg p-4 mt-4">
         <h4 className="text-primary font-semibold mb-2 flex items-center gap-2">
           <Lightbulb className="w-4 h-4" />
           Tips
@@ -583,8 +631,7 @@ function ExamplesTab() {
         <p className="text-muted-foreground text-sm mb-3">
           Cover every cell on an 8x4 board using 8 T-tetrominoes.
         </p>
-        <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-          {`{
+        <CopyableCode>{`{
   "puzzle_id": "t-puzzle",
   "title": "T-Time",
   "board": {
@@ -600,8 +647,7 @@ function ExamplesTab() {
     { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
     { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
   ]
-}`}
-        </pre>
+}`}</CopyableCode>
       </div>
 
       <div>
@@ -609,8 +655,7 @@ function ExamplesTab() {
         <p className="text-muted-foreground text-sm mb-3">
           Klotski-style puzzle. Slide the red 2x2 block to the goal position.
         </p>
-        <pre className="bg-secondary/70 rounded-lg p-4 text-sm overflow-x-auto text-muted-foreground font-mono">
-          {`{
+        <CopyableCode>{`{
   "puzzle_id": "Slider-01",
   "title": "Klotski Classic",
   "viewMode": "2D",
@@ -628,8 +673,7 @@ function ExamplesTab() {
     { "type": "GOAL", "rule": "GOAL_REACHED" }
   ],
   "goal": { "targetPieceId": "goal", "cells": [[1,4],[2,4],[1,5],[2,5]] }
-}`}
-        </pre>
+}`}</CopyableCode>
       </div>
 
       {/* Quick Start */}
@@ -646,7 +690,7 @@ function ExamplesTab() {
         </ol>
       </div>
 
-      <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+      <div className="bg-primary/10 border border-primary/40 rounded-lg p-4">
         <h4 className="text-primary font-semibold mb-2 flex items-center gap-2">
           <Lightbulb className="w-4 h-4" />
           Tips
@@ -683,7 +727,10 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
-          <TabsList className="flex-shrink-0 mx-6 mt-2 !h-auto overflow-x-auto flex-nowrap justify-start bg-transparent gap-1 p-0 border-b border-border pb-2 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="flex-shrink-0 mx-6 mt-2 relative">
+            <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-[var(--dialog-bg,var(--background))] to-transparent z-10" />
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-[var(--dialog-bg,var(--background))] to-transparent z-10" />
+          <TabsList className="!h-auto overflow-x-auto flex-nowrap justify-start bg-transparent gap-1 p-0 border-b border-border pb-2 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <TabsTrigger value="overview" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Layers className="w-3.5 h-3.5" />
               Overview
@@ -709,6 +756,7 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
               Examples
             </TabsTrigger>
           </TabsList>
+          </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
             <TabsContent value="overview" className="mt-0"><OverviewTab /></TabsContent>

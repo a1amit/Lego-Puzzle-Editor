@@ -10,20 +10,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { sendChatMessage, isApiKeyConfigured, ChatMessage } from '../../services/ChatService';
+import { isDesignIntent, getDesignContext } from '../../services/puzzleContext';
 import { usePuzzleStore } from '../../store/puzzleStore';
-import { ArrowUp, Square, X, Plus, Lightbulb, ClipboardCheck, BarChart3, Zap, GripHorizontal } from 'lucide-react';
-import legoAvatarImg from '../../assets/lego-avatar.png';
+import { ArrowUp, X, Plus, Lightbulb, ClipboardCheck, BarChart3, Zap, Wand2, GripHorizontal } from 'lucide-react';
+import { Button } from '../ui/shadcn/button';
+import { LegoHelperIcon } from './LegoHelperIcon';
 
-// Lego Minifigure Helper Icon
-export const LegoHelperIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <div className={`relative ${className} flex items-center justify-center`}>
-    <img
-      src={legoAvatarImg}
-      alt="Lego Helper"
-      className="w-full h-full object-contain filter drop-shadow-sm rounded-full"
-    />
-  </div>
-);
+// Re-export for backward compatibility
+export { LegoHelperIcon };
 
 interface Message {
   role: "user" | "assistant";
@@ -56,6 +50,20 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
+const PANEL_WIDTH = 420;
+const PANEL_HEIGHT = 620;
+
+/** Clamp position to keep panel visible within the viewport */
+function clampPosition(pos: { x: number; y: number }) {
+  const pad = 20;
+  const maxX = window.innerWidth - PANEL_WIDTH + pad;
+  const maxY = window.innerHeight - PANEL_HEIGHT + pad;
+  return {
+    x: Math.max(-pad, Math.min(pos.x, maxX)),
+    y: Math.max(-pad, Math.min(pos.y, maxY)),
+  };
+}
+
 export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -76,22 +84,35 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize position from storage or default
+  // Mobile bottom-sheet ref
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // Initialize position from storage or default, clamped to viewport
   useEffect(() => {
     if (typeof window !== 'undefined' && !isMobile) {
       const saved = localStorage.getItem('chat_panel_position');
       if (saved) {
         try {
-          setPosition(JSON.parse(saved));
+          setPosition(clampPosition(JSON.parse(saved)));
           return;
         } catch (e) {
           console.error("Failed to parse chat position", e);
         }
       }
       const defaultY = Math.max(20, window.innerHeight - 680);
-      setPosition({ x: 20, y: defaultY });
+      setPosition(clampPosition({ x: 20, y: defaultY }));
     }
   }, [isOpen, isMobile]);
+
+  // Re-clamp position when window is resized (prevents off-screen)
+  useEffect(() => {
+    if (isMobile) return;
+    const handleResize = () => {
+      setPosition(prev => prev ? clampPosition(prev) : prev);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobile]);
 
   // Reset bottom-sheet translate when opened
   useEffect(() => {
@@ -99,7 +120,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   }, [isOpen, isMobile]);
 
   // Connect to puzzle store for context
-  const { puzzle, isComplete, moveCount, boardState } = usePuzzleStore();
+  const { puzzle, isComplete, moveCount, boardState, validationResults, inventoryState } = usePuzzleStore();
 
   // Desktop Drag Handlers (pointer events)
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -114,17 +135,21 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDragging.current) return;
-    setPosition({
+    setPosition(clampPosition({
       x: e.clientX - dragOffset.current.x,
       y: e.clientY - dragOffset.current.y
-    });
+    }));
   }, []);
 
   const handlePointerUp = useCallback(() => {
     if (isDragging.current) {
       isDragging.current = false;
       setPosition(prev => {
-        if (prev) localStorage.setItem('chat_panel_position', JSON.stringify(prev));
+        if (prev) {
+          const clamped = clampPosition(prev);
+          localStorage.setItem('chat_panel_position', JSON.stringify(clamped));
+          return clamped;
+        }
         return prev;
       });
     }
@@ -144,7 +169,9 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   };
 
   const handleSheetPointerUp = () => {
-    if (sheetTranslateY > 100) {
+    // Close if dragged more than 30% of sheet height
+    const sheetH = sheetRef.current?.offsetHeight ?? 400;
+    if (sheetTranslateY > sheetH * 0.3) {
       onClose();
     }
     setSheetTranslateY(0);
@@ -162,20 +189,42 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     if (!puzzle) return "No puzzle currently loaded.";
     const placedCount = boardState.placedBricks.length;
     const totalInventory = puzzle.inventory.reduce((sum, b) => sum + b.quantity, 0);
-    const progress = `${placedCount} bricks placed out of approx ${totalInventory} available.`;
+    const { width, height } = boardState.dimensions;
+
+    // Compact placed bricks: "T-tetromino at (2,1) rot=90"
+    const placedLines = boardState.placedBricks.map(b =>
+      `- ${b.shape} at (${b.position.x},${b.position.y})${b.rotation ? ` rot=${b.rotation}` : ''}`
+    );
+
+    // Remaining inventory from store state
+    const remainingLines = puzzle.inventory
+      .map(b => {
+        const remaining = inventoryState.get(b.id) ?? b.quantity;
+        return remaining > 0 ? `- ${remaining}x ${b.shape}` : null;
+      })
+      .filter(Boolean);
+
+    // Validation status: "✓ NO_BRICK_OVERLAP" or "✗ ALL_BOARD_SQUARES_MUST_BE_COVERED: 5 cells uncovered"
+    const validationLines = validationResults.map(r =>
+      `- ${r.isValid ? 'PASS' : 'FAIL'} ${r.rule}${!r.isValid && r.message ? `: ${r.message}` : ''}`
+    );
 
     return `
 PUZZLE: ${puzzle.title} (ID: ${puzzle.puzzle_id})
 DESCRIPTION: ${puzzle.description}
-TYPE: ${puzzle.viewMode === '3D' ? '3D Construction' : '2D Grid/Slider'}
+BOARD: ${width}×${height}, TYPE: ${puzzle.viewMode === '3D' ? '3D Construction' : '2D Grid/Slider'}
 STATUS: ${isComplete ? 'SOLVED' : 'IN PROGRESS'}
 MOVES: ${moveCount}
-PROGRESS: ${progress}
-VALIDATION RULES:
-${puzzle.validation_rules.map(r => `- ${r.rule}`).join('\n')}
+PROGRESS: ${placedCount}/${totalInventory} bricks placed
 
-INVENTORY ITEMS:
-${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n')}
+BOARD STATE (placed bricks):
+${placedLines.length > 0 ? placedLines.join('\n') : '(empty board)'}
+
+REMAINING INVENTORY:
+${remainingLines.length > 0 ? remainingLines.join('\n') : '(all placed)'}
+
+VALIDATION:
+${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked yet)'}
     `.trim();
   };
 
@@ -195,7 +244,13 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
     }
 
     const history = getConversationHistory();
-    const context = getPuzzleContext();
+    let context = getPuzzleContext();
+
+    // Inject design context when the user (or conversation) is about designing puzzles
+    const conversationHasDesignIntent = history.some(m => isDesignIntent(m.content));
+    if (isDesignIntent(text) || conversationHasDesignIntent) {
+      context += '\n\n' + getDesignContext();
+    }
 
     const response = await sendChatMessage(text, history, context);
     setIsLoading(false);
@@ -271,6 +326,11 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
       title: "Strategy",
       content: "What strategy should I use?",
     },
+    {
+      icon: <Wand2 className="w-5 h-5 text-emerald-400" />,
+      title: "Design",
+      content: "Help me design a new puzzle",
+    },
   ];
 
   /** Shared chat content (used in both desktop and mobile layouts) */
@@ -289,7 +349,7 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
               key={block.title}
               onClick={() => sendMessage(block.content)}
               disabled={!apiConfigured}
-              className="p-3.5 flex flex-col text-left gap-3 rounded-xl w-full bg-secondary/50 hover:bg-secondary/80 border border-border/50 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed animate-suggestion-in"
+              className={`p-3.5 flex flex-col text-left gap-3 rounded-xl w-full bg-secondary hover:bg-[var(--surface-panel)] border border-[var(--border-subtle)] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed animate-suggestion-in outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${index === suggestions.length - 1 && suggestions.length % 2 !== 0 ? 'col-span-2' : ''}`}
               style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'both' }}
             >
               {block.icon}
@@ -304,7 +364,7 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
 
       {/* Messages area */}
       {messages.length > 0 && (
-        <div className="flex-1 overflow-y-auto p-3" role="log" aria-live="polite">
+        <div className="flex-1 overflow-y-auto p-3" role="log" aria-live="polite" aria-label="Chat messages">
           <div className="flex flex-col gap-1">
             {messages.map((message, index) => {
               const isMsgRTL = isRTL(message.content);
@@ -321,7 +381,7 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
                 <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-primary/60 to-primary">
                   <LegoHelperIcon className="w-5 h-5" />
                 </div>
-                <div className="px-4 py-3 rounded-xl bg-secondary border border-border/50">
+                <div className="px-4 py-3 rounded-xl bg-secondary border border-[var(--border-subtle)]">
                   <div className="flex gap-1.5">
                     <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                     <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -350,7 +410,7 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
 
       {/* Input area */}
       <div className="py-2 px-4 shrink-0">
-        <div className="flex items-end gap-2 bg-secondary/80 rounded-xl border border-border/50 focus-within:border-primary/50 transition-colors duration-150">
+        <div className="flex items-end gap-2 bg-secondary rounded-xl border border-[var(--border-subtle)] focus-within:border-primary/40 transition-colors duration-150">
           <textarea
             ref={textareaRef}
             value={inputValue}
@@ -363,28 +423,18 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
             className="flex-1 min-w-0 px-4 py-3 bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-none overflow-hidden disabled:opacity-50"
             style={{ resize: 'none' }}
           />
-          {/* Send / Stop button */}
+          {/* Send button */}
           <div className="shrink-0 pb-2 pr-2">
-            {isLoading ? (
-              <button
-                onClick={() => {/* stop not implemented for non-streaming */}}
-                className="w-8 h-8 rounded-full bg-destructive flex items-center justify-center text-destructive-foreground transition-colors hover:bg-destructive/80 cursor-pointer"
-              >
-                <Square className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={() => sendMessage()}
-                disabled={!inputValue.trim() || !apiConfigured}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                  inputValue.trim() && apiConfigured
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/80'
-                    : 'bg-secondary text-muted-foreground cursor-not-allowed'
-                }`}
-              >
-                <ArrowUp className="w-5 h-5" />
-              </button>
-            )}
+            <Button
+              size="icon"
+              className={`w-8 h-8 rounded-full ${
+                !(inputValue.trim() && apiConfigured && !isLoading) ? 'bg-secondary text-muted-foreground hover:bg-secondary' : ''
+              }`}
+              onClick={() => sendMessage()}
+              disabled={!inputValue.trim() || !apiConfigured || isLoading}
+            >
+              <ArrowUp className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </div>
@@ -400,9 +450,10 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
 
         {/* Bottom sheet */}
         <div
-          className="absolute bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border/50 rounded-t-2xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
+          ref={sheetRef}
+          className="absolute bottom-0 left-0 right-0 bg-[var(--surface-raised)]/95 backdrop-blur-xl border-t border-[var(--border-subtle)] rounded-t-2xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
           style={{
-            maxHeight: '70vh',
+            maxHeight: '85vh',
             transform: `translateY(${sheetTranslateY}px)`,
             transition: sheetDragStartY.current !== null ? 'none' : 'transform 0.2s ease-out',
           }}
@@ -418,7 +469,7 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
           </div>
 
           {/* Title bar */}
-          <div className="h-10 w-full flex items-center justify-between px-4 border-b border-border/50 shrink-0">
+          <div className="h-10 w-full flex items-center justify-between px-4 border-b border-[var(--border-subtle)] shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-6 h-6 rounded-full flex items-center justify-center bg-primary/20">
                 <LegoHelperIcon className="w-4 h-4" />
@@ -429,21 +480,25 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
             </div>
             <div className="flex items-center gap-1">
               {messages.length > 0 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleNewConversation(); }}
-                  className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-secondary transition-colors cursor-pointer"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleNewConversation(); }}
                   title="New conversation"
                 >
                   <Plus className="w-4 h-4" />
-                </button>
+                </Button>
               )}
-              <button
-                onClick={(e) => { e.stopPropagation(); onClose(); }}
-                className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-secondary transition-colors cursor-pointer"
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e: React.MouseEvent) => { e.stopPropagation(); onClose(); }}
                 aria-label="Close chat"
               >
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -458,7 +513,7 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
     <div className="fixed inset-0 z-50 font-sans pointer-events-none" style={{ isolation: 'isolate' }}>
       {/* Chat Window */}
       <div
-        className="pointer-events-auto absolute w-[420px] h-[620px] max-h-[80vh] bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
+        className="pointer-events-auto absolute w-[420px] h-[620px] max-h-[80vh] bg-[var(--surface-raised)]/95 backdrop-blur-xl border border-[var(--border-subtle)] rounded-xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
         style={{
           left: `${position!.x}px`,
           top: `${position!.y}px`,
@@ -470,7 +525,7 @@ ${puzzle.inventory.map(b => `- ${b.quantity}x ${b.shape} (${b.color})`).join('\n
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          className="h-11 w-full flex items-center justify-between px-4 bg-background/90 backdrop-blur-md border-b border-border/50 cursor-move select-none shrink-0 touch-none"
+          className="h-11 w-full flex items-center justify-between px-4 bg-background/90 backdrop-blur-md border-b border-[var(--border-subtle)] cursor-move select-none shrink-0 touch-none"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/20">
@@ -529,7 +584,7 @@ function AIBubble({ content, rtl }: { content: string; rtl: boolean }) {
       </div>
       <div
         dir={rtl ? 'rtl' : 'ltr'}
-        className="text-sm px-4 py-2.5 rounded-xl w-fit max-w-[80%] bg-secondary text-foreground break-words border border-border/50"
+        className="text-sm px-4 py-2.5 rounded-xl w-fit max-w-[80%] bg-secondary text-foreground break-words border border-[var(--border-subtle)]"
       >
         <div className="chat-prose">
           <ReactMarkdown
@@ -547,6 +602,31 @@ function AIBubble({ content, rtl }: { content: string; rtl: boolean }) {
                     {children}
                   </a>
                 );
+              },
+              code: ({ className, children, ...props }) => {
+                const isBlock = className?.includes('language-');
+                const lang = className?.replace('language-', '') ?? '';
+                const codeStr = String(children).replace(/\n$/, '');
+
+                if (isBlock && (lang === 'json' || lang === 'jsonc')) {
+                  return (
+                    <pre className="bg-[var(--surface-sunken)] rounded-lg p-3 text-xs overflow-x-auto my-2 border border-[var(--border-subtle)]">
+                      <code className="font-mono">
+                        <JsonHighlighted code={codeStr} />
+                      </code>
+                    </pre>
+                  );
+                }
+
+                if (isBlock) {
+                  return (
+                    <pre className="bg-[var(--surface-sunken)] rounded-lg p-3 text-xs overflow-x-auto my-2 border border-[var(--border-subtle)]">
+                      <code className="font-mono" {...props}>{children}</code>
+                    </pre>
+                  );
+                }
+
+                return <code className={className} {...props}>{children}</code>;
               }
             }}
           >
@@ -556,4 +636,44 @@ function AIBubble({ content, rtl }: { content: string; rtl: boolean }) {
       </div>
     </div>
   );
+}
+
+/** Simple JSON syntax highlighter */
+function JsonHighlighted({ code }: { code: string }) {
+  const tokens = tokenizeJson(code);
+  return (
+    <>
+      {tokens.map((t, i) => (
+        <span key={i} className={t.className}>{t.text}</span>
+      ))}
+    </>
+  );
+}
+
+interface JsonToken { text: string; className: string; }
+
+function tokenizeJson(code: string): JsonToken[] {
+  const tokens: JsonToken[] = [];
+  const regex = /("(?:\\.|[^"\\])*")\s*:|("(?:\\.|[^"\\])*")|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\btrue\b|\bfalse\b)|(\bnull\b)|([{}[\]:,])|(\s+)|([^\s"{}[\]:,]+)/g;
+  let match;
+  while ((match = regex.exec(code)) !== null) {
+    if (match[1] !== undefined) {
+      tokens.push({ text: match[1], className: 'text-cyan-400' });
+      const rest = match[0].slice(match[1].length);
+      if (rest) tokens.push({ text: rest, className: 'text-muted-foreground' });
+    } else if (match[2] !== undefined) {
+      tokens.push({ text: match[2], className: 'text-emerald-400' });
+    } else if (match[3] !== undefined) {
+      tokens.push({ text: match[3], className: 'text-orange-400' });
+    } else if (match[4] !== undefined) {
+      tokens.push({ text: match[4], className: 'text-purple-400' });
+    } else if (match[5] !== undefined) {
+      tokens.push({ text: match[5], className: 'text-red-400' });
+    } else if (match[6] !== undefined) {
+      tokens.push({ text: match[6], className: 'text-muted-foreground' });
+    } else {
+      tokens.push({ text: match[0], className: '' });
+    }
+  }
+  return tokens;
 }

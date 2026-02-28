@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { m, AnimatePresence } from 'framer-motion';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { rotateShape } from '../../validation/ValidationRegistry';
@@ -15,7 +16,7 @@ interface ShapePreviewProps {
   rotation?: number;
 }
 
-function ShapePreview({ shape, color, size = 40, rotation = 0 }: ShapePreviewProps) {
+const ShapePreview = memo(function ShapePreview({ shape, color, size = 40, rotation = 0 }: ShapePreviewProps) {
   const shapeDefinition = SHAPE_LIBRARY[shape];
 
   if (!shapeDefinition) {
@@ -45,7 +46,7 @@ function ShapePreview({ shape, color, size = 40, rotation = 0 }: ShapePreviewPro
       ))}
     </svg>
   );
-}
+});
 
 interface BrickItemProps {
   id: string;
@@ -57,31 +58,27 @@ interface BrickItemProps {
   onSelect: () => void;
 }
 
-function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onSelect }: BrickItemProps) {
-  void _id;
+const BrickItem = memo(function BrickItem({ id, shape, color, remaining, isSelected, rotation, onSelect }: BrickItemProps) {
   const isAvailable = remaining > 0;
 
   return (
-    <button
+    <m.button
+      layoutId={`brick-${id}`}
+      aria-label={`${shape} brick, ${remaining} remaining${isSelected ? ', selected' : ''}`}
       className={`
-        group relative flex flex-col items-center gap-2.5 p-3.5 rounded-xl border transition-all duration-200
+        group relative flex flex-col items-center gap-2.5 p-3.5 rounded-xl border
+        transition-[border-color,background-color] duration-150
+        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background outline-none
         ${isSelected
-          ? 'bg-primary/12 border-primary/60 ring-1 ring-primary/70 shadow-lg shadow-primary/15 scale-[1.03]'
-          : 'bg-card/65 border-border/70 hover:bg-card/90 hover:border-primary/30'
+          ? 'bg-primary/12 border-primary/40 shadow-lg shadow-primary/15'
+          : 'bg-[var(--surface-raised)] border-border hover:border-primary/40 hover:bg-[var(--surface-panel)]'
         }
-        ${!isAvailable ? 'opacity-40 cursor-not-allowed saturate-0' : 'cursor-pointer hover:scale-[1.01] active:scale-[0.97]'}
+        ${!isAvailable ? 'opacity-40 cursor-not-allowed saturate-0' : 'cursor-pointer active:scale-[0.97]'}
       `}
       onClick={() => isAvailable && onSelect()}
       disabled={!isAvailable}
     >
-      <div
-        className={`
-          absolute inset-0 rounded-xl pointer-events-none
-          bg-gradient-to-b from-white/[0.09] via-transparent to-transparent
-        `}
-      />
-
-      <div className={`p-2 rounded-lg bg-background/70 transition-all duration-200 ${isSelected ? 'ring-1 ring-primary/40' : 'group-hover:ring-1 group-hover:ring-white/10'}`}>
+      <div className="p-2 rounded-lg bg-background/70">
         <ShapePreview shape={shape} color={color} size={48} rotation={isSelected ? rotation : 0} />
       </div>
 
@@ -94,19 +91,32 @@ function BrickItem({ id: _id, shape, color, remaining, isSelected, rotation, onS
 
       <div className="absolute top-2.5 right-2.5 w-3 h-3 rounded-full ring-2 ring-background shadow-sm" style={{ backgroundColor: color }} />
 
-      {isSelected && (
-        <>
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow-md shadow-primary/40">
-            <Check className="w-3 h-3 text-primary-foreground" />
-          </div>
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-primary text-primary-foreground text-[10px] font-mono rounded shadow-sm">
-            {rotation}°
-          </div>
-        </>
-      )}
-    </button>
+      <AnimatePresence>
+        {isSelected && (
+          <>
+            <m.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+              className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow-md shadow-primary/40"
+            >
+              <Check className="w-3 h-3 text-primary-foreground" />
+            </m.div>
+            <m.div
+              key={rotation}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-primary text-primary-foreground text-[10px] font-mono rounded shadow-sm"
+            >
+              {rotation}°
+            </m.div>
+          </>
+        )}
+      </AnimatePresence>
+    </m.button>
   );
-}
+});
 
 interface InventoryPanelProps {
   className?: string;
@@ -153,8 +163,8 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
   return (
     <div className={`flex flex-col overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-card/95 via-card/85 to-card/70 border-b border-border/70">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+      <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-[var(--surface-raised)] to-[var(--surface-base)] border-b border-border">
+        <h3 className="text-sm font-semibold tracking-wide text-foreground flex items-center gap-2">
           <Package className="w-4 h-4 text-primary" />
           INVENTORY
         </h3>
@@ -162,14 +172,14 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
           <span>{usedBricks} / {totalBricks} bricks placed</span>
           <span className="font-mono tabular-nums text-foreground/90">{Math.round(usedPercent)}%</span>
         </div>
-        <Progress value={usedPercent} className="mt-2 h-1.5 [&>[data-slot=progress-indicator]]:transition-all [&>[data-slot=progress-indicator]]:duration-500 [&>[data-slot=progress-indicator]]:ease-out" />
+        <Progress value={usedPercent} className="mt-2 h-1.5 [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-primary [&>[data-slot=progress-indicator]]:to-primary/70 [&>[data-slot=progress-indicator]]:transition-all [&>[data-slot=progress-indicator]]:duration-500 [&>[data-slot=progress-indicator]]:ease-out" />
       </div>
 
       {/* Rotation control when brick is selected */}
       {isInventorySelection && (
-        <div className="flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-primary/15 via-primary/10 to-transparent border-b border-primary/30 flex items-center justify-between">
+        <div className="flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-primary/15 via-primary/10 to-transparent border-b border-primary/40 flex items-center justify-between">
           <span className="text-xs text-primary font-semibold tracking-wide">Pre-rotate before placing</span>
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 border-primary/35 text-primary hover:bg-primary/20 shadow-sm active:scale-[0.97]" onClick={() => rotatePreview()}>
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/20 shadow-sm" onClick={() => rotatePreview()}>
             <RotateCw className="w-3 h-3" />
             Rotate ({previewRotation}°)
           </Button>
@@ -177,13 +187,39 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
       )}
 
       {/* Brick grid */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3.5 bg-gradient-to-b from-transparent to-background/40">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto p-3.5 bg-gradient-to-b from-transparent to-background/40"
+        role="grid"
+        aria-label="Brick inventory"
+        onKeyDown={(e) => {
+          const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+          const currentIdx = buttons.indexOf(e.target as HTMLButtonElement);
+          if (currentIdx === -1) return;
+          let nextIdx = -1;
+          if (e.key === 'ArrowRight') nextIdx = Math.min(currentIdx + 1, buttons.length - 1);
+          else if (e.key === 'ArrowLeft') nextIdx = Math.max(currentIdx - 1, 0);
+          else if (e.key === 'ArrowDown') {
+            // Estimate columns from grid - move down by row
+            const grid = e.currentTarget.querySelector('.grid');
+            const cols = grid ? Math.floor(grid.clientWidth / 112) || 1 : 1;
+            nextIdx = Math.min(currentIdx + cols, buttons.length - 1);
+          } else if (e.key === 'ArrowUp') {
+            const grid = e.currentTarget.querySelector('.grid');
+            const cols = grid ? Math.floor(grid.clientWidth / 112) || 1 : 1;
+            nextIdx = Math.max(currentIdx - cols, 0);
+          }
+          if (nextIdx >= 0 && nextIdx !== currentIdx) {
+            e.preventDefault();
+            buttons[nextIdx].focus();
+          }
+        }}
+      >
         {puzzle.inventory.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-6">
             This puzzle does not use an inventory.
           </p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-3">
             {puzzle.inventory.map((brick) => (
               <BrickItem
                 key={brick.id}

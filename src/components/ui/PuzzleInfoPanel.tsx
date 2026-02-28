@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { Badge } from '../ui/shadcn/badge';
 import { BookOpen, Keyboard, ListChecks } from 'lucide-react';
@@ -9,7 +10,9 @@ interface PuzzleInfoPanelProps {
 }
 
 export function PuzzleInfoPanel({ className = '', engine }: PuzzleInfoPanelProps) {
-  const store = usePuzzleStore();
+  const store = usePuzzleStore(useShallow(s => ({
+    puzzle: s.puzzle,
+  })));
   const puzzle = engine?.puzzle ?? store.puzzle;
 
   if (!puzzle) {
@@ -20,8 +23,8 @@ export function PuzzleInfoPanel({ className = '', engine }: PuzzleInfoPanelProps
 
   return (
     <div className={`flex flex-col overflow-hidden ${className}`}>
-      <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-card/95 via-card/85 to-card/70 border-b border-border/70">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+      <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-[var(--surface-raised)] to-[var(--surface-base)] border-b border-border">
+        <h3 className="text-sm font-semibold tracking-wide text-foreground flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-primary" />
           PUZZLE INFO
         </h3>
@@ -39,14 +42,14 @@ export function PuzzleInfoPanel({ className = '', engine }: PuzzleInfoPanelProps
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-3.5 space-y-3.5 bg-gradient-to-b from-transparent to-background/35">
-        <section className="rounded-xl border border-border/70 bg-card/55 p-3">
+        <section className="rounded-xl border border-border bg-[var(--surface-raised)] p-3">
           <div className="text-xs font-semibold tracking-wide text-foreground/90 mb-2">{puzzle.title}</div>
           <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
             {puzzle.description}
           </p>
         </section>
 
-        <section className="rounded-xl border border-border/70 bg-card/55 p-3">
+        <section className="rounded-xl border border-border bg-[var(--surface-raised)] p-3">
           <div className="text-xs font-semibold tracking-wide text-foreground/90 mb-2 flex items-center gap-1.5">
             <Keyboard className="w-3.5 h-3.5 text-primary" />
             CONTROLS
@@ -64,14 +67,14 @@ export function PuzzleInfoPanel({ className = '', engine }: PuzzleInfoPanelProps
           </div>
         </section>
 
-        <section className="rounded-xl border border-border/70 bg-card/55 p-3">
+        <section className="rounded-xl border border-border bg-[var(--surface-raised)] p-3">
           <div className="text-xs font-semibold tracking-wide text-foreground/90 mb-2 flex items-center gap-1.5">
             <ListChecks className="w-3.5 h-3.5 text-primary" />
             WIN RULES
           </div>
           <div className="space-y-2">
             {puzzle.validation_rules.map((rule, index) => (
-              <div key={`${rule.rule}-${index}`} className="rounded-lg border border-border/60 bg-background/35 p-2.5 active:scale-[0.97] transition-transform">
+              <div key={`${rule.rule}-${index}`} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-2.5 active:scale-[0.97] transition-transform">
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground/90">
                   {rule.rule.replace(/_/g, ' ')}
                 </div>

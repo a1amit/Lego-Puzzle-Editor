@@ -19,6 +19,8 @@ export function ResizablePanels({
 }: ResizablePanelsProps) {
   const [size, setSize] = useState(defaultSize);
   const [isDragging, setIsDragging] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const hintShownRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const isHorizontal = direction === 'horizontal';
@@ -27,6 +29,7 @@ export function ResizablePanels({
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     setIsDragging(true);
+    setShowHint(false);
   }, []);
 
   const handlePointerMove = useCallback(
@@ -66,6 +69,14 @@ export function ResizablePanels({
     setSize(defaultSize);
   }, [defaultSize]);
 
+  const handleMouseEnter = useCallback(() => {
+    if (!hintShownRef.current) {
+      hintShownRef.current = true;
+      setShowHint(true);
+      setTimeout(() => setShowHint(false), 2500);
+    }
+  }, []);
+
   const cursorStyle = isHorizontal ? 'col-resize' : 'row-resize';
 
   return (
@@ -86,35 +97,58 @@ export function ResizablePanels({
         {children[0]}
       </div>
 
-      {/* Resize handle — outer hit area (12px) wrapping visual handle (6px) */}
+      {/* Resize handle — wider hit area wrapping visual handle */}
       <div
         className={`
-          flex-shrink-0 relative flex items-center justify-center
-          ${isHorizontal ? 'w-3 h-full cursor-col-resize' : 'h-3 w-full cursor-row-resize'}
+          flex-shrink-0 relative flex items-center justify-center group
+          ${isHorizontal ? 'w-4 h-full cursor-col-resize' : 'h-4 w-full cursor-row-resize'}
           touch-none
         `}
         role="separator"
         aria-orientation={isHorizontal ? 'vertical' : 'horizontal'}
+        aria-valuenow={Math.round(size)}
+        aria-valuemin={minSize}
+        aria-valuemax={maxSize}
+        aria-label={`Resize ${isHorizontal ? 'horizontal' : 'vertical'} panels`}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          const step = e.shiftKey ? 5 : 1;
+          if ((isHorizontal && e.key === 'ArrowLeft') || (!isHorizontal && e.key === 'ArrowUp')) {
+            e.preventDefault();
+            setSize(s => Math.max(minSize, s - step));
+          } else if ((isHorizontal && e.key === 'ArrowRight') || (!isHorizontal && e.key === 'ArrowDown')) {
+            e.preventDefault();
+            setSize(s => Math.min(maxSize, s + step));
+          } else if (e.key === 'Home') {
+            e.preventDefault();
+            setSize(minSize);
+          } else if (e.key === 'End') {
+            e.preventDefault();
+            setSize(maxSize);
+          }
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
+        onMouseEnter={handleMouseEnter}
       >
         {/* Visual handle bar */}
         <div
           className={`
-            ${isHorizontal ? 'w-1.5 h-full' : 'h-1.5 w-full'}
-            bg-border hover:bg-primary transition-colors
-            ${isDragging ? 'bg-primary' : ''}
+            ${isHorizontal ? 'w-1.5 h-full rounded-full' : 'h-1.5 w-full rounded-full'}
+            bg-border transition-all duration-150
+            group-hover:bg-primary group-hover:shadow-[0_0_6px_rgba(99,102,241,0.4)]
+            ${isDragging ? 'bg-primary shadow-[0_0_8px_rgba(99,102,241,0.5)]' : ''}
           `}
         />
-        {/* Handle indicator dots */}
+        {/* Handle indicator dots — visible at rest */}
         <div
           className={`
             absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
             flex items-center justify-center gap-1
             ${isHorizontal ? 'flex-col w-4 h-12' : 'flex-row h-4 w-12'}
-            ${isDragging ? 'opacity-100' : 'opacity-0 hover:opacity-100'}
+            ${isDragging ? 'opacity-100' : 'opacity-30 group-hover:opacity-100'}
             transition-opacity pointer-events-none
           `}
         >
@@ -122,6 +156,19 @@ export function ResizablePanels({
             <div key={i} className="w-1 h-1 rounded-full bg-primary" />
           ))}
         </div>
+
+        {/* Double-click hint tooltip */}
+        {showHint && (
+          <div
+            className={`
+              absolute z-50 px-2 py-1 rounded text-[10px] text-foreground bg-popover border border-border shadow-lg
+              pointer-events-none whitespace-nowrap animate-[fade-in_0.2s_ease-out]
+              ${isHorizontal ? 'top-1/2 -translate-y-1/2 left-full ml-2' : 'left-1/2 -translate-x-1/2 top-full mt-2'}
+            `}
+          >
+            Double-click to reset size
+          </div>
+        )}
       </div>
 
       {/* Second panel */}

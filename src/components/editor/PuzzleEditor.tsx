@@ -152,43 +152,49 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
   const monacoRef = useRef<typeof import('monaco-editor') | null>(null);
   const { jsonSource, setJsonSource, parseAndLoadPuzzle, parseError } = usePuzzleStore();
   const [localErrors, setLocalErrors] = useState<string[]>([]);
+  const [isModified, setIsModified] = useState(false);
+  const [errorsCollapsed, setErrorsCollapsed] = useState(false);
   const debounceRef = useRef<number | null>(null);
 
-  const handleEditorMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
-    monacoRef.current = monaco;
+  const puzzleDarkTheme: monaco.editor.IStandaloneThemeData = {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'string.key.json', foreground: '7ee787' },
+      { token: 'string.value.json', foreground: 'a5d6ff' },
+      { token: 'number', foreground: 'f5a97f' },
+      { token: 'keyword', foreground: 'ff7b72' },
+    ],
+    colors: {
+      'editor.background': '#0f0f14',
+      'editor.foreground': '#c9d1d9',
+      'editor.lineHighlightBackground': '#1a1a24',
+      'editor.selectionBackground': '#264f78',
+      'editorCursor.foreground': '#6366f1',
+      'editorLineNumber.foreground': '#484f58',
+      'editorLineNumber.activeForeground': '#c9d1d9',
+      'editor.inactiveSelectionBackground': '#264f7844',
+      'editorIndentGuide.background': '#1e1e28',
+      'editorIndentGuide.activeBackground': '#2e2e3a',
+    },
+  };
 
-    monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+  // Define theme BEFORE editor mounts to prevent white flash
+  const handleBeforeMount = (monacoInstance: typeof monaco) => {
+    monacoInstance.editor.defineTheme('puzzle-dark', puzzleDarkTheme);
+  };
+
+  const handleEditorMount: OnMount = (editor, monacoInstance) => {
+    editorRef.current = editor;
+    monacoRef.current = monacoInstance;
+
+    monacoInstance.languages.json.jsonDefaults.setDiagnosticsOptions({
       validate: true,
       schemas: [{ uri: 'http://puzzle-schema/puzzle.json', fileMatch: ['*'], schema: puzzleJsonSchema }],
       enableSchemaRequest: false,
       allowComments: false,
     });
 
-    monaco.editor.defineTheme('puzzle-dark', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'string.key.json', foreground: '7ee787' },
-        { token: 'string.value.json', foreground: 'a5d6ff' },
-        { token: 'number', foreground: 'f5a97f' },
-        { token: 'keyword', foreground: 'ff7b72' },
-      ],
-      colors: {
-        'editor.background': '#0f0f14',
-        'editor.foreground': '#c9d1d9',
-        'editor.lineHighlightBackground': '#1a1a24',
-        'editor.selectionBackground': '#264f78',
-        'editorCursor.foreground': '#6366f1',
-        'editorLineNumber.foreground': '#484f58',
-        'editorLineNumber.activeForeground': '#c9d1d9',
-        'editor.inactiveSelectionBackground': '#264f7844',
-        'editorIndentGuide.background': '#1e1e28',
-        'editorIndentGuide.activeBackground': '#2e2e3a',
-      },
-    });
-
-    monaco.editor.setTheme('puzzle-dark');
     validateAndUpdate(jsonSource);
   };
 
@@ -228,12 +234,14 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
     updateMarkers(errors);
     if (errors.length === 0) {
       parseAndLoadPuzzle(value);
+      setIsModified(false);
     }
   }, [validateWithZod, updateMarkers, parseAndLoadPuzzle]);
 
   const handleChange: OnChange = (value) => {
     if (!value) return;
     setJsonSource(value);
+    setIsModified(true);
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => { validateAndUpdate(value); }, 500);
   };
@@ -250,9 +258,12 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
       <div className="flex items-center justify-between px-4 py-2 bg-card border-b border-border">
         <div className="flex items-center gap-2">
           <span className="text-sm font-mono text-primary">puzzle.json</span>
+          {isModified && (
+            <span className="w-2 h-2 rounded-full bg-warning" title="Unsaved changes" />
+          )}
           {hasErrors ? (
             <Badge variant="destructive" className="text-[10px] h-5">
-              {localErrors.length} error(s)
+              {localErrors.length} error{localErrors.length !== 1 ? 's' : ''}
             </Badge>
           ) : (
             <Badge variant="default" className="bg-success text-success-foreground text-[10px] h-5">
@@ -263,18 +274,21 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 text-xs"
+          className="h-7 text-xs gap-1.5"
           onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
         >
           Format
+          <kbd className="hidden md:inline text-[10px] font-mono text-muted-foreground bg-secondary px-1 rounded">Shift+Alt+F</kbd>
         </Button>
       </div>
 
       {/* Monaco Editor */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden bg-[#0f0f14]">
         <Editor
           height="100%"
           defaultLanguage="json"
+          theme="puzzle-dark"
+          beforeMount={handleBeforeMount}
           value={jsonSource}
           onChange={handleChange}
           onMount={handleEditorMount}
@@ -292,8 +306,8 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
             padding: { top: 12, bottom: 12 },
           }}
           loading={
-            <div className="flex items-center justify-center h-full bg-background">
-              <div className="text-muted-foreground">Loading editor...</div>
+            <div className="flex items-center justify-center h-full bg-[#0f0f14]">
+              <div className="text-muted-foreground text-sm">Loading editor...</div>
             </div>
           }
         />
@@ -301,22 +315,32 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
 
       {/* Error panel */}
       {hasErrors && (
-        <div className="max-h-32 overflow-auto bg-destructive/10 border-t border-destructive/30 p-3">
-          <div className="text-xs font-mono text-destructive mb-2">PROBLEMS</div>
-          <div className="space-y-1">
-            {localErrors.map((error, i) => (
-              <div key={i} className="text-xs text-foreground/70 flex items-start gap-2">
-                <span className="text-destructive">●</span>
-                <span>{error}</span>
-              </div>
-            ))}
-            {parseError && !localErrors.length && (
-              <div className="text-xs text-foreground/70 flex items-start gap-2">
-                <span className="text-destructive">●</span>
-                <span>{parseError}</span>
-              </div>
-            )}
-          </div>
+        <div className="bg-destructive/10 border-t border-destructive/30">
+          <button
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-destructive hover:bg-destructive/5 transition-colors cursor-pointer"
+            onClick={() => setErrorsCollapsed(c => !c)}
+          >
+            <span>PROBLEMS</span>
+            <Badge variant="destructive" className="text-[10px] h-4 px-1.5">
+              {localErrors.length || (parseError ? 1 : 0)}
+            </Badge>
+          </button>
+          {!errorsCollapsed && (
+            <div className="max-h-32 overflow-auto px-3 pb-3 space-y-1">
+              {localErrors.map((error, i) => (
+                <div key={i} className="text-xs text-foreground/70 flex items-start gap-2">
+                  <span className="text-destructive">●</span>
+                  <span>{error}</span>
+                </div>
+              ))}
+              {parseError && !localErrors.length && (
+                <div className="text-xs text-foreground/70 flex items-start gap-2">
+                  <span className="text-destructive">●</span>
+                  <span>{parseError}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

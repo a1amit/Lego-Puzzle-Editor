@@ -17,19 +17,26 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Typography scale */
-  --text-xs: 0.6875rem;
-  --text-sm: 0.8125rem;
-  --text-base: 0.875rem;
-  --text-lg: 1rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
-
-  /* Surface elevations */
-  --surface-1: oklch(0.15 0.005 285);
-  --surface-2: oklch(0.18 0.005 285);
-  --surface-3: oklch(0.21 0.005 285);
+  /* Surface system */
   --surface-overlay: oklch(0.13 0.005 285 / 0.8);
+  --surface-base: oklch(0.13 0.005 285);
+  --surface-raised: oklch(0.17 0.005 285);
+  --surface-panel: oklch(0.20 0.005 285);
+  --surface-sunken: oklch(0.11 0.005 285);
+
+  /* Border hierarchy */
+  --border-subtle: oklch(0.24 0.005 285);
+  --border-default: oklch(0.28 0.005 285);
+  --border-strong: oklch(0.35 0.005 285);
+
+  /* Spacing scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.5rem;
+  --space-2xl: 2rem;
+  --panel-padding: 0.875rem;
 
   /* Dark theme as default — vibrant accent pops */
   --background: oklch(0.13 0.005 285);
@@ -43,7 +50,7 @@
   --secondary: oklch(0.22 0.005 285);
   --secondary-foreground: oklch(0.95 0.005 285);
   --muted: oklch(0.25 0.005 285);
-  --muted-foreground: oklch(0.60 0.01 285);
+  --muted-foreground: oklch(0.67 0.01 285);
   --accent: oklch(0.65 0.22 265);
   --accent-foreground: oklch(0.98 0 0);
   --destructive: oklch(0.62 0.22 25);
@@ -145,8 +152,8 @@
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(circle at 20% 0%, rgba(88, 136, 255, 0.12), transparent 38%),
-      radial-gradient(circle at 80% 100%, rgba(93, 54, 197, 0.12), transparent 34%);
+      radial-gradient(circle at 20% 0%, oklch(0.60 0.18 265 / 0.12), transparent 38%),
+      radial-gradient(circle at 80% 100%, oklch(0.42 0.20 295 / 0.12), transparent 34%);
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -161,10 +168,13 @@ html, body, #root {
 }
 
 /* ─── Scrollbar ─── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 
 /* ─── Monaco editor ─── */
 .monaco-editor {
@@ -372,6 +382,17 @@ html, body, #root {
 }
 .animate-suggestion-in {
   animation: suggestion-in 0.3s ease-out;
+}
+
+/* ─── Utility animations ─── */
+@keyframes fade-in {
+  0% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer-text {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
 
 /* ─── Reduced motion ─── */
