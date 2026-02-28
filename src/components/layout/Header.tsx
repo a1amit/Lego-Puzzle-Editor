@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { usePuzzleStore } from '../../store/puzzleStore';
-import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../../config/puzzleCategories';
-import type { PuzzleCategory } from '../../config/puzzleCategories';
-import { DEFAULT_PUZZLE } from '../../types/puzzle';
-import { LegoHelperIcon } from '../ui/ChatPanel';
+import { BLANK_PUZZLE } from '../../config/puzzleCategories';
+import { LegoHelperIcon } from '../ui/LegoHelperIcon';
+import { PuzzleSelectorModal } from '../ui/PuzzleSelectorModal';
 import { Button } from '../ui/shadcn/button';
 import { Badge } from '../ui/shadcn/badge';
 import {
@@ -12,9 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../ui/shadcn/dropdown-menu';
 import {
@@ -65,48 +61,10 @@ interface HeaderProps {
   onViewModeChange: (mode: ViewMode) => void;
 }
 
-function CategorySubMenu({ cat }: { cat: PuzzleCategory }) {
-  const { puzzle, setPuzzle, resetPuzzle } = usePuzzleStore();
-  const Icon = cat.icon;
-
-  const handleSelect = (selectedPuzzle: typeof DEFAULT_PUZZLE) => {
-    setPuzzle(selectedPuzzle);
-    resetPuzzle();
-  };
-
-  return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger className="gap-3 py-2.5">
-        <Icon className="h-4 w-4 shrink-0" style={{ color: cat.color }} />
-        <span className="flex-1">{cat.category}</span>
-        <span className="text-xs text-muted-foreground">({cat.puzzles.length})</span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent className="min-w-[200px]">
-        {cat.puzzles.map((item) => (
-          <DropdownMenuItem
-            key={item.id}
-            onClick={() => handleSelect(item.puzzle)}
-            className="gap-3 py-2"
-          >
-            <Puzzle className="h-3.5 w-3.5 shrink-0" style={{ color: item.puzzle.inventory[0]?.color || cat.color }} />
-            <span className="flex-1">{item.label}</span>
-            <Badge variant={item.is3D ? "default" : "secondary"} className="text-[10px] px-1.5 py-0 h-4">
-              {item.is3D ? '3D' : '2D'}
-            </Badge>
-            {puzzle?.puzzle_id === item.puzzle.puzzle_id && (
-              <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-            )}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
-  );
-}
-
 /** View mode toggle group (reused in desktop header + mobile menu) */
 function ViewModeToggle({ viewMode, onViewModeChange }: { viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void }) {
   return (
-    <div className="flex items-center gap-0.5 p-1 bg-secondary/60 rounded-lg border border-border/50">
+    <div className="flex items-center gap-0.5 p-1 bg-secondary backdrop-blur-sm shadow-inner rounded-lg border border-border">
       <Button
         variant={viewMode === 'split' ? 'default' : 'ghost'}
         size="sm"
@@ -141,6 +99,7 @@ function ViewModeToggle({ viewMode, onViewModeChange }: { viewMode: ViewMode; on
 export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode, onViewModeChange }: HeaderProps) {
   const { puzzle, isComplete, setPuzzle, resetPuzzle, undoStack, redoStack } = usePuzzleStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showPuzzleSelector, setShowPuzzleSelector] = useState(false);
 
   const handleBlankPuzzle = () => {
     setPuzzle(BLANK_PUZZLE);
@@ -151,7 +110,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
   const handleRedo = () => usePuzzleStore.getState().redo();
 
   return (
-    <header className="relative h-12 md:h-14 bg-background/95 backdrop-blur-md border-b border-border/50 flex items-center px-4 z-40">
+    <header className="relative h-12 md:h-14 bg-background/95 backdrop-blur-md border-b border-[var(--border-subtle)] flex items-center px-4 z-40">
       {/* Left: Logo + Puzzle selector */}
       <div className="flex items-center gap-4 min-w-0 flex-shrink-0">
         <div className="flex items-center gap-2.5">
@@ -161,41 +120,30 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
           </span>
         </div>
 
-        <div className="h-6 w-px bg-border/50 hidden sm:block" />
+        <div className="h-6 w-px bg-[var(--border-subtle)] hidden sm:block" />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 px-3 h-9 hidden sm:flex">
-              <Puzzle className="h-4 w-4 text-lego-red" />
-              <span className="text-muted-foreground text-sm">Puzzle:</span>
-              <span className="font-medium text-foreground">{puzzle?.title || 'Select'}</span>
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              {isComplete && (
-                <Badge variant="default" className="bg-success text-success-foreground text-[10px] px-1.5 py-0 h-4 animate-pulse">
-                  Done
-                </Badge>
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-72">
-            <DropdownMenuLabel className="text-primary text-xs uppercase tracking-wider">Create New</DropdownMenuLabel>
-            <DropdownMenuItem onClick={handleBlankPuzzle} className="gap-3 py-2.5">
-              <div className="relative">
-                <Puzzle className="h-4 w-4 text-purple-400" />
-                <Plus className="h-2.5 w-2.5 text-primary absolute -top-1 -right-1" />
-              </div>
-              <div className="flex-1">
-                <div className="font-medium text-sm">Blank Puzzle</div>
-                <div className="text-xs text-muted-foreground">6x4 board, 1 piece</div>
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Sample Puzzles</DropdownMenuLabel>
-            {PUZZLE_CATEGORIES.map((cat) => (
-              <CategorySubMenu key={cat.category} cat={cat} />
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Mobile compact puzzle name */}
+        {puzzle && (
+          <span className="text-xs text-muted-foreground truncate max-w-[120px] sm:hidden">
+            {puzzle.title}
+          </span>
+        )}
+
+        <Button variant="ghost" className="gap-2 px-3 h-9 hidden sm:flex" onClick={() => setShowPuzzleSelector(true)}>
+          {puzzle?.inventory[0]?.color ? (
+            <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: puzzle.inventory[0].color }} />
+          ) : (
+            <Puzzle className="h-4 w-4 text-lego-red" />
+          )}
+          <span className="text-muted-foreground text-sm">Puzzle:</span>
+          <span className="font-medium text-foreground">{puzzle?.title || 'Select'}</span>
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          {isComplete && (
+            <Badge variant="default" className="bg-success text-success-foreground text-[10px] px-1.5 py-0 h-4 animate-[fade-in_0.4s_ease-out]">
+              Done
+            </Badge>
+          )}
+        </Button>
       </div>
 
       {/* Center: View mode toggle (hidden on small screens) */}
@@ -237,7 +185,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
             <TooltipContent>Redo</TooltipContent>
           </Tooltip>
 
-          <div className="h-5 w-px bg-border/50 mx-0.5" />
+          <div className="h-5 w-px bg-[var(--border-subtle)] mx-0.5" />
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -308,15 +256,16 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
-            {/* Puzzle selector sub-menu */}
+            {/* Puzzle selector */}
             <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Puzzle</DropdownMenuLabel>
-            <DropdownMenuItem onClick={handleBlankPuzzle} className="gap-3 py-2">
+            <DropdownMenuItem onClick={() => { setShowPuzzleSelector(true); setMobileMenuOpen(false); }} className="gap-3 py-2">
+              <Puzzle className="h-4 w-4 text-lego-red" />
+              <span>Browse Puzzles</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { handleBlankPuzzle(); setMobileMenuOpen(false); }} className="gap-3 py-2">
               <Plus className="h-4 w-4 text-primary" />
               <span>Blank Puzzle</span>
             </DropdownMenuItem>
-            {PUZZLE_CATEGORIES.map((cat) => (
-              <CategorySubMenu key={cat.category} cat={cat} />
-            ))}
 
             <DropdownMenuSeparator />
 
@@ -360,6 +309,8 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <PuzzleSelectorModal isOpen={showPuzzleSelector} onClose={() => setShowPuzzleSelector(false)} />
     </header>
   );
 }

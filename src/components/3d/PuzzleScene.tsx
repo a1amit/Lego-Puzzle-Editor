@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, ContactShadows, Line } from '@react-three/drei';
 import * as THREE from 'three';
@@ -695,6 +695,7 @@ function FloatingPreviewWrapper() {
 
 function PuzzleSceneInner() {
   const { selectedBrickId, boardState, rotatePreview } = usePuzzleStore();
+  const [sceneReady, setSceneReady] = useState(false);
 
   // Check if we have an inventory brick selected (not a placed brick)
   const hasInventorySelection = selectedBrickId &&
@@ -714,8 +715,8 @@ function PuzzleSceneInner() {
 
   return (
     <div
-      className="w-full h-full relative"
-      style={{ cursor: shouldHideCursor ? 'none' : 'auto' }}
+      className={`w-full h-full relative transition-opacity duration-300 ${sceneReady ? 'opacity-100' : 'opacity-0'}`}
+      style={{ cursor: shouldHideCursor ? 'none' : 'auto', backgroundColor: '#0f1520' }}
       onContextMenu={(e) => {
         if (hasInventorySelection) {
           e.preventDefault();
@@ -732,13 +733,16 @@ function PuzzleSceneInner() {
           alpha: false,
           powerPreference: 'high-performance',
         }}
-        onCreated={({ gl, scene }) => {
+        onCreated={({ gl, scene, invalidate }) => {
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = SCENE_3D.renderer.toneMappingExposure;
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.shadowMap.enabled = true;
           gl.shadowMap.type = isLargeBoard ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
           scene.background = new THREE.Color(SCENE_3D.background.color);
+          // Force a render, then fade in after the first frame paints
+          invalidate();
+          requestAnimationFrame(() => requestAnimationFrame(() => setSceneReady(true)));
         }}
         style={{ cursor: shouldHideCursor ? 'none' : 'auto' }}
         onPointerMove={() => { /* demand mode: r3f auto-invalidates on pointer events */ }}

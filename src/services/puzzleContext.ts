@@ -1,8 +1,17 @@
 /**
  * Puzzle Context for Chatbot
  *
- * System prompt and reference knowledge for the puzzle assistant.
+ * System prompt, reference knowledge, and design context for the puzzle assistant.
  */
+
+import type { PuzzleDefinition } from '../types/puzzle';
+import {
+  DEFAULT_PUZZLE, COLORFUL_COVERAGE_PUZZLE, GRID_PUZZLE,
+  SLIDER_PUZZLE, KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE,
+  BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS,
+  NONOGRAM_PUZZLE, NONOGRAM_PUZZLE_2,
+  BLANK_PUZZLE, FIT_ALL_PUZZLE,
+} from '../data/puzzles';
 
 // ── Reference knowledge (compact) ──────────────────────────────────
 
@@ -67,6 +76,100 @@ When the player asks how they're doing, use the CURRENT PUZZLE CONTEXT (provided
 - If rules are being violated, point out what type of issue it is (overlap, out of bounds, etc.) without telling them exactly which piece to move.
 - Celebrate milestones ("Nice — you've placed 6 out of 8 pieces!").
 
+# How to help design puzzles
+
+When the user wants to create or design a puzzle:
+1. Ask what type they want (Coverage, Fit-All, Slider, Pattern/Binary, Nonogram) if not specified.
+2. Guide them through board size, piece selection, and rules.
+3. Output the **complete puzzle JSON** so they can paste it into the **Editor panel** (they should switch to "Editor" view mode).
+4. Use the DESIGN CONTEXT (provided when relevant) for the JSON schema, existing puzzle catalog, and examples.
+5. Ensure the math works: for Coverage, board cells must equal total piece cells. For Fit-All, board must be larger.
+6. Use Lego brand colors: #D01012 (red), #0055BF (blue), #287F46 (green), #F5CD2F (yellow), #FE8A18 (orange), #9B5FC0 (purple), #00BCD4 (cyan), #E91E63 (pink).
+
 # Reference knowledge
 ${REFERENCE}
 `;
+
+// ── Design context (injected only for design-related conversations) ──
+
+const DESIGN_KEYWORDS = /\b(design|create|build|make|write|generate|compose|craft|new puzzle|custom puzzle|my own puzzle|puzzle json|from scratch|puzzle idea)\b/i;
+
+/** Detect whether a message is about designing/creating a puzzle */
+export function isDesignIntent(message: string): boolean {
+  return DESIGN_KEYWORDS.test(message);
+}
+
+/** Classify a puzzle by its validation rules and special fields */
+function classifyPuzzle(p: PuzzleDefinition): string {
+  if (p.validation_rules.some(r => r.rule === 'GOAL_REACHED')) return 'Slider';
+  if (p.nonogram_hints) return 'Nonogram';
+  if (p.target_pattern) return 'Pattern';
+  if (p.validation_rules.some(r => r.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED')) return 'Coverage';
+  return 'Fit-All';
+}
+
+/** All real puzzles (excluding blank template) */
+const ALL_PUZZLES: PuzzleDefinition[] = [
+  DEFAULT_PUZZLE, COLORFUL_COVERAGE_PUZZLE, GRID_PUZZLE,
+  FIT_ALL_PUZZLE,
+  SLIDER_PUZZLE, KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE,
+  BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS,
+  NONOGRAM_PUZZLE, NONOGRAM_PUZZLE_2,
+];
+
+/** Build compact catalog line for one puzzle */
+function catalogLine(p: PuzzleDefinition): string {
+  const { width, height } = p.board.dimensions;
+  const totalInv = p.inventory.reduce((s, b) => s + b.quantity, 0);
+  const prePlaced = p.board.initial_state.length;
+  const pieces = totalInv > 0 ? `${totalInv} inventory` : `${prePlaced} pre-placed`;
+  const shapes = [...new Set(p.inventory.map(b => b.shape))].join(', ') || 'pre-placed pieces';
+  const type = classifyPuzzle(p);
+  const diff = p.metadata?.difficulty || '?';
+  return `"${p.title}" | ${type} | ${p.viewMode} | ${width}×${height} | ${pieces} | ${diff} | ${shapes}`;
+}
+
+/** Pre-built catalog string */
+const PUZZLE_CATALOG = ALL_PUZZLES.map(p => `- ${catalogLine(p)}`).join('\n');
+
+/** Type-specific schema snippets (compact, no full JSON) */
+const TYPE_SNIPPETS = `
+COVERAGE / FIT-ALL (3D construction):
+  viewMode: "3D", inventory: [{id, shape, color, quantity}], board.initial_state: []
+  Rules: Coverage adds ALL_BOARD_SQUARES_MUST_BE_COVERED. Fit-All adds ALL_BRICKS_MUST_BE_USED.
+
+SLIDER / KLOTSKI (2D movement):
+  viewMode: "2D", inventory: [] (empty!), board.initial_state: [{id, cells: [[x,y],...], color}]
+  goal: { targetPieceId: "id-of-piece-to-move", cells: [[x,y],...] }
+  Rules: GOAL_REACHED, SLIDING_ONLY, NO_ROTATION, NO_BRICK_REMOVAL, NO_BRICK_OVERLAP, NO_BRICKS_OUT_OF_BOUNDS
+
+BINARY / PATTERN (2D pattern matching):
+  viewMode: "2D", inventory: [{shape:"unit", color:"#1a1a1a", quantity:N, id:"bit-0"}, {shape:"unit", color:"#ffffff", quantity:N, id:"bit-1"}]
+  target_pattern: { rows: [[0,1,0,...], ...], color_mapping: {"0":"#1a1a1a", "1":"#ffffff"} }
+  Rules: PATTERN_MATCH, NO_ROTATION
+
+NONOGRAM (2D logic grid):
+  Same as Pattern but add: nonogram_hints: { rows: [[n,...]], columns: [[n,...]] }
+  Rules: PATTERN_MATCH with params: {reject_unmapped_target_colors: true}, NO_ROTATION
+`.trim();
+
+/**
+ * Build design context string — only call when design intent is detected.
+ * Returns ~300-400 tokens of compact reference material.
+ */
+export function getDesignContext(): string {
+  return `
+DESIGN CONTEXT:
+
+EXISTING PUZZLES (use as inspiration):
+${PUZZLE_CATALOG}
+
+JSON SCHEMA BY TYPE:
+${TYPE_SNIPPETS}
+
+BASE TEMPLATE (minimal working puzzle — paste into Editor panel):
+${JSON.stringify(BLANK_PUZZLE, null, 2)}
+
+AVAILABLE SHAPES: unit, domino, domino-v, tromino-I, T-tetromino, I-tetromino, L-tetromino, J-tetromino, O-tetromino, S-tetromino, Z-tetromino, plus, long-L-pentomino, corner-pentomino, stretched-Z-pentomino, U-pentomino
+`.trim();
+}
