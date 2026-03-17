@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router';
-import { useUser } from '@clerk/react';
+import { useUser } from '../../auth/AuthProvider';
 import { Trophy, Puzzle, Star, Flame, ArrowLeft } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { LevelTitleCard, TierRoadmap } from '../../components/ui/LevelTitleCard';
