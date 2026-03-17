@@ -332,7 +332,7 @@ app.post('/puzzles/create', async (c) => {
     slug,
     category: category || 'Coverage',
     difficulty: difficulty || 'medium',
-    tags: tags || [],
+    tags: (tags as string[]) || [],
   });
 
   return c.json({ puzzle }, 201);
@@ -510,8 +510,8 @@ app.post('/puzzles/:slug/complete', async (c) => {
     userId: user._id,
     puzzleId: puzzle?._id ?? user._id, // use user ID as placeholder for built-in puzzles
     puzzleSlug: slug,
-    moveCount,
-    timeSeconds,
+    moveCount: moveCount as number,
+    timeSeconds: timeSeconds as number,
     xpEarned,
     isFirstSolve,
   });
