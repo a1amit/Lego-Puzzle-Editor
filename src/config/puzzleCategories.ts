@@ -69,8 +69,8 @@ export const PUZZLE_CATEGORIES: PuzzleCategory[] = [
     color: '#10B981',
     icon: Brain,
     puzzles: [
-      { id: 'nonogram', label: 'Nonogram: Cross', puzzle: NONOGRAM_PUZZLE, is3D: false },
-      { id: 'nonogram-2', label: 'Nonogram: Cross', puzzle: NONOGRAM_PUZZLE_2, is3D: false },
+      { id: 'nonogram', label: 'Nonogram: Flag', puzzle: NONOGRAM_PUZZLE, is3D: false },
+      { id: 'nonogram-2', label: 'Nonogram: Diamond', puzzle: NONOGRAM_PUZZLE_2, is3D: false },
     ],
   },
 ];

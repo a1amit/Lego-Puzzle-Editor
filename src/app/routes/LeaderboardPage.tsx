@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { useUser } from '@clerk/react';
 import { Trophy, Medal, Award, ArrowLeft, Flame } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { getLevelTitle } from '../../store/xpUtils';
@@ -21,7 +20,6 @@ interface LeaderboardEntry {
 }
 
 export default function LeaderboardPage() {
-  const { user: clerkUser } = useUser();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('all');
   const [isLoading, setIsLoading] = useState(true);

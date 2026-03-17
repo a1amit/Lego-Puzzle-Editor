@@ -1,13 +1,16 @@
-import { Sparkles } from 'lucide-react';
+import { Sparkles, CheckCircle } from 'lucide-react';
 import { PUZZLE_CATEGORIES } from '../../config/puzzleCategories';
 
 interface FeaturedSectionProps {
   onPuzzleClick: (slug: string) => void;
+  solvedSlugs?: Set<string>;
 }
 
-export function FeaturedSection({ onPuzzleClick }: FeaturedSectionProps) {
-  // Pick a few highlights from local puzzles for the hero
-  const featured = PUZZLE_CATEGORIES.flatMap(c => c.puzzles).slice(0, 4);
+export function FeaturedSection({ onPuzzleClick, solvedSlugs }: FeaturedSectionProps) {
+  // Hand-picked featured puzzles
+  const featuredIds = ['slider', 'pen-challenge', 'nonogram', 'binary'];
+  const allPuzzles = PUZZLE_CATEGORIES.flatMap(c => c.puzzles);
+  const featured = featuredIds.map(id => allPuzzles.find(p => p.id === id)).filter(Boolean) as typeof allPuzzles;
 
   return (
     <div className="bg-gradient-to-b from-primary/5 to-background border-b border-border">
@@ -21,23 +24,35 @@ export function FeaturedSection({ onPuzzleClick }: FeaturedSectionProps) {
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {featured.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => onPuzzleClick(p.id)}
-              className="group p-4 rounded-xl bg-card/50 backdrop-blur border border-border hover:border-primary/40 transition-all text-left"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                {p.puzzle.inventory?.[0]?.color && (
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.puzzle.inventory[0].color }} />
-                )}
-                <span className="text-sm font-medium text-foreground truncate">{p.label}</span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {p.puzzle.board.dimensions.width}x{p.puzzle.board.dimensions.height} &middot; {p.is3D ? '3D' : '2D'}
-              </div>
-            </button>
-          ))}
+          {featured.map((p) => {
+            const isSolved = solvedSlugs?.has(p.id);
+            return (
+              <button
+                key={p.id}
+                onClick={() => onPuzzleClick(p.id)}
+                className={`group relative p-4 rounded-xl bg-card/50 backdrop-blur border transition-all text-left ${
+                  isSolved ? 'border-success/30' : 'border-border hover:border-primary/40'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  {p.puzzle.inventory?.[0]?.color && (
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.puzzle.inventory[0].color }} />
+                  )}
+                  <span className="text-sm font-medium text-foreground truncate">{p.label}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    {p.puzzle.board.dimensions.width}x{p.puzzle.board.dimensions.height} &middot; {p.is3D ? '3D' : '2D'}
+                  </span>
+                  {isSolved && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-success">
+                      <CheckCircle className="h-3 w-3" />Solved
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
