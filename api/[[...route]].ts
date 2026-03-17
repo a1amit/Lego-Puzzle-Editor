@@ -1,4 +1,6 @@
-import './_lib/dns-fix';
+// Force Google DNS for SRV record resolution (MongoDB Atlas)
+import dns from 'dns';
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
 import { Hono } from 'hono';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { cors } from 'hono/cors';
