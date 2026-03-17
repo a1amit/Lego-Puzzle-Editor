@@ -1,0 +1,12 @@
+{
+  "devCommand": "npx vite --port $PORT",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/[[...route]]" }
+  ],
+  "functions": {
+    "api/[[...route]].ts": {
+      "memory": 256,
+      "maxDuration": 10
+    }
+  }
+}
