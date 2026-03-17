@@ -189,11 +189,10 @@ function DragDropManager3D({ engine }: DragDropManager3DProps) {
     removePiece(instanceId);
     selectPiece(null);
   }, [removePiece, selectPiece]);
-  
-  if (!puzzle) return null;
-  
+
   // Convert engine pieces to the format expected by 3D components
   const placedBricks = useMemo(() => {
+    if (!puzzle) return [];
     return board.placedPieces.map(p => ({
       id: p.id,
       instanceId: p.instanceId,
@@ -203,8 +202,10 @@ function DragDropManager3D({ engine }: DragDropManager3DProps) {
       rotation: p.rotation,
       z: p.position.z,
     }));
-  }, [board.placedPieces]);
-  
+  }, [puzzle, board.placedPieces]);
+
+  if (!puzzle) return null;
+
   return (
     <group>
       {/* The board */}

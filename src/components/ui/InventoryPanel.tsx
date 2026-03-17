@@ -19,6 +19,11 @@ interface ShapePreviewProps {
 const ShapePreview = memo(function ShapePreview({ shape, color, size = 40, rotation = 0 }: ShapePreviewProps) {
   const shapeDefinition = SHAPE_LIBRARY[shape];
 
+  const cells = useMemo(
+    () => shapeDefinition ? rotateShape(shapeDefinition.cells, rotation) : [],
+    [shapeDefinition, rotation],
+  );
+
   if (!shapeDefinition) {
     return (
       <div className="flex items-center justify-center text-xs text-muted-foreground" style={{ width: size, height: size }}>
@@ -26,8 +31,6 @@ const ShapePreview = memo(function ShapePreview({ shape, color, size = 40, rotat
       </div>
     );
   }
-
-  const cells = useMemo(() => rotateShape(shapeDefinition.cells, rotation), [shapeDefinition.cells, rotation]);
 
   const maxX = Math.max(...cells.map(([x]) => x)) + 1;
   const maxY = Math.max(...cells.map(([, y]) => y)) + 1;

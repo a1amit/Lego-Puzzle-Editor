@@ -244,15 +244,11 @@ export function PolyominoBrick({
     }
   });
 
-  if (!shape) {
-    console.warn(`Unknown shape: ${brick.shape}`);
-    return null;
-  }
-
   // Apply rotation to shape cells for rendering
   const rotatedCells = useMemo(() => {
+    if (!shape) return [];
     return rotateShape(shape.cells, brick.rotation);
-  }, [shape.cells, brick.rotation]);
+  }, [shape, brick.rotation]);
 
   // Render cells
   const cells = useMemo(() => {
@@ -268,6 +264,11 @@ export function PolyominoBrick({
       />
     ));
   }, [rotatedCells, brick.color, isGhost, isSelected, isValid, hovered, interactive]);
+
+  if (!shape) {
+    console.warn(`Unknown shape: ${brick.shape}`);
+    return null;
+  }
 
   // Handle click - toggle selection (only if interactive)
   const handleClick = (event: ThreeEvent<MouseEvent>) => {

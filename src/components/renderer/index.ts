@@ -9,7 +9,3 @@
 export { PuzzleRenderer, ViewModeIndicator } from './PuzzleRenderer';
 export type { RendererProps } from './PuzzleRenderer';
 
-// Individual renderers can be imported directly if needed
-export { Renderer2D } from './Renderer2D';
-export { Renderer3D } from './Renderer3D';
-
