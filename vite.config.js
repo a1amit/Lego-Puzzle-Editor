@@ -13,7 +13,7 @@ export default defineConfig({
         },
     },
     build: {
-        rollupOptions: {
+        rolldownOptions: {
             output: {
                 manualChunks: function (id) {
                     if (id.includes('node_modules/react-dom'))

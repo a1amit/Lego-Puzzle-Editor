@@ -317,12 +317,14 @@ export const GhostPiece2D = memo(function GhostPiece2D({
   isValid,
 }: GhostPieceProps) {
   const shapeDef = SHAPE_LIBRARY[shape];
-  if (!shapeDef) return null;
 
   const cells = useMemo(() => {
+    if (!shapeDef) return [];
     const rotated = rotateShape(shapeDef.cells, rotation);
     return rotated.map(([dx, dy]) => [position.x + dx, position.y + dy] as Coordinate2D);
   }, [shapeDef, rotation, position]);
+
+  if (!shapeDef) return null;
 
   const gradId = `url(#piece-grad-${color.replace('#', '')})`;
 
