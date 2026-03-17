@@ -6,20 +6,20 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { except } from 'hono/combine';
-import { connectDB } from './_lib/db';
-import { verifyAuth, type AuthUser } from './_lib/auth';
-import { checkRateLimit } from './_lib/rateLimit';
+import { connectDB } from './_lib/db.js';
+import { verifyAuth, type AuthUser } from './_lib/auth.js';
+import { checkRateLimit } from './_lib/rateLimit.js';
 import {
   calculateXP,
   levelFromXP,
   type Difficulty,
   SOLVER_MILESTONE_10_XP,
   SOLVER_MILESTONE_50_XP,
-} from './_lib/xp';
-import { User } from './_lib/models/User';
-import { Puzzle } from './_lib/models/Puzzle';
-import { Completion } from './_lib/models/Completion';
-import { Like } from './_lib/models/Like';
+} from './_lib/xp.js';
+import { User } from './_lib/models/User.js';
+import { Puzzle } from './_lib/models/Puzzle.js';
+import { Completion } from './_lib/models/Completion.js';
+import { Like } from './_lib/models/Like.js';
 
 export const config = { runtime: 'nodejs' };
 
