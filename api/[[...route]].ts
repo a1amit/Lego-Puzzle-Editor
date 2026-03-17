@@ -11,7 +11,6 @@ import {
   calculateXP,
   levelFromXP,
   type Difficulty,
-  PUZZLE_PUBLISH_XP,
   SOLVER_MILESTONE_10_XP,
   SOLVER_MILESTONE_50_XP,
 } from './_lib/xp';
@@ -40,7 +39,7 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use('*', async (c, next) => {
+app.use('*', async (_c, next) => {
   await connectDB();
   await next();
 });
@@ -301,7 +300,12 @@ app.post('/puzzles/create', async (c) => {
   } catch {
     return c.json({ error: 'Invalid or missing JSON body' }, 400);
   }
-  const { definition, category, difficulty, tags } = body;
+  const { definition, category, difficulty, tags } = body as {
+    definition?: Record<string, any>;
+    category?: string;
+    difficulty?: string;
+    tags?: string[];
+  };
 
   if (!definition?.title) {
     return c.json({ error: 'Puzzle definition with title is required' }, 400);
@@ -332,7 +336,7 @@ app.post('/puzzles/create', async (c) => {
     slug,
     category: category || 'Coverage',
     difficulty: difficulty || 'medium',
-    tags: (tags as string[]) || [],
+    tags: tags || [],
   });
 
   return c.json({ puzzle }, 201);
