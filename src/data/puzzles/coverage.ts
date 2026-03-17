@@ -5,7 +5,6 @@ import type { PuzzleDefinition } from '../../types/puzzle';
 // ============================================
 
 export const DEFAULT_PUZZLE: PuzzleDefinition = {
-  puzzle_id: "T-Puzzle-01",
   title: "T-Time",
   description: "Use all 8 'T' shaped bricks to perfectly cover the 8x4 board.",
   viewMode: "3D",
@@ -47,7 +46,6 @@ export const DEFAULT_PUZZLE: PuzzleDefinition = {
  * Total: 15 pieces x 4 cells = 60 cells (coverage)
  */
 export const COLORFUL_COVERAGE_PUZZLE: PuzzleDefinition = {
-  puzzle_id: "Colorful-Coverage-01",
   title: "Rainbow Bricks",
   description: "Cover the entire board using all the colorful pieces. A challenging mix of different shapes!",
   viewMode: "3D",
@@ -94,7 +92,6 @@ export const COLORFUL_COVERAGE_PUZZLE: PuzzleDefinition = {
 // ============================================
 
 export const GRID_PUZZLE: PuzzleDefinition = {
-  puzzle_id: "Grid-01",
   title: "Grid Fill",
   description: "Fill the 4x4 grid using the available pieces. A simple 2D puzzle to demonstrate the grid view mode.",
   viewMode: "2D",

@@ -236,7 +236,6 @@ function OverviewTab() {
 
       <h4 className="text-foreground font-semibold mt-6">JSON Structure</h4>
       <CopyableCode>{`{
-  "puzzle_id": "unique-id",
   "title": "Puzzle Name",
   "description": "Instructions for the player",
   "viewMode": "3D",  // or "2D"
@@ -502,7 +501,6 @@ function SliderTab() {
 
       <h4 className="text-foreground font-semibold mt-6">Example: Minimal Slider</h4>
       <CopyableCode>{`{
-  "puzzle_id": "mini-slider",
   "title": "Mini Slider",
   "description": "Slide the red block to the bottom",
   "viewMode": "2D",
@@ -632,7 +630,6 @@ function ExamplesTab() {
           Cover every cell on an 8x4 board using 8 T-tetrominoes.
         </p>
         <CopyableCode>{`{
-  "puzzle_id": "t-puzzle",
   "title": "T-Time",
   "board": {
     "dimensions": { "width": 8, "height": 4, "depth": 1 }
@@ -656,7 +653,6 @@ function ExamplesTab() {
           Klotski-style puzzle. Slide the red 2x2 block to the goal position.
         </p>
         <CopyableCode>{`{
-  "puzzle_id": "Slider-01",
   "title": "Klotski Classic",
   "viewMode": "2D",
   "board": {

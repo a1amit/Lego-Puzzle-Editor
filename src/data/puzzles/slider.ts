@@ -25,7 +25,6 @@ import type { PuzzleDefinition } from '../../types/puzzle';
  * Pieces defined by EXACTLY which cells they cover!
  */
 export const SLIDER_PUZZLE: PuzzleDefinition = {
-  puzzle_id: "Slider-01",
   title: "Klotski Classic",
   description: "Slide the blocks to move the RED 2\u00d72 piece to the bottom center exit. Click a piece, then click where to slide it.",
   viewMode: "2D",
@@ -80,7 +79,6 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
 
 //klotski-red-donkey
 export const KLOTSKI_RED_DONKEY: PuzzleDefinition = {
-  "puzzle_id": "klotski-red-donkey",
   "title": "Klotski: Red Donkey",
   "description": "The classic configuration (Huarong Dao). Help Cao Cao (Red Block) escape through the bottom exit!",
   "viewMode": "2D",
@@ -126,7 +124,6 @@ export const KLOTSKI_RED_DONKEY: PuzzleDefinition = {
 
 export const KLOTSKI_CROSSWAY: PuzzleDefinition =
 {
-  "puzzle_id": "klotski-crossway",
   "title": "Klotski: Crossway",
   "description": "A tricky variation. Navigate the crossway of blocks.",
   "viewMode": "2D",
@@ -184,7 +181,6 @@ export const KLOTSKI_CROSSWAY: PuzzleDefinition =
  * Uses MAX_MOVES validation with params.maxMoves = 1
  */
 export const PEN_CHALLENGE_PUZZLE: PuzzleDefinition = {
-  puzzle_id: "Pen-Challenge-01",
   title: "Pen Challenge",
   description: "The pens show 1-2-3-4. Move exactly ONE pen to reverse the order to 4-3-2-1! Move the blue pen next to the pink pen.",
   viewMode: "2D",

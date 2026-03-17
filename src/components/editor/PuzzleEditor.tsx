@@ -27,9 +27,8 @@ import { Badge } from '../ui/shadcn/badge';
 const puzzleJsonSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   type: 'object',
-  required: ['puzzle_id', 'title', 'description', 'board', 'inventory', 'validation_rules'],
+  required: ['title', 'description', 'board', 'inventory', 'validation_rules'],
   properties: {
-    puzzle_id: { type: 'string', description: 'Unique identifier for the puzzle' },
     title: { type: 'string', description: 'Display title of the puzzle' },
     description: { type: 'string', description: 'Description or instructions for the puzzle' },
     board: {

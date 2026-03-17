@@ -6,6 +6,14 @@ import { Button } from '../../components/ui/shadcn/button';
 import { LevelTitleCard, TierRoadmap } from '../../components/ui/LevelTitleCard';
 import { useAppAuth } from '../../auth/AuthProvider';
 import { useUserStore } from '../../store/userStore';
+import { PUZZLE_CATEGORIES } from '../../config/puzzleCategories';
+
+const SLUG_TO_TITLE: Record<string, string> = {};
+for (const cat of PUZZLE_CATEGORIES) {
+  for (const p of cat.puzzles) {
+    SLUG_TO_TITLE[p.id] = p.label;
+  }
+}
 
 interface ProfileData {
   displayName: string;
@@ -40,61 +48,55 @@ export default function ProfilePage() {
   const isOwnProfile = clerkUser?.id === userId || (!!storeUsername && storeUsername === userId);
 
   useEffect(() => {
-    async function load() {
+    async function loadOwnProfile() {
       if (!authLoaded) return;
+      if (!clerkUser) return;
 
       setIsLoading(true);
+      try {
+        const token = await getToken();
+        if (token) {
+          const [res, compRes] = await Promise.all([
+            fetch('/api/users/me', { headers: { Authorization: `Bearer ${token}` } }),
+            fetch('/api/users/me/completions', { headers: { Authorization: `Bearer ${token}` } }),
+          ]);
 
-      // Own profile — fetch from /api/users/me
-      if (isOwnProfile && clerkUser) {
-        try {
-          const token = await getToken();
-          if (token) {
-            const res = await fetch('/api/users/me', {
-              headers: { Authorization: `Bearer ${token}` },
+          if (res.ok) {
+            const { user: apiUser } = await res.json();
+            setProfile({
+              displayName: clerkUser.firstName
+                ? `${clerkUser.firstName}${clerkUser.lastName ? ' ' + clerkUser.lastName : ''}`
+                : apiUser.username || 'User',
+              avatarUrl: clerkUser.imageUrl || null,
+              email: clerkUser.primaryEmailAddress?.emailAddress || '',
+              bio: apiUser.bio || '',
+              xp: apiUser.xp || 0,
+              level: apiUser.level || 0,
+              puzzlesCreated: apiUser.puzzlesCreated || 0,
+              puzzlesCompleted: apiUser.puzzlesCompleted || 0,
+              streakDays: apiUser.streakDays || 0,
+              isOwnProfile: true,
             });
-            if (res.ok) {
-              const { user: apiUser } = await res.json();
-              setProfile({
-                displayName: clerkUser.firstName
-                  ? `${clerkUser.firstName}${clerkUser.lastName ? ' ' + clerkUser.lastName : ''}`
-                  : apiUser.username || 'User',
-                avatarUrl: clerkUser.imageUrl || null,
-                email: clerkUser.primaryEmailAddress?.emailAddress || '',
-                bio: apiUser.bio || '',
-                xp: apiUser.xp || 0,
-                level: apiUser.level || 0,
-                puzzlesCreated: apiUser.puzzlesCreated || 0,
-                puzzlesCompleted: apiUser.puzzlesCompleted || 0,
-                streakDays: apiUser.streakDays || 0,
-                isOwnProfile: true,
-              });
-
-              // Fetch recent completions
-              const compRes = await fetch('/api/users/me/completions', {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (compRes.ok) {
-                const { completions: apiCompletions } = await compRes.json();
-                setCompletions(apiCompletions || []);
-              }
-            }
           }
-        } catch {
-          // API not available
+          if (compRes.ok) {
+            const { completions: apiCompletions } = await compRes.json();
+            setCompletions(apiCompletions || []);
+          }
         }
-
-        setIsLoading(false);
-        return;
+      } catch {
+        // API not available
       }
+      setIsLoading(false);
+    }
 
-      // Other user's profile
+    async function loadPublicProfile() {
+      setIsLoading(true);
       try {
         const res = await fetch(`/api/users/${userId}`);
         if (res.ok) {
           const { user: apiUser, completions: apiCompletions } = await res.json();
           setProfile({
-            displayName: apiUser.username || 'User',
+            displayName: apiUser.displayName || apiUser.username || 'User',
             avatarUrl: apiUser.avatarUrl || null,
             email: '',
             bio: apiUser.bio || '',
@@ -113,7 +115,14 @@ export default function ProfilePage() {
       setIsLoading(false);
     }
 
-    if (userId) load();
+    if (!userId) return;
+
+    if (isOwnProfile) {
+      loadOwnProfile();
+    } else {
+      // Public profiles don't need auth — fetch immediately
+      loadPublicProfile();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, authLoaded, isOwnProfile]);
 
@@ -163,6 +172,13 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* My Puzzles link (own profile only) */}
+      {profile.isOwnProfile && (
+        <Button asChild variant="outline" className="w-full mb-4 gap-2">
+          <Link to="/my-puzzles"><Puzzle className="h-4 w-4" />Manage My Puzzles</Link>
+        </Button>
+      )}
+
       {/* Level title card with XP bar */}
       <LevelTitleCard level={profile.level} xp={profile.xp} className="mb-6" />
 
@@ -197,7 +213,7 @@ export default function ProfilePage() {
               >
                 <Puzzle className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{c.puzzleSlug}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{SLUG_TO_TITLE[c.puzzleSlug] || c.puzzleSlug}</p>
                   <p className="text-xs text-muted-foreground">
                     {c.moveCount} moves &middot; {c.timeSeconds}s &middot; {new Date(c.completedAt).toLocaleDateString()}
                   </p>

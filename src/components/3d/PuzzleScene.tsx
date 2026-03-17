@@ -456,8 +456,9 @@ function DragDropManager() {
   }, [selectedPlacedBrick, selectedInventoryBrick, previewRotation, moveBrick, placeBrick, selectBrick]);
 
   // Handle right-click on canvas to rotate preview
-  const handleCanvasContextMenu = useCallback((event: React.MouseEvent) => {
-    event.preventDefault();
+  const handleCanvasContextMenu = useCallback((event: any) => {
+    // R3F passes a ThreeEvent, not a DOM MouseEvent — use nativeEvent for preventDefault
+    (event.nativeEvent ?? event)?.preventDefault?.();
 
     if (selectedInventoryBrick) {
       rotatePreview();

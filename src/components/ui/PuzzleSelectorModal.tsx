@@ -153,7 +153,7 @@ function CategorySection({
                   key={item.id}
                   item={item}
                   categoryColor={category.color}
-                  isActive={activePuzzleId === item.puzzle.puzzle_id}
+                  isActive={activePuzzleId === item.id}
                   onSelect={() => onSelect(item.puzzle)}
                 />
               ))}
@@ -239,7 +239,7 @@ export function PuzzleSelectorModal({ isOpen, onClose }: PuzzleSelectorModalProp
               category={cat}
               searchQuery={searchQuery}
               onSelect={handleSelect}
-              activePuzzleId={puzzle?.puzzle_id}
+              activePuzzleId={cat.puzzles.find(p => p.puzzle.title === puzzle?.title)?.id}
             />
           ))}
         </div>

@@ -7,6 +7,8 @@ export interface UserProfile {
   username: string;
   avatarUrl: string | null;
   bio: string;
+  role: 'user' | 'admin';
+  isBanned: boolean;
   xp: number;
   level: number;
   puzzlesCreated: number;

@@ -219,7 +219,7 @@ export const NonogramHintsSchema = z.object({
 export type NonogramHints = z.infer<typeof NonogramHintsSchema>;
 
 export const PuzzleDefinitionSchema = z.object({
-  puzzle_id: z.string(),
+  puzzle_id: z.string().optional(),
   title: z.string(),
   description: z.string(),
   /** View mode determines how the puzzle is rendered (3D or 2D) */

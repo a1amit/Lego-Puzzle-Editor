@@ -10,25 +10,10 @@ const BASE_XP: Record<Difficulty, number> = {
 export function calculateXP(params: {
   difficulty: Difficulty;
   isFirstSolve: boolean;
-  moveCount: number;
-  parMoves?: number;
-  streakDays: number;
 }): number {
-  const { difficulty, isFirstSolve, moveCount, parMoves, streakDays } = params;
-
-  const base = BASE_XP[difficulty];
-  const firstSolveMultiplier = isFirstSolve ? 2.0 : 1.0;
-
-  // Efficiency bonus: 1.0–1.5 based on moves vs par
-  let efficiencyBonus = 1.0;
-  if (parMoves && parMoves > 0 && moveCount <= parMoves) {
-    efficiencyBonus = 1.0 + 0.5 * (1 - moveCount / parMoves);
-  }
-
-  // Streak multiplier: 1.0 + min(streakDays, 5) * 0.05
-  const streakMultiplier = 1.0 + Math.min(streakDays, 5) * 0.05;
-
-  return Math.floor(base * firstSolveMultiplier * efficiencyBonus * streakMultiplier);
+  // XP is only awarded on first solve
+  if (!params.isFirstSolve) return 0;
+  return BASE_XP[params.difficulty];
 }
 
 export function xpToReachLevel(n: number): number {

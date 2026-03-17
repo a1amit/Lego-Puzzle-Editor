@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { useEditorViewStore, type EditorViewMode } from '../../store/editorViewStore';
+import { useUserStore } from '../../store/userStore';
 import { Show, SignInButton, useUser } from '../../auth/AuthProvider';
 import { XPBar } from '../ui/XPBar';
 import { LegoHelperIcon } from '../ui/LegoHelperIcon';
@@ -34,6 +35,8 @@ import {
   LogIn,
   User,
   LogOut,
+  FolderOpen,
+  Shield,
 } from 'lucide-react';
 import { useClerk } from '@clerk/react';
 
@@ -63,10 +66,13 @@ interface HeaderProps {
   isPuzzleRoute: boolean;
 }
 
-/** View mode toggle group */
+/** View mode toggle group — shown on edit routes, or for owners/admins */
 function ViewModeToggle() {
   const viewMode = useEditorViewStore((s) => s.viewMode);
   const setViewMode = useEditorViewStore((s) => s.setViewMode);
+  const canEdit = useEditorViewStore((s) => s.canEdit);
+
+  if (!canEdit) return null;
 
   return (
     <div className="flex items-center gap-0.5 p-1 bg-secondary backdrop-blur-sm shadow-inner rounded-lg border border-border">
@@ -89,6 +95,7 @@ function UserMenu() {
   const { signOut } = useClerk();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const userRole = useUserStore((s) => s.profile?.role);
 
   if (!user) return null;
 
@@ -117,6 +124,14 @@ function UserMenu() {
         <DropdownMenuItem onClick={() => { navigate(`/profile/${user.id}`); setOpen(false); }} className="gap-3 py-2">
           <User className="h-4 w-4" /><span>My Profile</span>
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { navigate('/my-puzzles'); setOpen(false); }} className="gap-3 py-2">
+          <FolderOpen className="h-4 w-4" /><span>My Puzzles</span>
+        </DropdownMenuItem>
+        {userRole === 'admin' && (
+          <DropdownMenuItem onClick={() => { navigate('/admin'); setOpen(false); }} className="gap-3 py-2">
+            <Shield className="h-4 w-4" /><span>Admin Panel</span>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => { signOut({ redirectUrl: '/' }); setOpen(false); }} className="gap-3 py-2 text-destructive">
           <LogOut className="h-4 w-4" /><span>Sign Out</span>
@@ -308,6 +323,7 @@ function MobileUserSection({ onClose }: { onClose: () => void }) {
   const { user } = useUser();
   const { signOut } = useClerk();
   const navigate = useNavigate();
+  const userRole = useUserStore((s) => s.profile?.role);
 
   if (!user) return null;
 
@@ -329,6 +345,14 @@ function MobileUserSection({ onClose }: { onClose: () => void }) {
       <DropdownMenuItem onClick={() => { navigate(`/profile/${user.id}`); onClose(); }} className="gap-3 py-2">
         <User className="h-4 w-4" /><span>My Profile</span>
       </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => { navigate('/my-puzzles'); onClose(); }} className="gap-3 py-2">
+        <FolderOpen className="h-4 w-4" /><span>My Puzzles</span>
+      </DropdownMenuItem>
+      {userRole === 'admin' && (
+        <DropdownMenuItem onClick={() => { navigate('/admin'); onClose(); }} className="gap-3 py-2">
+          <Shield className="h-4 w-4" /><span>Admin Panel</span>
+        </DropdownMenuItem>
+      )}
       <DropdownMenuItem onClick={() => { signOut({ redirectUrl: '/' }); onClose(); }} className="gap-3 py-2 text-destructive">
         <LogOut className="h-4 w-4" /><span>Sign Out</span>
       </DropdownMenuItem>

@@ -5,7 +5,6 @@ import type { PuzzleDefinition } from '../../types/puzzle';
 // ============================================
 
 export const BLANK_PUZZLE: PuzzleDefinition = {
-  puzzle_id: "new-puzzle",
   title: "My New Puzzle",
   description: "Describe your puzzle here",
   viewMode: "3D",
@@ -32,7 +31,6 @@ export const BLANK_PUZZLE: PuzzleDefinition = {
 // ============================================
 
 export const FIT_ALL_PUZZLE: PuzzleDefinition = {
-  puzzle_id: "Fit-All-01",
   title: "Tetris Pack",
   description: "Fit all 7 tetromino pieces onto the 10x4 board. No overlapping allowed!",
   viewMode: "3D",
