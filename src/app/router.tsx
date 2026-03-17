@@ -5,6 +5,8 @@ import { RootLayout } from './RootLayout';
 const GalleryPage = React.lazy(() => import('./routes/GalleryPage'));
 const ProfilePage = React.lazy(() => import('./routes/ProfilePage'));
 const LeaderboardPage = React.lazy(() => import('./routes/LeaderboardPage'));
+const MyPuzzlesPage = React.lazy(() => import('./routes/MyPuzzlesPage'));
+const AdminPage = React.lazy(() => import('./routes/AdminPage'));
 
 function PageSkeleton() {
   return <div className="flex-1 animate-pulse bg-background" />;
@@ -34,6 +36,14 @@ export const router = createBrowserRouter([
       {
         path: 'create',
         element: null, // PuzzleShell handles (new puzzle)
+      },
+      {
+        path: 'my-puzzles',
+        element: <Lazy><MyPuzzlesPage /></Lazy>,
+      },
+      {
+        path: 'admin',
+        element: <Lazy><AdminPage /></Lazy>,
       },
       {
         path: 'profile/:userId',

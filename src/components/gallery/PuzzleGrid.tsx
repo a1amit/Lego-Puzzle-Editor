@@ -4,13 +4,20 @@ import type { GalleryPuzzle } from '../../store/galleryStore';
 interface PuzzleGridProps {
   puzzles: GalleryPuzzle[];
   onPuzzleClick: (slug: string) => void;
+  onPuzzleEdit?: (slug: string) => void;
+  ownedSlugs?: Set<string>;
 }
 
-export function PuzzleGrid({ puzzles, onPuzzleClick }: PuzzleGridProps) {
+export function PuzzleGrid({ puzzles, onPuzzleClick, onPuzzleEdit, ownedSlugs }: PuzzleGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {puzzles.map((puzzle) => (
-        <PuzzleCard key={puzzle._id} puzzle={puzzle} onClick={onPuzzleClick} />
+        <PuzzleCard
+          key={puzzle._id}
+          puzzle={puzzle}
+          onClick={onPuzzleClick}
+          onEdit={onPuzzleEdit && ownedSlugs?.has(puzzle.slug) ? onPuzzleEdit : undefined}
+        />
       ))}
     </div>
   );

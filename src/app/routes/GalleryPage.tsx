@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { Search, SlidersHorizontal, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
@@ -7,6 +7,7 @@ import { GalleryFilters } from '../../components/gallery/GalleryFilters';
 import { FeaturedSection } from '../../components/gallery/FeaturedSection';
 import { PUZZLE_CATEGORIES } from '../../config/puzzleCategories';
 import { useGalleryStore, type SortOption } from '../../store/galleryStore';
+import { useAppAuth } from '../../auth/AuthProvider';
 
 // Map hard-coded puzzles to the gallery format for offline/fallback
 function getLocalPuzzles() {
@@ -41,14 +42,32 @@ export default function GalleryPage() {
     fetchPuzzles,
   } = useGalleryStore();
 
+  const { isSignedIn, getToken } = useAppAuth();
   const [showFilters, setShowFilters] = useState(false);
   const [localPuzzles] = useState(getLocalPuzzles);
   const [searchInput, setSearchInput] = useState(search);
+  const [ownedSlugs, setOwnedSlugs] = useState<Set<string>>(new Set());
 
   // Fetch from API on mount (falls back to local puzzles)
   useEffect(() => {
     fetchPuzzles();
   }, [fetchPuzzles, search, category, difficulty, sort]);
+
+  // Fetch user's own puzzle slugs for edit buttons
+  useEffect(() => {
+    if (!isSignedIn) { setOwnedSlugs(new Set()); return; }
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const res = await fetch('/api/users/me/puzzles', { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const { puzzles } = await res.json();
+          setOwnedSlugs(new Set((puzzles || []).map((p: any) => p.slug)));
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [isSignedIn, getToken]);
 
   // Debounced search
   useEffect(() => {
@@ -56,8 +75,12 @@ export default function GalleryPage() {
     return () => clearTimeout(timer);
   }, [searchInput, setSearch]);
 
-  // Use API puzzles if available, else local
-  const displayPuzzles = apiPuzzles.length > 0 ? apiPuzzles : localPuzzles;
+  // Merge local (built-in) puzzles with API puzzles, deduplicating by slug
+  const displayPuzzles = (() => {
+    const apiSlugs = new Set(apiPuzzles.map(p => p.slug));
+    const deduped = localPuzzles.filter(p => !apiSlugs.has(p.slug));
+    return [...deduped, ...apiPuzzles];
+  })();
 
   // Apply client-side filters to local puzzles
   const filteredPuzzles = displayPuzzles.filter(p => {
@@ -66,6 +89,10 @@ export default function GalleryPage() {
     if (search && !p.definition.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  const handlePuzzleEdit = useCallback((slug: string) => {
+    navigate(`/puzzle/${slug}/edit`);
+  }, [navigate]);
 
   const handlePuzzleClick = useCallback((slug: string) => {
     navigate(`/puzzle/${slug}`);
@@ -150,7 +177,7 @@ export default function GalleryPage() {
             <p className="text-muted-foreground text-sm mt-1">Try adjusting your filters</p>
           </div>
         ) : (
-          <PuzzleGrid puzzles={filteredPuzzles} onPuzzleClick={handlePuzzleClick} />
+          <PuzzleGrid puzzles={filteredPuzzles} onPuzzleClick={handlePuzzleClick} onPuzzleEdit={handlePuzzleEdit} ownedSlugs={ownedSlugs} />
         )}
       </div>
     </div>

@@ -210,7 +210,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     );
 
     return `
-PUZZLE: ${puzzle.title} (ID: ${puzzle.puzzle_id})
+PUZZLE: ${puzzle.title}
 DESCRIPTION: ${puzzle.description}
 BOARD: ${width}×${height}, TYPE: ${puzzle.viewMode === '3D' ? '3D Construction' : '2D Grid/Slider'}
 STATUS: ${isComplete ? 'SOLVED' : 'IN PROGRESS'}

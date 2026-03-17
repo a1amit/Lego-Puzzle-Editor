@@ -1,4 +1,4 @@
-import { Heart, Users, Play } from 'lucide-react';
+import { Heart, Users, Play, Pencil } from 'lucide-react';
 import { Badge } from '../ui/shadcn/badge';
 import { PuzzleThumbnail } from './PuzzleThumbnail';
 import type { GalleryPuzzle } from '../../store/galleryStore';
@@ -13,9 +13,15 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 interface PuzzleCardProps {
   puzzle: GalleryPuzzle;
   onClick: (slug: string) => void;
+  onEdit?: (slug: string) => void;
 }
 
-export function PuzzleCard({ puzzle, onClick }: PuzzleCardProps) {
+export function PuzzleCard({ puzzle, onClick, onEdit }: PuzzleCardProps) {
+  const def = puzzle.definition ?? {} as Record<string, any>;
+  const dimensions = def.board?.dimensions ?? { width: 8, height: 4 };
+  const viewMode = def.viewMode ?? '3D';
+  const title = def.title ?? puzzle.slug;
+
   return (
     <button
       onClick={() => onClick(puzzle.slug)}
@@ -24,14 +30,14 @@ export function PuzzleCard({ puzzle, onClick }: PuzzleCardProps) {
       {/* Thumbnail */}
       <div className="relative h-36 bg-gradient-to-br from-card to-background flex items-center justify-center overflow-hidden">
         <PuzzleThumbnail
-          dimensions={puzzle.definition.board.dimensions}
-          viewMode={puzzle.definition.viewMode}
+          dimensions={dimensions}
+          viewMode={viewMode}
           className="opacity-60 group-hover:opacity-80 transition-opacity"
         />
 
         {/* View mode badge */}
         <Badge className="absolute top-2 right-2 text-[10px] px-1.5 py-0 h-4 bg-background/80 text-foreground border-border">
-          {puzzle.definition.viewMode}
+          {viewMode}
         </Badge>
 
         {/* Legacy badge */}
@@ -45,13 +51,27 @@ export function PuzzleCard({ puzzle, onClick }: PuzzleCardProps) {
         <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <Play className="h-8 w-8 text-primary/60" />
         </div>
+
+        {/* Edit button for owned puzzles */}
+        {onEdit && (
+          <div
+            role="button"
+            tabIndex={0}
+            className="absolute bottom-2 right-2 z-10 w-7 h-7 rounded-lg bg-background/90 border border-border hover:border-primary/50 hover:bg-primary/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            title="Edit puzzle"
+            onClick={(e) => { e.stopPropagation(); onEdit(puzzle.slug); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onEdit(puzzle.slug); } }}
+          >
+            <Pencil className="h-3.5 w-3.5 text-foreground" />
+          </div>
+        )}
       </div>
 
       {/* Info */}
       <div className="p-3">
         <div className="flex items-start justify-between gap-2 mb-1.5">
           <h3 className="font-medium text-sm text-foreground truncate">
-            {puzzle.definition.title}
+            {title}
           </h3>
           <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 shrink-0 capitalize ${DIFFICULTY_COLORS[puzzle.difficulty] || ''}`}>
             {puzzle.difficulty}
@@ -73,7 +93,7 @@ export function PuzzleCard({ puzzle, onClick }: PuzzleCardProps) {
             {puzzle.stats.likes}
           </span>
           <span className="ml-auto text-[10px]">
-            {puzzle.definition.board.dimensions.width}x{puzzle.definition.board.dimensions.height}
+            {dimensions.width}x{dimensions.height}
           </span>
         </div>
       </div>

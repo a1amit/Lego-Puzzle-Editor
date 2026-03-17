@@ -2,6 +2,8 @@ import './_lib/dns-fix';
 import { Hono } from 'hono';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { cors } from 'hono/cors';
+import { createMiddleware } from 'hono/factory';
+import { except } from 'hono/combine';
 import { connectDB } from './_lib/db';
 import { verifyAuth, type AuthUser } from './_lib/auth';
 import { checkRateLimit } from './_lib/rateLimit';
@@ -43,11 +45,27 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-app.use('*', async (c, next) => {
+// Auth middleware — skipped for public GET endpoints
+const authMiddleware = createMiddleware<Env>(async (c, next) => {
   const authUser = await verifyAuth(c.req.raw);
   c.set('authUser', authUser);
+  await next();
+});
 
-  const identifier = authUser?.clerkId || c.req.header('x-forwarded-for') || 'anonymous';
+app.use('*', except(
+  (c) => {
+    if (c.req.method !== 'GET') return false;
+    const p = c.req.path;
+    return p === '/api/leaderboard'
+      || p.startsWith('/api/puzzles')
+      || (p.startsWith('/api/users/') && !p.startsWith('/api/users/me'));
+  },
+  authMiddleware,
+));
+
+// Rate limiting (runs on all routes, uses IP for unauthenticated)
+app.use('*', async (c, next) => {
+  const identifier = c.get('authUser')?.clerkId || c.req.header('x-forwarded-for') || 'anonymous';
   const isChat = c.req.path.includes('/chat');
   const { success } = await checkRateLimit(identifier, isChat ? 'chat' : 'api');
 
@@ -88,6 +106,8 @@ app.get('/users/me', async (c) => {
     if (dirty) await user.save();
   }
 
+  if (user.isBanned) return c.json({ error: 'Your account has been suspended' }, 403);
+
   return c.json({ user });
 });
 
@@ -116,7 +136,8 @@ app.get('/users/me/completions', async (c) => {
 
   const completions = await Completion.find({ userId: user._id })
     .sort({ completedAt: -1 })
-    .limit(50);
+    .limit(50)
+    .lean();
 
   return c.json({ completions });
 });
@@ -124,18 +145,77 @@ app.get('/users/me/completions', async (c) => {
 // GET /api/users/:username — public profile
 app.get('/users/:username', async (c) => {
   const { username } = c.req.param();
-  const user = await User.findOne({ username }).select('-clerkId');
+  const user = await User.findOne({ username }).select('-clerkId').lean();
   if (!user) return c.json({ error: 'User not found' }, 404);
 
-  const puzzles = await Puzzle.find({ authorId: user._id, status: 'published' })
-    .sort({ createdAt: -1 })
-    .select('-definition');
-
-  const completions = await Completion.find({ userId: user._id })
-    .sort({ completedAt: -1 })
-    .limit(20);
+  const [puzzles, completions] = await Promise.all([
+    Puzzle.find({ authorId: user._id, status: 'published' })
+      .sort({ createdAt: -1 })
+      .select({ 'definition.inventory': 0, 'definition.validation_rules': 0, 'definition.board.initial_state': 0, 'definition.board.blocked_cells': 0, 'definition.goal': 0 })
+      .lean(),
+    Completion.find({ userId: user._id })
+      .sort({ completedAt: -1 })
+      .limit(20)
+      .lean(),
+  ]);
 
   return c.json({ user, puzzles, completions });
+});
+
+// ---------------------------------------------------------------------------
+// ADMIN
+// ---------------------------------------------------------------------------
+
+// POST /api/admin/bootstrap — promote first user to admin (only works if no admins exist)
+app.post('/admin/bootstrap', async (c) => {
+  const existingAdmin = await User.findOne({ role: 'admin' });
+  if (existingAdmin) return c.json({ error: 'Admin already exists' }, 400);
+
+  // Try auth first, fall back to finding first user
+  const authUser = c.get('authUser');
+  const user = authUser
+    ? await User.findOne({ clerkId: authUser.clerkId })
+    : await User.findOne().sort({ createdAt: 1 });
+  if (!user) return c.json({ error: 'No users found' }, 404);
+
+  user.role = 'admin';
+  await user.save();
+  return c.json({ user: { username: user.username, displayName: user.displayName, role: user.role }, message: 'Admin created' });
+});
+
+// GET /api/admin/users — list all users (admin only)
+app.get('/admin/users', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const admin = await User.findOne({ clerkId: authUser.clerkId });
+  if (!admin || admin.role !== 'admin') return c.json({ error: 'Forbidden' }, 403);
+
+  const users = await User.find().sort({ createdAt: -1 }).select('-__v').lean();
+  return c.json({ users });
+});
+
+// PATCH /api/admin/users/:userId — update user role or ban status (admin only)
+app.patch('/admin/users/:userId', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const admin = await User.findOne({ clerkId: authUser.clerkId });
+  if (!admin || admin.role !== 'admin') return c.json({ error: 'Forbidden' }, 403);
+
+  const { userId } = c.req.param();
+  const target = await User.findById(userId);
+  if (!target) return c.json({ error: 'User not found' }, 404);
+
+  // Prevent self-demotion
+  if (target.clerkId === authUser.clerkId) return c.json({ error: 'Cannot modify your own account' }, 400);
+
+  const body = await c.req.json<{ role?: string; isBanned?: boolean }>();
+  if (body.role === 'admin' || body.role === 'user') target.role = body.role;
+  if (typeof body.isBanned === 'boolean') target.isBanned = body.isBanned;
+
+  await target.save();
+  return c.json({ user: target });
 });
 
 // ---------------------------------------------------------------------------
@@ -174,7 +254,9 @@ app.get('/puzzles', async (c) => {
   }
 
   const [puzzles, total] = await Promise.all([
-    Puzzle.find(query).sort(sortOption).skip(skip).limit(limitNum).select('-definition'),
+    Puzzle.find(query).sort(sortOption).skip(skip).limit(limitNum)
+      .select({ 'definition.inventory': 0, 'definition.validation_rules': 0, 'definition.board.initial_state': 0, 'definition.board.blocked_cells': 0, 'definition.goal': 0 })
+      .lean(),
     Puzzle.countDocuments(query),
   ]);
 
@@ -211,7 +293,7 @@ app.post('/puzzles/create', async (c) => {
 
   const user = await User.findOne({ clerkId: authUser.clerkId });
   if (!user) return c.json({ error: 'User not found' }, 404);
-  if (user.level < 3) return c.json({ error: 'Must be level 3 or higher to create puzzles' }, 403);
+
 
   let body: Record<string, unknown>;
   try {
@@ -245,7 +327,7 @@ app.post('/puzzles/create', async (c) => {
   const puzzle = await Puzzle.create({
     definition,
     authorId: user._id,
-    authorUsername: user.username,
+    authorUsername: user.displayName || user.username,
     status: 'draft',
     slug,
     category: category || 'Coverage',
@@ -254,6 +336,59 @@ app.post('/puzzles/create', async (c) => {
   });
 
   return c.json({ puzzle }, 201);
+});
+
+// PATCH /api/puzzles/:slug — update puzzle definition
+app.patch('/puzzles/:slug', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user) return c.json({ error: 'User not found' }, 404);
+
+  const { slug } = c.req.param();
+  const puzzle = user.role === 'admin'
+    ? await Puzzle.findOne({ slug })
+    : await Puzzle.findOne({ slug, authorId: user._id });
+  if (!puzzle) return c.json({ error: 'Puzzle not found or not owned' }, 404);
+
+  const body = await c.req.json<{ definition?: Record<string, unknown>; category?: string; difficulty?: string; tags?: string[] }>();
+
+  if (body.definition) puzzle.definition = body.definition;
+  if (body.category) puzzle.category = body.category;
+  if (body.difficulty) puzzle.difficulty = body.difficulty as 'easy' | 'medium' | 'hard' | 'expert';
+  if (body.tags) puzzle.tags = body.tags;
+  puzzle.authorUsername = user.displayName || user.username;
+
+  await puzzle.save();
+  return c.json({ puzzle });
+});
+
+// DELETE /api/puzzles/:slug — delete own puzzle
+app.delete('/puzzles/:slug', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user) return c.json({ error: 'User not found' }, 404);
+
+  const { slug } = c.req.param();
+  const puzzle = user.role === 'admin'
+    ? await Puzzle.findOne({ slug })
+    : await Puzzle.findOne({ slug, authorId: user._id });
+  if (!puzzle) return c.json({ error: 'Puzzle not found or not owned' }, 404);
+
+  const wasPublished = puzzle.status === 'published';
+  await Puzzle.deleteOne({ _id: puzzle._id });
+  await Completion.deleteMany({ puzzleId: puzzle._id });
+  await Like.deleteMany({ puzzleId: puzzle._id });
+
+  if (wasPublished && user.puzzlesCreated > 0) {
+    user.puzzlesCreated -= 1;
+    await user.save();
+  }
+
+  return c.json({ deleted: true });
 });
 
 // PATCH /api/puzzles/:slug/publish
@@ -265,20 +400,47 @@ app.patch('/puzzles/:slug/publish', async (c) => {
   if (!user) return c.json({ error: 'User not found' }, 404);
 
   const { slug } = c.req.param();
-  const puzzle = await Puzzle.findOne({ slug, authorId: user._id });
+  const puzzle = user.role === 'admin'
+    ? await Puzzle.findOne({ slug })
+    : await Puzzle.findOne({ slug, authorId: user._id });
   if (!puzzle) return c.json({ error: 'Puzzle not found or not owned' }, 404);
   if (puzzle.status === 'published') return c.json({ error: 'Already published' }, 400);
 
   puzzle.status = 'published';
   puzzle.publishedAt = new Date();
+  puzzle.authorUsername = user.displayName || user.username;
   await puzzle.save();
 
-  user.xp += PUZZLE_PUBLISH_XP;
-  user.level = levelFromXP(user.xp);
   user.puzzlesCreated += 1;
   await user.save();
 
-  return c.json({ puzzle, xpAwarded: PUZZLE_PUBLISH_XP });
+  return c.json({ puzzle });
+});
+
+// PATCH /api/puzzles/:slug/unpublish
+app.patch('/puzzles/:slug/unpublish', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user) return c.json({ error: 'User not found' }, 404);
+
+  const { slug } = c.req.param();
+  const puzzle = user.role === 'admin'
+    ? await Puzzle.findOne({ slug })
+    : await Puzzle.findOne({ slug, authorId: user._id });
+  if (!puzzle) return c.json({ error: 'Puzzle not found or not owned' }, 404);
+  if (puzzle.status !== 'published') return c.json({ error: 'Puzzle is not published' }, 400);
+
+  puzzle.status = 'draft';
+  await puzzle.save();
+
+  if (user.puzzlesCreated > 0) {
+    user.puzzlesCreated -= 1;
+    await user.save();
+  }
+
+  return c.json({ puzzle });
 });
 
 // POST /api/puzzles/:slug/like (toggle)
@@ -330,12 +492,9 @@ app.post('/puzzles/:slug/complete', async (c) => {
     || (body.difficulty as Difficulty)
     || 'medium';
 
-  // Basic timing validation (relaxed for built-in puzzles without a DB record)
-  const minTime: Record<string, number> = puzzle
-    ? { easy: 5, medium: 10, hard: 15, expert: 20 }
-    : { easy: 2, medium: 3, hard: 5, expert: 8 };
-  if ((timeSeconds as number) < (minTime[difficulty] || 2)) {
-    return c.json({ error: 'Completion time too fast' }, 400);
+  // Basic sanity check — reject obviously invalid times
+  if (!timeSeconds || (timeSeconds as number) < 1) {
+    return c.json({ error: 'Invalid completion time' }, 400);
   }
 
   // For built-in puzzles (no DB record), track by slug only
@@ -343,20 +502,9 @@ app.post('/puzzles/:slug/complete', async (c) => {
     ? !(await Completion.exists({ userId: user._id, puzzleId: puzzle._id }))
     : !(await Completion.exists({ userId: user._id, puzzleSlug: slug }));
 
-  const completionCount = puzzle
-    ? await Completion.countDocuments({ userId: user._id, puzzleId: puzzle._id })
-    : await Completion.countDocuments({ userId: user._id, puzzleSlug: slug });
-
-  // Max 3 completions earn XP
-  let xpEarned = 0;
-  if (completionCount < 3) {
-    xpEarned = calculateXP({
-      difficulty,
-      isFirstSolve,
-      moveCount,
-      streakDays: user.streakDays,
-    });
-  }
+  // No XP for solving your own puzzles; otherwise XP only on first solve
+  const isOwnPuzzle = puzzle ? puzzle.authorId.toString() === user._id.toString() : false;
+  const xpEarned = isOwnPuzzle ? 0 : calculateXP({ difficulty, isFirstSolve });
 
   const completion = await Completion.create({
     userId: user._id,
@@ -448,13 +596,14 @@ app.get('/leaderboard', async (c) => {
       .sort({ xp: -1, puzzlesCompleted: -1 })
       .skip(skip)
       .limit(limitNum)
-      .select('username displayName avatarUrl xp level puzzlesCompleted puzzlesCreated streakDays'),
+      .select('username displayName avatarUrl xp level puzzlesCompleted puzzlesCreated streakDays')
+      .lean(),
     User.countDocuments({ xp: { $gt: 0 }, ...dateFilter }),
   ]);
 
   const entries = users.map((user, index) => ({
     rank: skip + index + 1,
-    ...user.toObject(),
+    ...user,
   }));
 
   return c.json({

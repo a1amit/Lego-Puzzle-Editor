@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { ResizablePanels } from '../components/layout/ResizablePanels';
@@ -16,7 +16,8 @@ import { SoundManager } from '../services/SoundManager';
 import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../config/puzzleCategories';
 import { recordCompletion } from '../store/completionTracker';
 import { useUserStore } from '../store/userStore';
-import { Save, Upload, Eye as EyeIcon } from 'lucide-react';
+import { useGalleryStore } from '../store/galleryStore';
+import { Save, Upload, ArchiveRestore } from 'lucide-react';
 
 // Lazy-loaded heavy components
 const PuzzleEditor = React.lazy(() =>
@@ -64,23 +65,28 @@ function PreviewPanel() {
 
   const engine = usePuzzleEngine({ puzzle: null });
 
-  useEffect(() => {
-    if (puzzle && is2D) {
-      engine.loadPuzzle(puzzle);
-    }
-  }, [puzzle, is2D]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Load puzzle into engine synchronously during render so PuzzleRenderer
+  // never sees a stale board. This triggers a dev-mode "Cannot update a
+  // component while rendering" warning (which was present before these
+  // changes too), but it's harmless and doesn't appear in production.
+  if (is2D && puzzle && engine.puzzle !== puzzle) {
+    engine.loadPuzzle(puzzle);
+  }
 
-  const isComplete = is2D ? engine.isComplete : storeIsComplete;
-  const moveCount = is2D ? engine.moveCount : storeMoveCount;
+  const activeEngine = is2D ? engine : undefined;
+  const isComplete = activeEngine ? activeEngine.isComplete : storeIsComplete;
+  const moveCount = activeEngine ? activeEngine.moveCount : storeMoveCount;
   const [showCongrats, setShowCongrats] = useState(false);
   const [completionXP, setCompletionXP] = useState(0);
   const prevCompleteRef = useRef(false);
   const solveStartRef = useRef(Date.now());
+  const activePuzzleTitleRef = useRef<string | undefined>(undefined);
 
   // Reset puzzle to initial state when navigating to it
   useEffect(() => {
     solveStartRef.current = Date.now();
-    prevCompleteRef.current = false;
+    setShowCongrats(false);
+    setCompletionXP(0);
     if (is2D) {
       engine.resetBoard();
     } else {
@@ -89,6 +95,15 @@ function PreviewPanel() {
   }, [puzzle?.title]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    // On puzzle change, sync refs to prevent stale completion triggers
+    // and ensure the next real completion is detected even if isComplete
+    // stayed false across the navigation.
+    if (puzzle?.title !== activePuzzleTitleRef.current) {
+      activePuzzleTitleRef.current = puzzle?.title;
+      prevCompleteRef.current = isComplete;
+      return;
+    }
+
     if (isComplete && !prevCompleteRef.current) {
       setShowCongrats(true);
       SoundManager.getInstance().play('complete');
@@ -116,7 +131,7 @@ function PreviewPanel() {
       }
     }
     prevCompleteRef.current = isComplete;
-  }, [isComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isComplete, puzzle?.title]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePlayAgain = () => {
     setShowCongrats(false);
@@ -155,16 +170,16 @@ function PreviewPanel() {
                   </TabsList>
                 </div>
                 <TabsContent value="inventory" className="min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-                  <InventoryPanel className="h-full" engine={is2D ? engine : undefined} />
+                  <InventoryPanel className="h-full" engine={activeEngine} />
                 </TabsContent>
                 <TabsContent value="info" className="min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-                  <PuzzleInfoPanel className="h-full" engine={is2D ? engine : undefined} />
+                  <PuzzleInfoPanel className="h-full" engine={activeEngine} />
                 </TabsContent>
               </Tabs>
             </div>
             <div className="h-full p-2 pt-1">
               <div className="h-full overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-                <ValidationPanel className="h-full" engine={is2D ? engine : undefined} />
+                <ValidationPanel className="h-full" engine={activeEngine} />
               </div>
             </div>
           </ResizablePanels>
@@ -219,11 +234,16 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
   const viewMode = useEditorViewStore((s) => s.viewMode);
   const setViewMode = useEditorViewStore((s) => s.setViewMode);
   const setIsEditRoute = useEditorViewStore((s) => s.setIsEditRoute);
+  const setCanEdit = useEditorViewStore((s) => s.setCanEdit);
+  const userRole = useUserStore((s) => s.profile?.role);
 
   const [mountedModes, setMountedModes] = useState<Set<EditorViewMode>>(() =>
     new Set([isMobile() ? 'preview' : (isEditRoute ? 'split' : 'preview')])
   );
   const [hasEverBeenVisible, setHasEverBeenVisible] = useState(visible);
+  const [puzzleStatus, setPuzzleStatus] = useState<'draft' | 'published' | null>(null);
+  const [isLoadingPuzzle, setIsLoadingPuzzle] = useState(false);
+  const [isOwnPuzzle, setIsOwnPuzzle] = useState(false);
 
   // Initialize view mode on first mount
   useEffect(() => {
@@ -237,17 +257,23 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     if (visible && !hasEverBeenVisible) setHasEverBeenVisible(true);
   }, [visible, hasEverBeenVisible]);
 
-  // Sync edit route state
+  // Sync edit route state and canEdit flag
   useEffect(() => {
     setIsEditRoute(isEditRoute);
   }, [isEditRoute, setIsEditRoute]);
+
+  useEffect(() => {
+    setCanEdit(visible && (isEditRoute || isOwnPuzzle || userRole === 'admin'));
+  }, [isEditRoute, isOwnPuzzle, userRole, visible, setCanEdit]);
 
   // Update view mode when switching between solver/editor routes
   useEffect(() => {
     if (!visible) return;
     if (isEditRoute && viewMode === 'preview') {
+      // Entering edit route from preview — default to split
       setViewMode('split');
-    } else if (!isEditRoute && (viewMode === 'split' || viewMode === 'editor')) {
+    } else if (!isEditRoute && viewMode !== 'preview') {
+      // Leaving edit route — go to preview
       setViewMode('preview');
     }
   }, [isEditRoute, visible]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -259,31 +285,66 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     resetPuzzle();
   }, [isCreateRoute, visible, setPuzzle, resetPuzzle]);
 
-  // Load puzzle from slug (fallback to hard-coded puzzles)
-  useEffect(() => {
-    if (!slug || !visible || isCreateRoute) return;
+  // Load puzzle from slug — hardcoded puzzles in layout effect (before paint), API puzzles async
+  const prevSlugRef = useRef<string | null>(null);
 
+  useLayoutEffect(() => {
+    if (!slug || !visible || isCreateRoute) return;
+    if (slug === prevSlugRef.current) return;
+    prevSlugRef.current = slug;
     const hardcoded = findPuzzleBySlug(slug);
     if (hardcoded) {
       setPuzzle(hardcoded);
+      setIsLoadingPuzzle(false);
+    } else {
+      // Clear stale puzzle immediately so the old puzzle doesn't flash while API loads
+      setIsLoadingPuzzle(true);
+      usePuzzleStore.setState({
+        puzzle: null,
+        boardState: { dimensions: { width: 1, height: 1, depth: 1 }, placedBricks: [], blockedCells: [] },
+        inventoryState: new Map(),
+        validationResults: [],
+        isComplete: false,
+        moveCount: 0,
+      });
+    }
+  }, [slug, visible, isCreateRoute, setPuzzle, resetPuzzle]);
+
+  // Async: fetch API puzzles that aren't hardcoded
+  const myId = useUserStore((s) => s.profile?._id);
+
+  useEffect(() => {
+    if (!slug || !visible || isCreateRoute) return;
+
+    // Built-in puzzles don't exist in the DB — skip the API call
+    if (findPuzzleBySlug(slug)) {
+      setIsLoadingPuzzle(false);
+      setIsOwnPuzzle(false);
       return;
     }
 
-    // Try loading from API
+    let cancelled = false;
     (async () => {
       try {
         const res = await fetch(`/api/puzzles/${slug}`);
-        if (res.ok) {
+        if (res.ok && !cancelled) {
           const { puzzle: apiPuzzle } = await res.json();
-          if (apiPuzzle?.definition) {
-            setPuzzle(apiPuzzle.definition);
+          if (apiPuzzle) {
+            setPuzzleStatus(apiPuzzle.status ?? null);
+            setIsOwnPuzzle(myId ? apiPuzzle.authorId === myId : false);
+            if (apiPuzzle.definition) {
+              setPuzzle(apiPuzzle.definition);
+            }
           }
         }
       } catch {
         // API unavailable — puzzle not found
       }
+      if (!cancelled) setIsLoadingPuzzle(false);
     })();
-  }, [slug, visible, isCreateRoute, setPuzzle]);
+
+    return () => { cancelled = true; };
+  }, [slug, visible, isCreateRoute, setPuzzle, resetPuzzle, myId]);
 
   // Mount modes lazily
   useEffect(() => {
@@ -302,8 +363,8 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, [viewMode, setViewMode]);
 
-  // Save draft to API
-  const handleSaveDraft = async () => {
+  // Save draft to API (create new or update existing)
+  const handleSaveDraft = () => {
     if (!isSignedIn) {
       toast.error('Sign in to save puzzles');
       return;
@@ -311,28 +372,44 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     const puzzle = usePuzzleStore.getState().puzzle;
     if (!puzzle) return;
 
-    try {
-      const token = await getToken();
-      const res = await fetch('/api/puzzles/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ definition: puzzle, category: 'Coverage', difficulty: 'medium' }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || 'Failed to save');
-        return;
+    toast.promise(
+      (async () => {
+        const token = await getToken();
+
+        if (slug && !isCreateRoute) {
+          const res = await fetch(`/api/puzzles/${slug}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ definition: puzzle }),
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Failed to save');
+          }
+        } else {
+          const res = await fetch('/api/puzzles/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ definition: puzzle, category: 'Coverage', difficulty: 'medium' }),
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Failed to save');
+          }
+          const { puzzle: saved } = await res.json();
+          navigate(`/puzzle/${saved.slug}/edit`);
+        }
+      })(),
+      {
+        loading: 'Saving...',
+        success: slug && !isCreateRoute ? 'Puzzle saved!' : 'Draft saved!',
+        error: (err) => err.message || 'Failed to save',
       }
-      const { puzzle: saved } = await res.json();
-      toast.success(`Draft saved! Slug: ${saved.slug}`);
-      navigate(`/puzzle/${saved.slug}/edit`);
-    } catch {
-      toast.error('Failed to save puzzle');
-    }
+    );
   };
 
   // Publish puzzle
-  const handlePublish = async () => {
+  const handlePublish = () => {
     if (!isSignedIn) {
       toast.error('Sign in to publish puzzles');
       return;
@@ -341,22 +418,53 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
       toast.info('Save as draft first, then publish');
       return;
     }
-    try {
-      const token = await getToken();
-      const res = await fetch(`/api/puzzles/${slug}/publish`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
+    toast.promise(
+      (async () => {
+        const token = await getToken();
+        const res = await fetch(`/api/puzzles/${slug}/publish`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to publish');
+        }
         const data = await res.json();
-        toast.error(data.error || 'Failed to publish');
-        return;
+        setPuzzleStatus('published');
+        useGalleryStore.getState().reset();
+        return data;
+      })(),
+      {
+        loading: 'Publishing...',
+        success: 'Published!',
+        error: (err) => err.message || 'Failed to publish',
       }
-      const data = await res.json();
-      toast.success(`Published! +${data.xpAwarded} XP`);
-    } catch {
-      toast.error('Failed to publish');
-    }
+    );
+  };
+
+  // Unpublish puzzle (revert to draft)
+  const handleUnpublish = () => {
+    if (!slug) return;
+    toast.promise(
+      (async () => {
+        const token = await getToken();
+        const res = await fetch(`/api/puzzles/${slug}/unpublish`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to unpublish');
+        }
+        setPuzzleStatus('draft');
+        useGalleryStore.getState().reset();
+      })(),
+      {
+        loading: 'Unpublishing...',
+        success: 'Reverted to draft',
+        error: (err) => err.message || 'Failed to unpublish',
+      }
+    );
   };
 
   if (!hasEverBeenVisible) return null;
@@ -365,27 +473,35 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     <div className={`absolute inset-0 transition-opacity duration-150 ease-out flex flex-col ${
       visible ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
     }`}>
-      {/* Creator toolbar — shown on edit/create routes */}
-      {isEditRoute && visible && (
+      {/* Creator toolbar — shown for owners and admins */}
+      {(isEditRoute || isOwnPuzzle || userRole === 'admin') && visible && (
         <div className="flex items-center gap-2 px-4 py-2 bg-card/80 backdrop-blur-sm border-b border-border shrink-0 z-20">
           <span className="text-xs text-muted-foreground mr-auto">
             {isCreateRoute ? 'New Puzzle' : `Editing: ${usePuzzleStore.getState().puzzle?.title || slug}`}
           </span>
           <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleSaveDraft}>
-            <Save className="h-3 w-3" />Save Draft
+            <Save className="h-3 w-3" />{puzzleStatus === 'published' ? 'Save' : 'Save Draft'}
           </Button>
-          <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => {
-            if (slug) navigate(`/puzzle/${slug}`);
-          }}>
-            <EyeIcon className="h-3 w-3" />Preview
-          </Button>
-          <Button variant="default" size="sm" className="h-7 gap-1.5 text-xs" onClick={handlePublish}>
-            <Upload className="h-3 w-3" />Publish
-          </Button>
+          {puzzleStatus === 'published' ? (
+            <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleUnpublish}>
+              <ArchiveRestore className="h-3 w-3" />Unpublish
+            </Button>
+          ) : (
+            <Button variant="default" size="sm" className="h-7 gap-1.5 text-xs" onClick={handlePublish}>
+              <Upload className="h-3 w-3" />Publish
+            </Button>
+          )}
         </div>
       )}
 
       <div className="flex-1 relative">
+      {/* Loading overlay for API puzzles */}
+      {isLoadingPuzzle && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-sm text-muted-foreground">Loading puzzle...</p>
+        </div>
+      )}
       {mountedModes.has('split') && (
         <div className={`absolute inset-0 transition-opacity duration-150 ease-out ${viewMode === 'split' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
           <ResizablePanels direction="horizontal" defaultSize={40} minSize={20} maxSize={70}>

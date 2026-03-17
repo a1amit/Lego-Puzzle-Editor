@@ -10,6 +10,7 @@ type TimeWindow = 'all' | 'monthly' | 'weekly';
 interface LeaderboardEntry {
   rank: number;
   _id: string;
+  username: string;
   displayName: string;
   avatarUrl: string | null;
   xp: number;
@@ -101,7 +102,7 @@ export default function LeaderboardPage() {
           {entries.map((entry) => (
             <Link
               key={entry._id}
-              to={`/profile/${entry.displayName}`}
+              to={`/profile/${entry.username}`}
               className={`flex items-center gap-4 p-4 rounded-xl border transition-colors ${
                 entry.isCurrentUser
                   ? 'bg-primary/5 border-primary/20 hover:border-primary/40'

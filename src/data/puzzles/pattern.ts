@@ -14,7 +14,6 @@ import type { PuzzleDefinition } from '../../types/puzzle';
  * Row 1: 01001001 = 'I' (73)
  */
 export const BINARY_PUZZLE: PuzzleDefinition = {
-  puzzle_id: "Binary-01",
   title: "Binary Safe",
   description: "Crack the code! Place black (0) and white (1) bricks to spell the secret password in binary ASCII. Hint: The password is a 2-letter greeting.",
   viewMode: "2D",
@@ -51,7 +50,6 @@ export const BINARY_PUZZLE: PuzzleDefinition = {
 };
 
 export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
-  puzzle_id: "Binary-Deserted-Island-01",
   title: "Binary Safe: Deserted Island",
   description: "You're stranded on a deserted island and need to call for help! A rescue plane that only understands binary is flying overhead \u2014 spell out your distress signal!",
   viewMode: "2D",
@@ -90,7 +88,6 @@ export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
 };
 
 export const BINARY_PUZZLE_BUILDING_BLOCKS: PuzzleDefinition = {
-  puzzle_id: "Binary-Building-Blocks-01",
   title: "Binary Safe: Building Blocks",
   description: "Countless pieces that snap into place, creating anything imagination allows. We break apart yet never truly break. Spell our name in binary to unlock the safe!",
   viewMode: "2D",
@@ -145,7 +142,6 @@ export const BINARY_PUZZLE_BUILDING_BLOCKS: PuzzleDefinition = {
  * The pattern forms a cross/diamond shape.
  */
 export const NONOGRAM_PUZZLE: PuzzleDefinition = {
-  puzzle_id: "Nonogram-01",
   title: "Nonogram: Cross",
   description: "Fill in the black squares according to the number clues. Numbers indicate consecutive filled cells in each row/column. Use red bricks to mark cells that should stay empty.",
   viewMode: "2D",
@@ -202,7 +198,6 @@ export const NONOGRAM_PUZZLE: PuzzleDefinition = {
 // NONOGRAM PUZZLE 2 (Picross-style logic puzzle)
 // ============================================
 export const NONOGRAM_PUZZLE_2: PuzzleDefinition = {
-  "puzzle_id": "Nonogram-02",
   "title": "Nonogram: Cross",
   "description": "Fill in the black squares according to the number clues. Numbers indicate consecutive filled cells in each row/column. Use red bricks to mark cells that should stay empty.",
   "viewMode": "2D",
