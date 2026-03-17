@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { Plus, Pencil, Eye, Trash2, Globe, FileText, ArrowLeft } from 'lucide-react';
+import { Plus, Pencil, Eye, Trash2, FileText, ArrowLeft } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { Badge } from '../../components/ui/shadcn/badge';
 import { useAppAuth } from '../../auth/AuthProvider';

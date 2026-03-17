@@ -1,4 +1,4 @@
-import { Heart, Users, Play, Pencil } from 'lucide-react';
+import { Heart, Users, Play, Pencil, CheckCircle } from 'lucide-react';
 import { Badge } from '../ui/shadcn/badge';
 import { PuzzleThumbnail } from './PuzzleThumbnail';
 import type { GalleryPuzzle } from '../../store/galleryStore';
@@ -14,9 +14,10 @@ interface PuzzleCardProps {
   puzzle: GalleryPuzzle;
   onClick: (slug: string) => void;
   onEdit?: (slug: string) => void;
+  isSolved?: boolean;
 }
 
-export function PuzzleCard({ puzzle, onClick, onEdit }: PuzzleCardProps) {
+export function PuzzleCard({ puzzle, onClick, onEdit, isSolved }: PuzzleCardProps) {
   const def = puzzle.definition ?? {} as Record<string, any>;
   const dimensions = def.board?.dimensions ?? { width: 8, height: 4 };
   const viewMode = def.viewMode ?? '3D';
@@ -92,7 +93,12 @@ export function PuzzleCard({ puzzle, onClick, onEdit }: PuzzleCardProps) {
             <Heart className="h-3 w-3" />
             {puzzle.stats.likes}
           </span>
-          <span className="ml-auto text-[10px]">
+          <span className="ml-auto flex items-center gap-2 text-[10px]">
+            {isSolved && (
+              <span className="flex items-center gap-0.5 font-semibold text-success">
+                <CheckCircle className="h-3 w-3" />Solved
+              </span>
+            )}
             {dimensions.width}x{dimensions.height}
           </span>
         </div>

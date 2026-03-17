@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { Search, SlidersHorizontal, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
@@ -47,23 +47,31 @@ export default function GalleryPage() {
   const [localPuzzles] = useState(getLocalPuzzles);
   const [searchInput, setSearchInput] = useState(search);
   const [ownedSlugs, setOwnedSlugs] = useState<Set<string>>(new Set());
+  const [solvedSlugs, setSolvedSlugs] = useState<Set<string>>(new Set());
 
   // Fetch from API on mount (falls back to local puzzles)
   useEffect(() => {
     fetchPuzzles();
   }, [fetchPuzzles, search, category, difficulty, sort]);
 
-  // Fetch user's own puzzle slugs for edit buttons
+  // Fetch user's own puzzle slugs and completed puzzle slugs
   useEffect(() => {
-    if (!isSignedIn) { setOwnedSlugs(new Set()); return; }
+    if (!isSignedIn) { setOwnedSlugs(new Set()); setSolvedSlugs(new Set()); return; }
     (async () => {
       try {
         const token = await getToken();
         if (!token) return;
-        const res = await fetch('/api/users/me/puzzles', { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const { puzzles } = await res.json();
+        const [puzzlesRes, compRes] = await Promise.all([
+          fetch('/api/users/me/puzzles', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/users/me/completions', { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        if (puzzlesRes.ok) {
+          const { puzzles } = await puzzlesRes.json();
           setOwnedSlugs(new Set((puzzles || []).map((p: any) => p.slug)));
+        }
+        if (compRes.ok) {
+          const { completions } = await compRes.json();
+          setSolvedSlugs(new Set((completions || []).map((c: any) => c.puzzleSlug)));
         }
       } catch { /* ignore */ }
     })();
@@ -103,7 +111,7 @@ export default function GalleryPage() {
   return (
     <div className="min-h-full bg-background">
       {/* Hero / Featured */}
-      <FeaturedSection onPuzzleClick={handlePuzzleClick} />
+      <FeaturedSection onPuzzleClick={handlePuzzleClick} solvedSlugs={solvedSlugs} />
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
@@ -177,7 +185,7 @@ export default function GalleryPage() {
             <p className="text-muted-foreground text-sm mt-1">Try adjusting your filters</p>
           </div>
         ) : (
-          <PuzzleGrid puzzles={filteredPuzzles} onPuzzleClick={handlePuzzleClick} onPuzzleEdit={handlePuzzleEdit} ownedSlugs={ownedSlugs} />
+          <PuzzleGrid puzzles={filteredPuzzles} onPuzzleClick={handlePuzzleClick} onPuzzleEdit={handlePuzzleEdit} ownedSlugs={ownedSlugs} solvedSlugs={solvedSlugs} />
         )}
       </div>
     </div>

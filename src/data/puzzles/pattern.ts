@@ -142,7 +142,7 @@ export const BINARY_PUZZLE_BUILDING_BLOCKS: PuzzleDefinition = {
  * The pattern forms a cross/diamond shape.
  */
 export const NONOGRAM_PUZZLE: PuzzleDefinition = {
-  title: "Nonogram: Cross",
+  title: "Nonogram: Flag",
   description: "Fill in the black squares according to the number clues. Numbers indicate consecutive filled cells in each row/column. Use red bricks to mark cells that should stay empty.",
   viewMode: "2D",
   board: {
@@ -198,7 +198,7 @@ export const NONOGRAM_PUZZLE: PuzzleDefinition = {
 // NONOGRAM PUZZLE 2 (Picross-style logic puzzle)
 // ============================================
 export const NONOGRAM_PUZZLE_2: PuzzleDefinition = {
-  "title": "Nonogram: Cross",
+  "title": "Nonogram: Diamond",
   "description": "Fill in the black squares according to the number clues. Numbers indicate consecutive filled cells in each row/column. Use red bricks to mark cells that should stay empty.",
   "viewMode": "2D",
   "board": {
