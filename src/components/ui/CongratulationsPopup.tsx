@@ -13,6 +13,7 @@ interface CongratulationsPopupProps {
   onClose: () => void;
   onPlayAgain: () => void;
   puzzleTitle?: string;
+  xpEarned?: number;
 }
 
 /* ── Lego brick SVG confetti piece ── */
@@ -80,7 +81,8 @@ export function CongratulationsPopup({
   isVisible,
   onClose,
   onPlayAgain,
-  puzzleTitle
+  puzzleTitle,
+  xpEarned,
 }: CongratulationsPopupProps) {
   const [phase, setPhase] = useState<'hidden' | 'enter' | 'visible'>('hidden');
 
@@ -233,6 +235,13 @@ export function CongratulationsPopup({
               <p className="celebration-subtitle">
                 You completed <strong>"{puzzleTitle}"</strong>
               </p>
+            )}
+
+            {/* XP earned */}
+            {xpEarned != null && xpEarned > 0 && (
+              <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 border border-primary/25">
+                <span className="text-sm font-bold text-primary">+{xpEarned} XP</span>
+              </div>
             )}
 
             {/* Divider with studs */}

@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { usePuzzleStore } from '../../store/puzzleStore';
-import { BLANK_PUZZLE } from '../../config/puzzleCategories';
+import { useEditorViewStore, type EditorViewMode } from '../../store/editorViewStore';
+import { Show, SignInButton, useUser } from '../../auth/AuthProvider';
+import { XPBar } from '../ui/XPBar';
 import { LegoHelperIcon } from '../ui/LegoHelperIcon';
-import { PuzzleSelectorModal } from '../ui/PuzzleSelectorModal';
 import { Button } from '../ui/shadcn/button';
-import { Badge } from '../ui/shadcn/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,10 +21,6 @@ import {
   TooltipTrigger,
 } from '../ui/shadcn/tooltip';
 import {
-  ChevronDown,
-  Puzzle,
-  Plus,
-  CheckCircle2,
   Github,
   BookOpen,
   Columns2,
@@ -32,7 +29,13 @@ import {
   Menu,
   Undo2,
   Redo2,
+  Home,
+  Trophy,
+  LogIn,
+  User,
+  LogOut,
 } from 'lucide-react';
+import { useClerk } from '@clerk/react';
 
 // 2x2 Lego brick grid logo
 function LegoLogo({ className = "w-8 h-8" }: { className?: string }) {
@@ -51,153 +54,147 @@ function LegoLogo({ className = "w-8 h-8" }: { className?: string }) {
   );
 }
 
-export type ViewMode = 'split' | 'editor' | 'preview';
+export type ViewMode = EditorViewMode;
 
 interface HeaderProps {
   onChatToggle: () => void;
   isChatOpen: boolean;
   onShowInstructions: () => void;
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
+  isPuzzleRoute: boolean;
 }
 
-/** View mode toggle group (reused in desktop header + mobile menu) */
-function ViewModeToggle({ viewMode, onViewModeChange }: { viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void }) {
+/** View mode toggle group */
+function ViewModeToggle() {
+  const viewMode = useEditorViewStore((s) => s.viewMode);
+  const setViewMode = useEditorViewStore((s) => s.setViewMode);
+
   return (
     <div className="flex items-center gap-0.5 p-1 bg-secondary backdrop-blur-sm shadow-inner rounded-lg border border-border">
-      <Button
-        variant={viewMode === 'split' ? 'default' : 'ghost'}
-        size="sm"
-        className="h-7 px-3 text-xs gap-1.5"
-        onClick={() => onViewModeChange('split')}
-      >
-        <Columns2 className="h-3.5 w-3.5" />
-        Split
+      <Button variant={viewMode === 'split' ? 'default' : 'ghost'} size="sm" className="h-7 px-3 text-xs gap-1.5" onClick={() => setViewMode('split')}>
+        <Columns2 className="h-3.5 w-3.5" />Split
       </Button>
-      <Button
-        variant={viewMode === 'editor' ? 'default' : 'ghost'}
-        size="sm"
-        className="h-7 px-3 text-xs gap-1.5"
-        onClick={() => onViewModeChange('editor')}
-      >
-        <Code2 className="h-3.5 w-3.5" />
-        Editor
+      <Button variant={viewMode === 'editor' ? 'default' : 'ghost'} size="sm" className="h-7 px-3 text-xs gap-1.5" onClick={() => setViewMode('editor')}>
+        <Code2 className="h-3.5 w-3.5" />Editor
       </Button>
-      <Button
-        variant={viewMode === 'preview' ? 'default' : 'ghost'}
-        size="sm"
-        className="h-7 px-3 text-xs gap-1.5"
-        onClick={() => onViewModeChange('preview')}
-      >
-        <Eye className="h-3.5 w-3.5" />
-        Preview
+      <Button variant={viewMode === 'preview' ? 'default' : 'ghost'} size="sm" className="h-7 px-3 text-xs gap-1.5" onClick={() => setViewMode('preview')}>
+        <Eye className="h-3.5 w-3.5" />Preview
       </Button>
     </div>
   );
 }
 
-export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode, onViewModeChange }: HeaderProps) {
-  const { puzzle, isComplete, setPuzzle, resetPuzzle, undoStack, redoStack } = usePuzzleStore();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showPuzzleSelector, setShowPuzzleSelector] = useState(false);
+/** Signed-in user avatar dropdown — single button replaces both our icon + Clerk's UserButton */
+function UserMenu() {
+  const { user } = useUser();
+  const { signOut } = useClerk();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
 
-  const handleBlankPuzzle = () => {
-    setPuzzle(BLANK_PUZZLE);
-    resetPuzzle();
-  };
+  if (!user) return null;
+
+  const displayName = user.firstName || user.username || 'User';
+  const avatarUrl = user.imageUrl;
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <button className="h-8 w-8 rounded-full overflow-hidden border-2 border-transparent hover:border-primary/40 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+              {displayName[0]?.toUpperCase()}
+            </div>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <div className="px-3 py-2">
+          <p className="text-sm font-medium text-foreground">{displayName}</p>
+          <p className="text-xs text-muted-foreground">{user.primaryEmailAddress?.emailAddress}</p>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => { navigate(`/profile/${user.id}`); setOpen(false); }} className="gap-3 py-2">
+          <User className="h-4 w-4" /><span>My Profile</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => { signOut({ redirectUrl: '/' }); setOpen(false); }} className="gap-3 py-2 text-destructive">
+          <LogOut className="h-4 w-4" /><span>Sign Out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleRoute }: HeaderProps) {
+  const { puzzle, undoStack, redoStack } = usePuzzleStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleUndo = () => usePuzzleStore.getState().undo();
   const handleRedo = () => usePuzzleStore.getState().redo();
 
   return (
     <header className="relative h-12 md:h-14 bg-background/95 backdrop-blur-md border-b border-[var(--border-subtle)] flex items-center px-4 z-40">
-      {/* Left: Logo + Puzzle selector */}
-      <div className="flex items-center gap-4 min-w-0 flex-shrink-0">
-        <div className="flex items-center gap-2.5">
+      {/* Left: Logo + Nav */}
+      <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
+        <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
           <LegoLogo className="w-8 h-8" />
           <span className="font-semibold text-lg text-foreground tracking-tight hidden sm:inline">
             Virtual Lego
           </span>
-        </div>
+        </Link>
 
         <div className="h-6 w-px bg-[var(--border-subtle)] hidden sm:block" />
 
-        {/* Mobile compact puzzle name */}
-        {puzzle && (
-          <span className="text-xs text-muted-foreground truncate max-w-[120px] sm:hidden">
-            {puzzle.title}
-          </span>
-        )}
+        <nav className="hidden sm:flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs gap-1.5" asChild>
+            <Link to="/"><Home className="h-3.5 w-3.5" />Gallery</Link>
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs gap-1.5" asChild>
+            <Link to="/leaderboard"><Trophy className="h-3.5 w-3.5" />Ranks</Link>
+          </Button>
+        </nav>
 
-        <Button variant="ghost" className="gap-2 px-3 h-9 hidden sm:flex" onClick={() => setShowPuzzleSelector(true)}>
-          {puzzle?.inventory[0]?.color ? (
-            <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: puzzle.inventory[0].color }} />
-          ) : (
-            <Puzzle className="h-4 w-4 text-lego-red" />
-          )}
-          <span className="text-muted-foreground text-sm">Puzzle:</span>
-          <span className="font-medium text-foreground">{puzzle?.title || 'Select'}</span>
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          {isComplete && (
-            <Badge variant="default" className="bg-success text-success-foreground text-[10px] px-1.5 py-0 h-4 animate-[fade-in_0.4s_ease-out]">
-              Done
-            </Badge>
-          )}
-        </Button>
+        {isPuzzleRoute && puzzle && (
+          <span className="text-xs text-muted-foreground truncate max-w-[120px] sm:hidden">{puzzle.title}</span>
+        )}
       </div>
 
-      {/* Center: View mode toggle (hidden on small screens) */}
+      {/* Center: View mode toggle (only on puzzle routes, desktop only) */}
       <div className="hidden sm:flex flex-1 items-center justify-center">
-        <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        {isPuzzleRoute && <ViewModeToggle />}
       </div>
 
       {/* Right: Actions (desktop) */}
       <TooltipProvider delayDuration={300}>
         <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
-          {/* Undo/Redo buttons */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleUndo}
-                disabled={undoStack.length === 0}
-              >
-                <Undo2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Undo</TooltipContent>
-          </Tooltip>
+          {isPuzzleRoute && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleUndo} disabled={undoStack.length === 0}>
+                    <Undo2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Undo</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleRedo} disabled={redoStack.length === 0}>
+                    <Redo2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Redo</TooltipContent>
+              </Tooltip>
+              <div className="h-5 w-px bg-[var(--border-subtle)] mx-0.5" />
+            </>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleRedo}
-                disabled={redoStack.length === 0}
-              >
-                <Redo2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Redo</TooltipContent>
-          </Tooltip>
-
-          <div className="h-5 w-px bg-[var(--border-subtle)] mx-0.5" />
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={isChatOpen ? 'default' : 'ghost'}
-                size="sm"
-                className="gap-2 h-8"
-                onClick={onChatToggle}
-              >
-                <div className="w-5 h-5">
-                  <LegoHelperIcon className="w-full h-full" />
-                </div>
+              <Button variant={isChatOpen ? 'default' : 'ghost'} size="sm" className="gap-2 h-8" onClick={onChatToggle}>
+                <div className="w-5 h-5"><LegoHelperIcon className="w-full h-full" /></div>
                 <span className="text-xs font-medium hidden md:inline">Assistant</span>
               </Button>
             </TooltipTrigger>
@@ -214,6 +211,22 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
             <TooltipContent>Puzzle Creator Guide</TooltipContent>
           </Tooltip>
 
+          <div className="h-5 w-px bg-[var(--border-subtle)] mx-0.5" />
+
+          <XPBar />
+
+          {/* Single auth element: avatar dropdown when signed in, Sign In button when not */}
+          <Show when="signed-in">
+            <UserMenu />
+          </Show>
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <Button variant="default" size="sm" className="h-8 gap-1.5 text-xs">
+                <LogIn className="h-3.5 w-3.5" />Sign In
+              </Button>
+            </SignInButton>
+          </Show>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
@@ -227,90 +240,98 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, viewMode,
         </div>
       </TooltipProvider>
 
-      {/* Right: Mobile hamburger menu (visible on <640px) */}
+      {/* Right: Mobile hamburger menu */}
       <div className="flex sm:hidden items-center gap-1.5 ml-auto">
-        {/* Undo/Redo always visible on mobile */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={handleUndo}
-          disabled={undoStack.length === 0}
-        >
-          <Undo2 className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={handleRedo}
-          disabled={redoStack.length === 0}
-        >
-          <Redo2 className="h-4 w-4" />
-        </Button>
+        {isPuzzleRoute && (
+          <>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleUndo} disabled={undoStack.length === 0}>
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleRedo} disabled={redoStack.length === 0}>
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </>
+        )}
 
         <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Menu className="h-5 w-5" />
-            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8"><Menu className="h-5 w-5" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
-            {/* Puzzle selector */}
-            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Puzzle</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => { setShowPuzzleSelector(true); setMobileMenuOpen(false); }} className="gap-3 py-2">
-              <Puzzle className="h-4 w-4 text-lego-red" />
-              <span>Browse Puzzles</span>
+            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Navigate</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => { navigate('/'); setMobileMenuOpen(false); }} className="gap-3 py-2">
+              <Home className="h-4 w-4" /><span>Gallery</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { handleBlankPuzzle(); setMobileMenuOpen(false); }} className="gap-3 py-2">
-              <Plus className="h-4 w-4 text-primary" />
-              <span>Blank Puzzle</span>
+            <DropdownMenuItem onClick={() => { navigate('/leaderboard'); setMobileMenuOpen(false); }} className="gap-3 py-2">
+              <Trophy className="h-4 w-4" /><span>Leaderboard</span>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
-            {/* View mode */}
-            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">View Mode</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => { onViewModeChange('split'); setMobileMenuOpen(false); }} className="gap-3 py-2">
-              <Columns2 className="h-4 w-4" />
-              <span>Split</span>
-              {viewMode === 'split' && <CheckCircle2 className="h-3.5 w-3.5 text-primary ml-auto" />}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { onViewModeChange('editor'); setMobileMenuOpen(false); }} className="gap-3 py-2">
-              <Code2 className="h-4 w-4" />
-              <span>Editor</span>
-              {viewMode === 'editor' && <CheckCircle2 className="h-3.5 w-3.5 text-primary ml-auto" />}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { onViewModeChange('preview'); setMobileMenuOpen(false); }} className="gap-3 py-2">
-              <Eye className="h-4 w-4" />
-              <span>Preview</span>
-              {viewMode === 'preview' && <CheckCircle2 className="h-3.5 w-3.5 text-primary ml-auto" />}
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            {/* Actions */}
             <DropdownMenuItem onClick={() => { onChatToggle(); setMobileMenuOpen(false); }} className="gap-3 py-2">
-              <div className="w-4 h-4">
-                <LegoHelperIcon className="w-full h-full" />
-              </div>
+              <div className="w-4 h-4"><LegoHelperIcon className="w-full h-full" /></div>
               <span>Assistant</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => { onShowInstructions(); setMobileMenuOpen(false); }} className="gap-3 py-2">
-              <BookOpen className="h-4 w-4" />
-              <span>Guide</span>
+              <BookOpen className="h-4 w-4" /><span>Guide</span>
             </DropdownMenuItem>
             <DropdownMenuItem asChild className="gap-3 py-2">
               <a href="https://github.com/a1amit/Lego-Puzzle-Editor" target="_blank" rel="noopener noreferrer">
-                <Github className="h-4 w-4" />
-                <span>GitHub</span>
+                <Github className="h-4 w-4" /><span>GitHub</span>
               </a>
             </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Account</DropdownMenuLabel>
+
+            <Show when="signed-in">
+              <MobileUserSection onClose={() => setMobileMenuOpen(false)} />
+            </Show>
+            <Show when="signed-out">
+              <div className="px-2 py-1.5">
+                <SignInButton mode="modal">
+                  <Button variant="default" size="sm" className="w-full gap-2">
+                    <LogIn className="h-4 w-4" />Sign In
+                  </Button>
+                </SignInButton>
+              </div>
+            </Show>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      <PuzzleSelectorModal isOpen={showPuzzleSelector} onClose={() => setShowPuzzleSelector(false)} />
     </header>
+  );
+}
+
+/** Mobile signed-in user section inside hamburger menu */
+function MobileUserSection({ onClose }: { onClose: () => void }) {
+  const { user } = useUser();
+  const { signOut } = useClerk();
+  const navigate = useNavigate();
+
+  if (!user) return null;
+
+  return (
+    <>
+      <div className="px-3 py-2 flex items-center gap-3">
+        {user.imageUrl ? (
+          <img src={user.imageUrl} alt="" className="h-8 w-8 rounded-full" />
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+            {(user.firstName || 'U')[0]?.toUpperCase()}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">{user.firstName || user.username || 'User'}</p>
+          <p className="text-xs text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</p>
+        </div>
+      </div>
+      <DropdownMenuItem onClick={() => { navigate(`/profile/${user.id}`); onClose(); }} className="gap-3 py-2">
+        <User className="h-4 w-4" /><span>My Profile</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => { signOut({ redirectUrl: '/' }); onClose(); }} className="gap-3 py-2 text-destructive">
+        <LogOut className="h-4 w-4" /><span>Sign Out</span>
+      </DropdownMenuItem>
+    </>
   );
 }

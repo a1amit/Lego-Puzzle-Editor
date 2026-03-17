@@ -1,7 +1,8 @@
 /**
  * Chat Service for Puzzle Assistant
- * 
- * Integrates with OpenRouter API to provide AI-powered puzzle assistance.
+ *
+ * Uses the server-side /api/chat proxy when available (production).
+ * Falls back to direct OpenRouter API calls for local development.
  */
 
 import { CHATBOT_SYSTEM_PROMPT } from './puzzleContext';
@@ -17,135 +18,145 @@ export interface ChatResponse {
     error?: string;
 }
 
-const OPENROUTER_API_URL = import.meta.env.VITE_OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
-const MODEL = import.meta.env.VITE_CHAT_MODEL || 'stepfun/step-3.5-flash:free';
-const FALLBACK_MODEL = 'google/gemma-3-27b-it:free';
-const MAX_TOKENS = Number(import.meta.env.VITE_CHAT_MAX_TOKENS) || 1000;
-const TEMPERATURE = Number(import.meta.env.VITE_CHAT_TEMPERATURE) || 0.7;
-
-// Rate limiting
+// Client-side rate limiting (still useful even with server proxy)
 const COOLDOWN_MS = 2000;
 const RATE_LIMIT_MAX = 30;
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 let lastRequestTime = 0;
 let requestTimestamps: number[] = [];
 
 /**
- * Gets the OpenRouter API key from environment variables
+ * Try the server-side /api/chat proxy first.
+ * If it's not available (local dev without API), fall back to direct calls.
  */
-function getApiKey(): string | null {
-    return import.meta.env.VITE_OPENROUTER_API_KEY || null;
-}
-
-/**
- * Calls OpenRouter with a specific model and returns the result
- */
-async function callModel(apiKey: string, messages: ChatMessage[], model: string): Promise<ChatResponse> {
+async function callViaProxy(messages: ChatMessage[]): Promise<ChatResponse> {
     try {
-        const response = await fetch(OPENROUTER_API_URL, {
+        const res = await fetch('/api/chat', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': window.location.origin,
-                'X-Title': 'Virtual Lego Puzzle Editor',
-            },
-            body: JSON.stringify({
-                model,
-                messages,
-                max_tokens: MAX_TOKENS,
-                temperature: TEMPERATURE,
-            }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages }),
         });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.error?.message || `API error: ${response.status}`;
-            return { success: false, message: '', error: errorMessage };
+        if (res.status === 503) {
+            // Server proxy not configured — fall through to direct mode
+            return { success: false, message: '', error: '__FALLBACK__' };
         }
 
-        const data = await response.json();
-        const assistantMessage = data.choices?.[0]?.message?.content;
-        if (!assistantMessage) {
-            console.warn(`Empty response from ${model}:`, JSON.stringify(data));
-            return { success: false, message: '', error: `Model returned an empty response. It may be temporarily unavailable.` };
+        const data = await res.json();
+
+        if (!res.ok) {
+            return { success: false, message: '', error: data.error || `API error: ${res.status}` };
         }
-        return { success: true, message: assistantMessage };
-    } catch (error) {
-        console.error(`Chat API error (${model}):`, error);
-        return {
-            success: false,
-            message: '',
-            error: error instanceof Error ? error.message : 'Failed to connect to the chat service.',
-        };
+
+        if (data.success && data.message) {
+            return { success: true, message: data.message };
+        }
+
+        return { success: false, message: '', error: data.error || 'Empty response from chat service' };
+    } catch {
+        return { success: false, message: '', error: '__FALLBACK__' };
     }
 }
 
 /**
- * Sends a message to the chatbot and returns the response
+ * Direct OpenRouter call (fallback for local dev or if server proxy is down).
+ */
+async function callDirect(messages: ChatMessage[]): Promise<ChatResponse> {
+    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+    if (!apiKey || apiKey === 'your_openrouter_api_key_here') {
+        return {
+            success: false,
+            message: '',
+            error: 'Chat service not configured. Set up Clerk & deploy, or add VITE_OPENROUTER_API_KEY for local dev.',
+        };
+    }
+
+    const url = import.meta.env.VITE_OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
+    const model = import.meta.env.VITE_CHAT_MODEL || 'stepfun/step-3.5-flash:free';
+    const fallbackModel = 'google/gemma-3-27b-it:free';
+    const maxTokens = Number(import.meta.env.VITE_CHAT_MAX_TOKENS) || 1000;
+    const temperature = Number(import.meta.env.VITE_CHAT_TEMPERATURE) || 0.7;
+
+    async function callModel(modelId: string): Promise<ChatResponse> {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': window.location.origin,
+                    'X-Title': 'Virtual Lego Puzzle Editor',
+                },
+                body: JSON.stringify({ model: modelId, messages, max_tokens: maxTokens, temperature }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                return { success: false, message: '', error: (errorData as { error?: { message?: string } }).error?.message || `API error: ${response.status}` };
+            }
+
+            const data = await response.json();
+            const content = (data as { choices?: { message?: { content?: string } }[] }).choices?.[0]?.message?.content;
+            if (!content) return { success: false, message: '', error: 'Empty response from model.' };
+            return { success: true, message: content };
+        } catch (error) {
+            return { success: false, message: '', error: error instanceof Error ? error.message : 'Chat service error' };
+        }
+    }
+
+    const result = await callModel(model);
+    if (result.success) return result;
+
+    if (model !== fallbackModel) {
+        return callModel(fallbackModel);
+    }
+    return result;
+}
+
+/**
+ * Sends a message to the chatbot and returns the response.
+ * Tries server proxy first, falls back to direct OpenRouter calls.
  */
 export async function sendChatMessage(
     userMessage: string,
     conversationHistory: ChatMessage[] = [],
     puzzleContext?: string
 ): Promise<ChatResponse> {
-    const apiKey = getApiKey();
-
-    if (!apiKey || apiKey === 'your_openrouter_api_key_here') {
-        return {
-            success: false,
-            message: '',
-            error: 'OpenRouter API key not configured. Please add your API key to the .env file.',
-        };
-    }
-
-    const systemPromptWithContext = puzzleContext
-        ? `${CHATBOT_SYSTEM_PROMPT}\n\nCURRENT PUZZLE CONTEXT:\n${puzzleContext}`
-        : CHATBOT_SYSTEM_PROMPT;
-
-    // Rate limiting checks
+    // Client-side rate limiting
     const now = Date.now();
     if (now - lastRequestTime < COOLDOWN_MS) {
-        return {
-            success: false,
-            message: '',
-            error: 'Please wait a moment before sending another message.',
-        };
+        return { success: false, message: '', error: 'Please wait a moment before sending another message.' };
     }
     requestTimestamps = requestTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
     if (requestTimestamps.length >= RATE_LIMIT_MAX) {
-        return {
-            success: false,
-            message: '',
-            error: 'Rate limit reached. Please wait a few minutes before sending more messages.',
-        };
+        return { success: false, message: '', error: 'Rate limit reached. Please wait a few minutes.' };
     }
     lastRequestTime = now;
     requestTimestamps.push(now);
 
+    const systemPrompt = puzzleContext
+        ? `${CHATBOT_SYSTEM_PROMPT}\n\nCURRENT PUZZLE CONTEXT:\n${puzzleContext}`
+        : CHATBOT_SYSTEM_PROMPT;
+
     const messages: ChatMessage[] = [
-        { role: 'system', content: systemPromptWithContext },
+        { role: 'system', content: systemPrompt },
         ...conversationHistory,
         { role: 'user', content: userMessage },
     ];
 
-    const result = await callModel(apiKey, messages, MODEL);
+    // Try server proxy first
+    const proxyResult = await callViaProxy(messages);
+    if (proxyResult.error !== '__FALLBACK__') return proxyResult;
 
-    if (result.success) return result;
-
-    // Primary model failed — retry with fallback
-    if (MODEL !== FALLBACK_MODEL) {
-        console.warn(`Primary model "${MODEL}" failed, falling back to "${FALLBACK_MODEL}"`);
-        return callModel(apiKey, messages, FALLBACK_MODEL);
-    }
-
-    return result;
+    // Fall back to direct API call
+    return callDirect(messages);
 }
 
 /**
- * Validates that the API key is configured
+ * Validates that chat is available (either via proxy or direct API key).
  */
 export function isApiKeyConfigured(): boolean {
-    const apiKey = getApiKey();
-    return !!apiKey && apiKey !== 'your_openrouter_api_key_here';
+    // Always return true — the proxy will be tried first, and if it fails we check the direct key
+    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+    return true || (!!apiKey && apiKey !== 'your_openrouter_api_key_here');
 }
