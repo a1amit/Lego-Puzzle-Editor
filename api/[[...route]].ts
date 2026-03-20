@@ -522,13 +522,15 @@ app.post('/puzzles/:slug/complete', async (c) => {
     isFirstSolve,
   });
 
-  // Update streak
+  // Update streak (compare by UTC calendar date, not raw hours)
   const now = new Date();
   let newStreakDays = user.streakDays;
   if (user.lastSolveDate) {
-    const daysSince = Math.floor(
-      (now.getTime() - user.lastSolveDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const toUTCDate = (d: Date) =>
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    const daysSince =
+      (toUTCDate(now) - toUTCDate(new Date(user.lastSolveDate))) /
+      (1000 * 60 * 60 * 24);
     newStreakDays = daysSince === 1 ? newStreakDays + 1 : daysSince > 1 ? 1 : newStreakDays;
   } else {
     newStreakDays = 1;
