@@ -151,12 +151,21 @@ function FloatingPreviewBrick({
   color: string;
   rotation: number;
 }) {
-  const { camera, raycaster, pointer, invalidate } = useThree();
+  const { camera, raycaster, pointer, invalidate, gl } = useThree();
   const groupRef = useRef<THREE.Group>(null);
 
   // Refs for performance optimization - avoid recalculating when pointer hasn't moved
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const raycastTargetRef = useRef<THREE.Vector3>(new THREE.Vector3());
+
+  // In demand mode, pointer moves over empty background don't trigger frames.
+  // Listen on the canvas DOM element to force invalidation while this preview is mounted.
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onMove = () => invalidate();
+    canvas.addEventListener('pointermove', onMove);
+    return () => canvas.removeEventListener('pointermove', onMove);
+  }, [gl, invalidate]);
 
   // Create a horizontal plane at board level (y=0.5 to float slightly above)
   const boardPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5), []);
@@ -379,6 +388,7 @@ function DragDropManager() {
   // Handle keyboard events for rotation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
       // Use event.code for physical key position (works with any keyboard layout)
       // Rotate placed brick that is selected
       if (selectedPlacedBrick) {

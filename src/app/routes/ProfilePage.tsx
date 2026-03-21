@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 import { useUser } from '../../auth/AuthProvider';
 import { Trophy, Puzzle, Star, Flame, ArrowLeft } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
@@ -7,6 +7,7 @@ import { LevelTitleCard, TierRoadmap } from '../../components/ui/LevelTitleCard'
 import { useAppAuth } from '../../auth/AuthProvider';
 import { useUserStore } from '../../store/userStore';
 import { PUZZLE_CATEGORIES } from '../../config/puzzleCategories';
+import { usePublicProfileQuery } from '../../hooks/queries';
 
 const SLUG_TO_TITLE: Record<string, string> = {};
 for (const cat of PUZZLE_CATEGORIES) {
@@ -40,91 +41,73 @@ export default function ProfilePage() {
   const { userId } = useParams();
   const { user: clerkUser } = useUser();
   const { getToken, isLoaded: authLoaded } = useAppAuth();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [completions, setCompletions] = useState<CompletionEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   const storeUsername = useUserStore((s) => s.profile?.username);
   const isOwnProfile = clerkUser?.id === userId || (!!storeUsername && storeUsername === userId);
 
-  useEffect(() => {
-    async function loadOwnProfile() {
-      if (!authLoaded) return;
-      if (!clerkUser) return;
+  // Own profile: fetch /users/me + /users/me/completions (needs auth token)
+  const ownProfileQuery = useQuery({
+    queryKey: ['users', 'me', 'full'],
+    queryFn: async () => {
+      const token = await getToken();
+      if (!token) return null;
+      const [res, compRes] = await Promise.all([
+        fetch('/api/users/me', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/users/me/completions', { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (!res.ok) return null;
+      const { user: apiUser } = await res.json();
+      const completions = compRes.ok ? (await compRes.json()).completions : [];
+      return { apiUser, completions };
+    },
+    enabled: isOwnProfile && authLoaded && !!clerkUser,
+    staleTime: 2 * 60_000,
+  });
 
-      setIsLoading(true);
-      try {
-        const token = await getToken();
-        if (token) {
-          const [res, compRes] = await Promise.all([
-            fetch('/api/users/me', { headers: { Authorization: `Bearer ${token}` } }),
-            fetch('/api/users/me/completions', { headers: { Authorization: `Bearer ${token}` } }),
-          ]);
+  // Public profile: fetch /users/:username (no auth needed)
+  const publicProfileQuery = usePublicProfileQuery(!isOwnProfile ? (userId || '') : '');
 
-          if (res.ok) {
-            const { user: apiUser } = await res.json();
-            setProfile({
-              displayName: clerkUser.firstName
-                ? `${clerkUser.firstName}${clerkUser.lastName ? ' ' + clerkUser.lastName : ''}`
-                : apiUser.username || 'User',
-              avatarUrl: clerkUser.imageUrl || null,
-              email: clerkUser.primaryEmailAddress?.emailAddress || '',
-              bio: apiUser.bio || '',
-              xp: apiUser.xp || 0,
-              level: apiUser.level || 0,
-              puzzlesCreated: apiUser.puzzlesCreated || 0,
-              puzzlesCompleted: apiUser.puzzlesCompleted || 0,
-              streakDays: apiUser.streakDays || 0,
-              isOwnProfile: true,
-            });
-          }
-          if (compRes.ok) {
-            const { completions: apiCompletions } = await compRes.json();
-            setCompletions(apiCompletions || []);
-          }
-        }
-      } catch {
-        // API not available
-      }
-      setIsLoading(false);
-    }
+  // Derive profile and completions from the active query
+  const isLoading = isOwnProfile
+    ? ownProfileQuery.isLoading
+    : publicProfileQuery.isLoading;
 
-    async function loadPublicProfile() {
-      setIsLoading(true);
-      try {
-        const res = await fetch(`/api/users/${userId}`);
-        if (res.ok) {
-          const { user: apiUser, completions: apiCompletions } = await res.json();
-          setProfile({
-            displayName: apiUser.displayName || apiUser.username || 'User',
-            avatarUrl: apiUser.avatarUrl || null,
-            email: '',
-            bio: apiUser.bio || '',
-            xp: apiUser.xp || 0,
-            level: apiUser.level || 0,
-            puzzlesCreated: apiUser.puzzlesCreated || 0,
-            puzzlesCompleted: apiUser.puzzlesCompleted || 0,
-            streakDays: apiUser.streakDays || 0,
-            isOwnProfile: false,
-          });
-          setCompletions(apiCompletions || []);
-        }
-      } catch {
-        // API not available
-      }
-      setIsLoading(false);
-    }
+  let profile: ProfileData | null = null;
+  let completions: CompletionEntry[] = [];
 
-    if (!userId) return;
-
-    if (isOwnProfile) {
-      loadOwnProfile();
-    } else {
-      // Public profiles don't need auth — fetch immediately
-      loadPublicProfile();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, authLoaded, isOwnProfile]);
+  if (isOwnProfile && ownProfileQuery.data) {
+    const { apiUser, completions: apiCompletions } = ownProfileQuery.data;
+    profile = {
+      displayName: clerkUser?.firstName
+        ? `${clerkUser.firstName}${clerkUser.lastName ? ' ' + clerkUser.lastName : ''}`
+        : apiUser.username || 'User',
+      avatarUrl: clerkUser?.imageUrl || null,
+      email: clerkUser?.primaryEmailAddress?.emailAddress || '',
+      bio: apiUser.bio || '',
+      xp: apiUser.xp || 0,
+      level: apiUser.level || 0,
+      puzzlesCreated: apiUser.puzzlesCreated || 0,
+      puzzlesCompleted: apiUser.puzzlesCompleted || 0,
+      streakDays: apiUser.streakDays || 0,
+      isOwnProfile: true,
+    };
+    completions = apiCompletions || [];
+  } else if (!isOwnProfile && publicProfileQuery.data) {
+    const { user: apiUser, completions: apiCompletions } = publicProfileQuery.data;
+    profile = {
+      displayName: apiUser.displayName || apiUser.username || 'User',
+      avatarUrl: apiUser.avatarUrl || null,
+      email: '',
+      bio: apiUser.bio || '',
+      xp: apiUser.xp || 0,
+      level: apiUser.level || 0,
+      puzzlesCreated: apiUser.puzzlesCreated || 0,
+      puzzlesCompleted: apiUser.puzzlesCompleted || 0,
+      streakDays: apiUser.streakDays || 0,
+      isOwnProfile: false,
+    };
+    completions = apiCompletions || [];
+  }
 
   if (isLoading) {
     return (

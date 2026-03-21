@@ -120,6 +120,7 @@ function DragDropManager3D({ engine }: DragDropManager3DProps) {
   // Keyboard events
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
       if (selectedPlacedPiece) {
         if (event.code === 'KeyR') {
           rotatePiece(selectedPlacedPiece.instanceId);

@@ -99,11 +99,11 @@ export default function GalleryPage() {
   });
 
   const handlePuzzleEdit = useCallback((slug: string) => {
-    navigate(`/puzzle/${slug}/edit`);
+    navigate(`/puzzle/${slug}/edit`, { viewTransition: true });
   }, [navigate]);
 
   const handlePuzzleClick = useCallback((slug: string) => {
-    navigate(`/puzzle/${slug}`);
+    navigate(`/puzzle/${slug}`, { viewTransition: true });
   }, [navigate]);
 
   const categories = ['All', ...PUZZLE_CATEGORIES.map(c => c.category)];
@@ -116,13 +116,14 @@ export default function GalleryPage() {
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {/* Search + Filter bar */}
-        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md py-4 border-b border-border mb-6">
+        <div role="search" className="sticky top-0 z-20 bg-background/95 backdrop-blur-md py-4 border-b border-border mb-6">
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search puzzles..."
+                aria-label="Search puzzles"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="w-full h-9 pl-9 pr-4 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -133,6 +134,7 @@ export default function GalleryPage() {
               variant="outline"
               size="sm"
               className="gap-2"
+              aria-label="Toggle filters"
               onClick={() => setShowFilters(!showFilters)}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -141,6 +143,7 @@ export default function GalleryPage() {
 
             <select
               value={sort}
+              aria-label="Sort puzzles"
               onChange={(e) => setSort(e.target.value as SortOption)}
               className="h-9 px-3 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
@@ -154,7 +157,7 @@ export default function GalleryPage() {
               variant="default"
               size="sm"
               className="gap-2 shrink-0"
-              onClick={() => navigate('/create')}
+              onClick={() => navigate('/create', { viewTransition: true })}
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Create Puzzle</span>

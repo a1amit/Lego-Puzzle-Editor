@@ -121,14 +121,14 @@ function UserMenu() {
           <p className="text-xs text-muted-foreground">{user.primaryEmailAddress?.emailAddress}</p>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => { navigate(`/profile/${user.id}`); setOpen(false); }} className="gap-3 py-2">
+        <DropdownMenuItem onClick={() => { navigate(`/profile/${user.id}`, { viewTransition: true }); setOpen(false); }} className="gap-3 py-2">
           <User className="h-4 w-4" /><span>My Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => { navigate('/my-puzzles'); setOpen(false); }} className="gap-3 py-2">
+        <DropdownMenuItem onClick={() => { navigate('/my-puzzles', { viewTransition: true }); setOpen(false); }} className="gap-3 py-2">
           <FolderOpen className="h-4 w-4" /><span>My Puzzles</span>
         </DropdownMenuItem>
         {userRole === 'admin' && (
-          <DropdownMenuItem onClick={() => { navigate('/admin'); setOpen(false); }} className="gap-3 py-2">
+          <DropdownMenuItem onClick={() => { navigate('/admin', { viewTransition: true }); setOpen(false); }} className="gap-3 py-2">
             <Shield className="h-4 w-4" /><span>Admin Panel</span>
           </DropdownMenuItem>
         )}
@@ -274,10 +274,10 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
             <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Navigate</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => { navigate('/'); setMobileMenuOpen(false); }} className="gap-3 py-2">
+            <DropdownMenuItem onClick={() => { navigate('/', { viewTransition: true }); setMobileMenuOpen(false); }} className="gap-3 py-2">
               <Home className="h-4 w-4" /><span>Gallery</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { navigate('/leaderboard'); setMobileMenuOpen(false); }} className="gap-3 py-2">
+            <DropdownMenuItem onClick={() => { navigate('/leaderboard', { viewTransition: true }); setMobileMenuOpen(false); }} className="gap-3 py-2">
               <Trophy className="h-4 w-4" /><span>Leaderboard</span>
             </DropdownMenuItem>
 
@@ -342,14 +342,14 @@ function MobileUserSection({ onClose }: { onClose: () => void }) {
           <p className="text-xs text-muted-foreground truncate">{user.primaryEmailAddress?.emailAddress}</p>
         </div>
       </div>
-      <DropdownMenuItem onClick={() => { navigate(`/profile/${user.id}`); onClose(); }} className="gap-3 py-2">
+      <DropdownMenuItem onClick={() => { navigate(`/profile/${user.id}`, { viewTransition: true }); onClose(); }} className="gap-3 py-2">
         <User className="h-4 w-4" /><span>My Profile</span>
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => { navigate('/my-puzzles'); onClose(); }} className="gap-3 py-2">
+      <DropdownMenuItem onClick={() => { navigate('/my-puzzles', { viewTransition: true }); onClose(); }} className="gap-3 py-2">
         <FolderOpen className="h-4 w-4" /><span>My Puzzles</span>
       </DropdownMenuItem>
       {userRole === 'admin' && (
-        <DropdownMenuItem onClick={() => { navigate('/admin'); onClose(); }} className="gap-3 py-2">
+        <DropdownMenuItem onClick={() => { navigate('/admin', { viewTransition: true }); onClose(); }} className="gap-3 py-2">
           <Shield className="h-4 w-4" /><span>Admin Panel</span>
         </DropdownMenuItem>
       )}

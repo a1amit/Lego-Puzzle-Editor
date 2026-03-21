@@ -77,6 +77,9 @@ export function OnboardingOverlay({ isVisible, onDismiss }: OnboardingOverlayPro
 
           {/* Card */}
           <m.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="onboarding-heading"
             className="relative z-10 w-[90vw] max-w-sm bg-card border border-border rounded-xl shadow-2xl overflow-hidden"
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
@@ -118,7 +121,7 @@ export function OnboardingOverlay({ isVisible, onDismiss }: OnboardingOverlayPro
                   <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
                     {currentStep.icon}
                   </div>
-                  <h3 className="text-lg font-bold text-foreground mb-2">
+                  <h3 id="onboarding-heading" className="text-lg font-bold text-foreground mb-2">
                     {currentStep.title}
                   </h3>
                   <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">

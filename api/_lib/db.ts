@@ -26,8 +26,8 @@ export async function connectDB() {
     if (!uri) throw new Error('MONGODB_URI environment variable is not set');
 
     cached.promise = mongoose.connect(uri, {
-      maxPoolSize: 5,
-      serverSelectionTimeoutMS: 10000,
+      maxPoolSize: 2,
+      serverSelectionTimeoutMS: 15000,
     });
   }
 

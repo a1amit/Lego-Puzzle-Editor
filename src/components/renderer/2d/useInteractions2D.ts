@@ -87,6 +87,7 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       if (e.code === 'KeyR') {
         handleRotate();
       } else if (e.code === 'Escape') {
