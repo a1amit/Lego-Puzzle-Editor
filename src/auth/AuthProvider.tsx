@@ -14,14 +14,25 @@ import { createContext, useContext, Component, type ReactNode } from 'react';
 import {
   ClerkProvider,
   useAuth as useClerkAuth,
-  useUser,
+  useUser as useClerkUser,
   Show,
   UserButton,
   SignInButton,
   SignUpButton,
 } from '@clerk/react';
 
-export { Show, UserButton, SignInButton, SignUpButton, useUser };
+export { Show, UserButton, SignInButton, SignUpButton };
+
+// Safe useUser wrapper — returns { user: null, isLoaded: true } when
+// ClerkProvider is not in the tree (no publishable key / anonymous mode).
+const NO_USER = { isLoaded: true as const, isSignedIn: false as const, user: null };
+export function useUser() {
+  try {
+    return useClerkUser();
+  } catch {
+    return NO_USER;
+  }
+}
 
 // ── Auth context (works with or without Clerk) ──────────────────────
 
