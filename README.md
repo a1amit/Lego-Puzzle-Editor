@@ -170,6 +170,43 @@ Puzzles are fully data-driven via JSON with Zod validation:
 }
 ```
 
+### Custom Validation Rules
+
+Creators can define custom win conditions without code using the **Custom Rules** tab in the editor, or directly in JSON:
+
+```json
+{
+  "type": "CUSTOM",
+  "rule": "CUSTOM_RULE",
+  "params": {
+    "label": "Build a tower of 5",
+    "condition": {
+      "kind": "ALL",
+      "children": [
+        { "kind": "stack_height_at_cells", "cells": [[3,3]], "operator": "gte", "value": 5 },
+        { "kind": "no_adjacent_same_color" }
+      ]
+    }
+  }
+}
+```
+
+**22 condition types** across 7 categories:
+
+| Category | Conditions |
+|----------|-----------|
+| Cell | `cells_are_covered`, `cells_are_empty`, `cells_have_color` |
+| Row/Column | `row_fully_covered`, `column_fully_covered`, `row_is_empty`, `column_is_empty` |
+| Region | `region_fully_covered`, `region_is_empty`, `region_has_single_color` |
+| Count | `total_pieces_placed`, `pieces_of_color_count`, `pieces_of_shape_count`, `covered_cell_count` |
+| Stacking (3D) | `stack_height_at_cells`, `max_stack_height`, `min_stack_height` |
+| Spatial | `no_adjacent_same_color`, `all_covered_connected`, `piece_at_position` |
+| Symmetry | `horizontal_symmetry`, `vertical_symmetry` |
+
+**5 logic combinators** for nesting: `ALL` (AND), `ANY` (OR), `NONE` (NOR), `EXACTLY_N`, `AT_LEAST_N`
+
+Conditions that take numeric values use comparison operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`. Cell-based conditions accept `cells: [[x,y], ...]` arrays, selectable via the interactive cell picker in the editor.
+
 ## Deployment
 
 Deployed on Vercel with:

@@ -9,6 +9,9 @@
 import type { PuzzleDefinition, ValidationRule } from '../types/puzzle';
 import type { Coordinate2D } from './types';
 
+// Side-effect import: registers CUSTOM_RULE validator in ValidationRegistry
+import '../validation/customRuleEvaluator';
+
 /**
  * Enrich validation rules from a puzzle definition with the runtime
  * parameters that specific validators need (inventory data, goal cells,
@@ -66,6 +69,11 @@ export function enrichValidationRules(
           allow_empty_cells: puzzle.target_pattern.allow_empty_cells,
         },
       };
+    }
+
+    // CUSTOM_RULE is self-contained — params already has the full condition tree
+    if (rule.rule === 'CUSTOM_RULE') {
+      return rule;
     }
 
     // MAX_MOVES needs current move count

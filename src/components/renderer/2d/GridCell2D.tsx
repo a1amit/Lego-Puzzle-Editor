@@ -13,6 +13,7 @@ export interface GridCellProps {
   isHovered: boolean;
   isInvalid: boolean;
   isValidDestination: boolean;
+  isPickerSelected?: boolean;
   onClick: () => void;
   onPointerEnter: () => void;
   onPointerLeave: () => void;
@@ -26,6 +27,7 @@ export const GridCell = memo(function GridCell({
   isHovered,
   isInvalid,
   isValidDestination,
+  isPickerSelected,
   onClick,
   onPointerEnter,
   onPointerLeave,
@@ -36,15 +38,17 @@ export const GridCell = memo(function GridCell({
   const centerX = x * cellSize + cellSize / 2;
   const centerY = y * cellSize + cellSize / 2;
 
-  const fill = isInvalid
-    ? C.invalidCell
-    : isHovered
-      ? C.hoverCell
-      : isValidDestination
-        ? C.validDest
-        : isBlocked
-          ? 'url(#cell-blocked-grad)'
-          : 'url(#cell-grad)';
+  const fill = isPickerSelected
+    ? 'rgba(6, 182, 212, 0.45)'
+    : isInvalid
+      ? C.invalidCell
+      : isHovered
+        ? C.hoverCell
+        : isValidDestination
+          ? C.validDest
+          : isBlocked
+            ? 'url(#cell-blocked-grad)'
+            : 'url(#cell-grad)';
 
   return (
     <g
@@ -107,6 +111,33 @@ export const GridCell = memo(function GridCell({
             r={STUD_RADIUS * 0.3}
             fill="rgba(255,255,255,0.1)"
           />
+        </g>
+      )}
+
+      {/* Cell picker selection indicator */}
+      {isPickerSelected && (
+        <g>
+          <rect
+            x={cx}
+            y={cy}
+            width={size}
+            height={size}
+            rx={3}
+            fill="none"
+            stroke="rgba(6, 182, 212, 0.8)"
+            strokeWidth={2.5}
+          />
+          <text
+            x={centerX}
+            y={centerY + 1}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={size * 0.45}
+            fill="rgba(6, 182, 212, 0.9)"
+            fontWeight="bold"
+          >
+            &#x2713;
+          </text>
         </g>
       )}
 

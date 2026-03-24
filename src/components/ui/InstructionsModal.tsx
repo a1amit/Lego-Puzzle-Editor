@@ -29,6 +29,7 @@ import {
   Keyboard,
   Copy,
   Check,
+  Sparkles,
 } from 'lucide-react';
 
 interface InstructionsModalProps {
@@ -375,6 +376,13 @@ function ValidationTab() {
       name: 'MAX_MOVES', type: 'MAX_MOVES', desc: 'Limits the maximum number of moves allowed.',
       paramDetails: [{ name: 'maxMoves', tooltip: 'Maximum number of moves allowed.' }],
     },
+    {
+      name: 'CUSTOM_RULE', type: 'CUSTOM', desc: 'Creator-defined rule using the visual rule builder. Build complex win conditions by combining 22 condition types (cell checks, row/column rules, stacking, symmetry, spatial, and count-based) with nestable logic groups (ALL, ANY, NONE, EXACTLY_N, AT_LEAST_N).',
+      paramDetails: [
+        { name: 'label', tooltip: 'Display name shown in the validation panel.' },
+        { name: 'condition', tooltip: 'Recursive condition tree with leaf conditions and logic combinators.' },
+      ],
+    },
   ];
 
   const getTypeColor = (type: string) => {
@@ -388,6 +396,7 @@ function ValidationTab() {
       case 'GOAL': return 'bg-red-500/20 text-red-300';
       case 'CONSTRAINT': return 'bg-pink-500/20 text-pink-300';
       case 'MAX_MOVES': return 'bg-red-500/20 text-red-300';
+      case 'CUSTOM': return 'bg-teal-500/20 text-teal-300';
       default: return 'bg-secondary text-muted-foreground';
     }
   };
@@ -441,6 +450,29 @@ function ValidationTab() {
   { "type": "CONSTRAINT", "rule": "NO_BRICK_REMOVAL" },
   { "type": "GOAL", "rule": "GOAL_REACHED" }
 ]`}</CopyableCode>
+
+      <h4 className="text-foreground font-semibold mt-6">Custom Rule Example</h4>
+      <p className="text-muted-foreground text-sm mb-2">
+        Custom rules let you combine conditions with logic groups (ALL, ANY, NONE). Use the <strong>Custom Rules</strong> tab in the editor for a visual builder, or define them in JSON:
+      </p>
+      <CopyableCode>{`{
+  "type": "CUSTOM",
+  "rule": "CUSTOM_RULE",
+  "params": {
+    "label": "Symmetric tower",
+    "condition": {
+      "kind": "ALL",
+      "children": [
+        { "kind": "horizontal_symmetry" },
+        { "kind": "max_stack_height", "operator": "gte", "value": 3 },
+        { "kind": "no_adjacent_same_color" }
+      ]
+    }
+  }
+}`}</CopyableCode>
+      <p className="text-muted-foreground text-sm mt-2">
+        <strong>22 conditions</strong> across 7 categories: Cell, Row/Column, Region, Count, Stacking (3D), Spatial, and Symmetry. Conditions can be nested inside logic groups for complex rules.
+      </p>
     </div>
   );
 }
@@ -621,6 +653,153 @@ function NonogramTab() {
   );
 }
 
+function CustomRulesTab() {
+  const conditions = [
+    { category: 'Cell', items: [
+      { name: 'cells_are_covered', desc: 'Specific cells must have bricks on them.' },
+      { name: 'cells_are_empty', desc: 'Specific cells must not have any bricks.' },
+      { name: 'cells_have_color', desc: 'Specific cells must be covered by a brick of a given color.' },
+    ]},
+    { category: 'Row/Column', items: [
+      { name: 'row_fully_covered', desc: 'Every cell in a row must have a brick.' },
+      { name: 'column_fully_covered', desc: 'Every cell in a column must have a brick.' },
+      { name: 'row_is_empty', desc: 'No cells in a row may have bricks.' },
+      { name: 'column_is_empty', desc: 'No cells in a column may have bricks.' },
+    ]},
+    { category: 'Count', items: [
+      { name: 'total_pieces_placed', desc: 'Total number of pieces on the board (=, >, <, etc.).' },
+      { name: 'pieces_of_color_count', desc: 'Number of placed pieces with a specific color.' },
+      { name: 'pieces_of_shape_count', desc: 'Number of placed pieces with a specific shape.' },
+      { name: 'covered_cell_count', desc: 'Total number of cells covered by bricks.' },
+    ]},
+    { category: 'Stacking (3D)', items: [
+      { name: 'stack_height_at_cells', desc: 'Vertical stack height at specific cells.' },
+      { name: 'max_stack_height', desc: 'The tallest stack on the board.' },
+      { name: 'min_stack_height', desc: 'The shortest non-empty stack on the board.' },
+    ]},
+    { category: 'Spatial', items: [
+      { name: 'no_adjacent_same_color', desc: 'No two adjacent cells (up/down/left/right) share the same color.' },
+      { name: 'all_covered_connected', desc: 'All covered cells must form one connected group.' },
+      { name: 'piece_at_position', desc: 'A specific piece must cover exactly the given cells.' },
+    ]},
+    { category: 'Symmetry', items: [
+      { name: 'horizontal_symmetry', desc: 'Board must be symmetric left-to-right (coverage and colors).' },
+      { name: 'vertical_symmetry', desc: 'Board must be symmetric top-to-bottom (coverage and colors).' },
+    ]},
+  ];
+
+  const categoryColors: Record<string, string> = {
+    'Cell': 'bg-blue-500/20 text-blue-300',
+    'Row/Column': 'bg-purple-500/20 text-purple-300',
+    'Count': 'bg-green-500/20 text-green-300',
+    'Stacking (3D)': 'bg-orange-500/20 text-orange-300',
+    'Spatial': 'bg-cyan-500/20 text-cyan-300',
+    'Symmetry': 'bg-pink-500/20 text-pink-300',
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-muted-foreground">
+        Custom rules let you define your own win conditions without writing code. Use the <strong>Custom Rules</strong> tab in the editor to build rules visually, or define them in JSON.
+      </p>
+
+      <h4 className="text-foreground font-semibold mt-4">How It Works</h4>
+      <div className="space-y-2 text-sm text-muted-foreground">
+        <p>Each custom rule has:</p>
+        <ul className="list-disc list-inside space-y-1 ml-2">
+          <li><strong>Name</strong> &mdash; shown in the validation panel (e.g. "Build a tower")</li>
+          <li><strong>Description</strong> &mdash; hint shown to the player when the rule fails</li>
+          <li><strong>Condition tree</strong> &mdash; one or more conditions combined with logic groups</li>
+        </ul>
+      </div>
+
+      <h4 className="text-foreground font-semibold mt-4">Logic Groups</h4>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {[
+          { name: 'ALL (AND)', desc: 'Every condition must pass', color: 'border-l-blue-400' },
+          { name: 'ANY (OR)', desc: 'At least one must pass', color: 'border-l-green-400' },
+          { name: 'NONE (NOR)', desc: 'No conditions may pass', color: 'border-l-red-400' },
+        ].map(g => (
+          <div key={g.name} className={`bg-secondary rounded-lg p-3 border-l-[3px] ${g.color}`}>
+            <div className="text-xs font-bold text-foreground">{g.name}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{g.desc}</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-muted-foreground text-sm">
+        You can also use <strong>EXACTLY N</strong> (exactly N conditions must pass) and <strong>AT LEAST N</strong> (N or more must pass). Logic groups can be nested inside each other for complex rules.
+      </p>
+
+      <h4 className="text-foreground font-semibold mt-4">Cell Picker</h4>
+      <p className="text-muted-foreground text-sm">
+        For conditions that target specific cells, click the <strong>Pick</strong> button to enter cell picker mode. Click cells on the board to select/deselect them, then click <strong>Done</strong>. Works in both 2D and 3D views.
+      </p>
+
+      <h4 className="text-foreground font-semibold mt-4">Condition Types ({conditions.reduce((n, c) => n + c.items.length, 0)} total)</h4>
+      <div className="space-y-3">
+        {conditions.map(cat => (
+          <div key={cat.category}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className={`px-2 py-0.5 text-xs rounded font-medium ${categoryColors[cat.category] ?? 'bg-secondary text-muted-foreground'}`}>
+                {cat.category}
+              </span>
+            </div>
+            <div className="space-y-1 ml-1">
+              {cat.items.map(item => (
+                <div key={item.name} className="flex gap-2">
+                  <code className="text-primary text-[11px] shrink-0">{item.name}</code>
+                  <span className="text-muted-foreground text-[11px]">{item.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h4 className="text-foreground font-semibold mt-6">JSON Format</h4>
+      <p className="text-muted-foreground text-sm mb-2">
+        Custom rules are stored in <code className="text-primary">validation_rules</code> with type <code className="text-primary">"CUSTOM"</code>:
+      </p>
+      <CopyableCode>{`{
+  "type": "CUSTOM",
+  "rule": "CUSTOM_RULE",
+  "params": {
+    "label": "Symmetric & colorful",
+    "description": "Build a symmetric pattern with no same-color neighbors",
+    "condition": {
+      "kind": "ALL",
+      "children": [
+        { "kind": "horizontal_symmetry" },
+        { "kind": "no_adjacent_same_color" },
+        { "kind": "covered_cell_count", "operator": "gte", "value": 8 }
+      ]
+    }
+  }
+}`}</CopyableCode>
+
+      <h4 className="text-foreground font-semibold mt-6">Comparison Operators</h4>
+      <p className="text-muted-foreground text-sm mb-2">
+        Count and stacking conditions use these operators:
+      </p>
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        {[
+          { op: 'eq', label: '= equal' },
+          { op: 'neq', label: '\u2260 not equal' },
+          { op: 'gt', label: '> greater' },
+          { op: 'gte', label: '\u2265 at least' },
+          { op: 'lt', label: '< less' },
+          { op: 'lte', label: '\u2264 at most' },
+        ].map(o => (
+          <div key={o.op} className="bg-secondary rounded px-2 py-1 text-center">
+            <code className="text-primary text-xs">{o.op}</code>
+            <div className="text-[10px] text-muted-foreground">{o.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ExamplesTab() {
   return (
     <div className="space-y-6">
@@ -747,6 +926,10 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
               <Grid3x3 className="w-3.5 h-3.5" />
               Nonogram
             </TabsTrigger>
+            <TabsTrigger value="customrules" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Sparkles className="w-3.5 h-3.5" />
+              Custom Rules
+            </TabsTrigger>
             <TabsTrigger value="examples" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Lightbulb className="w-3.5 h-3.5" />
               Examples
@@ -760,6 +943,7 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
             <TabsContent value="validation" className="mt-0"><ValidationTab /></TabsContent>
             <TabsContent value="slider" className="mt-0"><SliderTab /></TabsContent>
             <TabsContent value="nonogram" className="mt-0"><NonogramTab /></TabsContent>
+            <TabsContent value="customrules" className="mt-0"><CustomRulesTab /></TabsContent>
             <TabsContent value="examples" className="mt-0"><ExamplesTab /></TabsContent>
           </div>
         </Tabs>

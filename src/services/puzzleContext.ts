@@ -23,6 +23,16 @@ Movement: SLIDING_ONLY (slide H/V only, Klotski-style), FREE_PLACEMENT (default)
 Pattern: PATTERN_MATCH (match a target pattern — nonograms, binary, pixel art).
 Goal: GOAL_REACHED (target piece reaches goal cells — slider win condition).
 Limit: MAX_MOVES.
+Custom: CUSTOM_RULE — creator-defined rules using a recursive condition tree. 22 condition types in 7 categories:
+  Cell: cells_are_covered, cells_are_empty, cells_have_color.
+  Row/Column: row_fully_covered, column_fully_covered, row_is_empty, column_is_empty.
+  Region: region_fully_covered, region_is_empty, region_has_single_color.
+  Count: total_pieces_placed, pieces_of_color_count, pieces_of_shape_count, covered_cell_count.
+  Stacking (3D only): stack_height_at_cells, max_stack_height, min_stack_height.
+  Spatial: no_adjacent_same_color, all_covered_connected, piece_at_position.
+  Symmetry: horizontal_symmetry, vertical_symmetry.
+  Logic combinators: ALL (AND), ANY (OR), NONE (NOR), EXACTLY_N, AT_LEAST_N — nestable.
+  Comparison operators for numeric conditions: eq, neq, gt, gte, lt, lte.
 </rules>
 
 <shapes>

@@ -18,10 +18,14 @@ import { recordCompletion } from '../store/completionTracker';
 import { useUserStore } from '../store/userStore';
 import { useGalleryStore } from '../store/galleryStore';
 import { Save, Upload, ArchiveRestore } from 'lucide-react';
+import { CellPickerOverlay } from '../components/editor/ruleBuilder/CellPickerOverlay';
 
 // Lazy-loaded heavy components
 const PuzzleEditor = React.lazy(() =>
   import('../components/editor/PuzzleEditor').then(m => ({ default: m.PuzzleEditor }))
+);
+const RuleBuilderPanel = React.lazy(() =>
+  import('../components/editor/ruleBuilder').then(m => ({ default: m.RuleBuilderPanel }))
 );
 const PuzzleScene = React.lazy(() =>
   import('../components/3d/PuzzleScene').then(m => ({ default: m.PuzzleScene }))
@@ -44,11 +48,22 @@ function SceneSkeleton() {
 
 function EditorPanel() {
   return (
-    <div className="h-full flex flex-col bg-background">
-      <Suspense fallback={<EditorSkeleton />}>
-        <PuzzleEditor className="flex-1" />
-      </Suspense>
-    </div>
+    <Tabs defaultValue="json" className="h-full flex flex-col bg-background">
+      <TabsList className="flex-shrink-0 mx-2 mt-2">
+        <TabsTrigger value="json" className="text-xs">JSON Editor</TabsTrigger>
+        <TabsTrigger value="rules" className="text-xs">Custom Rules</TabsTrigger>
+      </TabsList>
+      <TabsContent value="json" className="flex-1 min-h-0">
+        <Suspense fallback={<EditorSkeleton />}>
+          <PuzzleEditor className="h-full" />
+        </Suspense>
+      </TabsContent>
+      <TabsContent value="rules" className="flex-1 min-h-0">
+        <Suspense fallback={<EditorSkeleton />}>
+          <RuleBuilderPanel className="h-full" />
+        </Suspense>
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -158,6 +173,7 @@ function PreviewPanel() {
           <div className="absolute top-3 right-3 z-10">
             <ViewModeIndicator viewMode={viewMode} />
           </div>
+          <CellPickerOverlay />
         </div>
         <div className="h-full min-w-[320px] bg-gradient-to-b from-card to-background border-l border-border shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
           <ResizablePanels direction="vertical" defaultSize={58} minSize={32} maxSize={78}>
@@ -346,12 +362,11 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     return () => { cancelled = true; };
   }, [slug, visible, isCreateRoute, setPuzzle, resetPuzzle, myId]);
 
-  // Mount modes lazily
+  // Mount only the active mode — previously this accumulated all visited modes,
+  // which left duplicate PreviewPanel instances alive (each with its own
+  // window-level keydown listener), causing 'R' to rotate 180° instead of 90°.
   useEffect(() => {
-    setMountedModes(prev => {
-      if (prev.has(viewMode)) return prev;
-      return new Set([...prev, viewMode]);
-    });
+    setMountedModes(new Set([viewMode]));
   }, [viewMode]);
 
   // Mobile auto-switch

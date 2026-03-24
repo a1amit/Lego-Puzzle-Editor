@@ -181,7 +181,9 @@ export function ValidationPanel({ className = '', engine }: ValidationPanelProps
                       text-xs font-semibold tracking-wide
                       ${result.isValid ? 'text-success' : 'text-destructive'}
                     `}>
-                      {FRIENDLY_RULE_NAMES[result.rule] || result.rule.replace(/_/g, ' ')}
+                      {result.rule.startsWith('CUSTOM:')
+                        ? result.rule.slice(7)
+                        : FRIENDLY_RULE_NAMES[result.rule] || result.rule.replace(/_/g, ' ')}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       {result.message}

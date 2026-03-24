@@ -7,6 +7,7 @@ import { PolyominoBrick, GhostBrick } from './PolyominoBrick';
 import { CinematicEffects } from './CinematicEffects';
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { useHoverStore } from '../../store/hoverStore';
+import { useRuleBuilderStore } from '../editor/ruleBuilder/useRuleBuilderStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { getBrickCells, rotateShape } from '../../validation/ValidationRegistry';
 import { SCENE_3D, GOAL_INDICATOR_3D, COLORS } from '../../config/sceneConfig';
@@ -385,38 +386,9 @@ function DragDropManager() {
     return true;
   }, [selectedInventoryBrick, hoveredCell, boardState, width, height, previewRotation, ghostZLevel]);
 
-  // Handle keyboard events for rotation
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) return;
-      // Use event.code for physical key position (works with any keyboard layout)
-      // Rotate placed brick that is selected
-      if (selectedPlacedBrick) {
-        if (event.code === 'KeyR') {
-          rotateBrick(selectedPlacedBrick.instanceId);
-        } else if (event.code === 'Escape' || event.key === 'Escape') {
-          selectBrick(null);
-        } else if (event.code === 'Delete' || event.code === 'Backspace') {
-          // removeBrick will check for NO_BRICK_REMOVAL rule and block if needed
-          removeBrick(selectedPlacedBrick.instanceId);
-          selectBrick(null);
-        }
-        return;
-      }
-
-      // Rotate inventory brick preview
-      if (selectedInventoryBrick) {
-        if (event.code === 'KeyR') {
-          rotatePreview();
-        } else if (event.code === 'Escape' || event.key === 'Escape') {
-          selectBrick(null);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPlacedBrick, selectedInventoryBrick, rotateBrick, rotatePreview, selectBrick, removeBrick]);
+  // Keyboard handling moved to PuzzleSceneInner (outside R3F Canvas)
+  // to avoid React Three Fiber reconciler issues with StrictMode
+  // that can leak duplicate window-level event listeners.
 
   // Handle board cell hover
   const handleCellHover = useCallback((x: number, y: number | null) => {
@@ -429,6 +401,13 @@ function DragDropManager() {
 
   // Handle board cell click
   const handleCellClick = useCallback((x: number, y: number) => {
+    // Cell picker mode: intercept clicks for the rule builder
+    const pickerTarget = useRuleBuilderStore.getState().cellPickerTarget;
+    if (pickerTarget) {
+      useRuleBuilderStore.getState().toggleCell(x, y);
+      return;
+    }
+
     // If we have a placed brick selected (hovering), place it at new position
     if (selectedPlacedBrick) {
       // Check if clicking on the same position - if so, just deselect
@@ -496,6 +475,17 @@ function DragDropManager() {
     selectBrick(null);
   }, [removeBrick, selectBrick]);
 
+  // Get picker cells from rule builder store (must be before early return — Rules of Hooks)
+  const pickerTarget = useRuleBuilderStore(s => s.cellPickerTarget);
+  const pickerCellsSet = useRuleBuilderStore(s => s.cellPickerCells);
+  const pickerSelectedCells = useMemo<[number, number][] | undefined>(() => {
+    if (!pickerTarget || pickerCellsSet.size === 0) return undefined;
+    return Array.from(pickerCellsSet).map(k => {
+      const [x, y] = k.split(',').map(Number);
+      return [x, y] as [number, number];
+    });
+  }, [pickerTarget, pickerCellsSet]);
+
   if (!puzzle) return null;
 
   // Get slide destinations for the currently selected placed piece (if sliding puzzle)
@@ -516,6 +506,7 @@ function DragDropManager() {
         onCellHover={handleCellHover}
         slideDestinations={slideDestinations}
         goalCells={goalCells}
+        pickerSelectedCells={pickerSelectedCells}
       />
 
       {/* Floating goal area indicator - visible above bricks */}
@@ -616,10 +607,13 @@ function StoreInvalidator() {
   const previewRotation = usePuzzleStore(s => s.previewRotation);
   const validationResults = usePuzzleStore(s => s.validationResults);
   const hoveredCell = useHoverStore(s => s.hoveredCell);
+  // Cell picker — watch both version (number, guaranteed to trigger) and cells Set
+  const cellPickerVersion = useRuleBuilderStore(s => s.cellPickerVersion);
+  const cellPickerCells = useRuleBuilderStore(s => s.cellPickerCells);
 
   useEffect(() => {
     invalidate();
-  }, [boardState, selectedBrickId, previewRotation, validationResults, hoveredCell, invalidate]);
+  }, [boardState, selectedBrickId, previewRotation, validationResults, hoveredCell, cellPickerVersion, cellPickerCells, invalidate]);
 
   return null;
 }
@@ -705,7 +699,14 @@ function FloatingPreviewWrapper() {
 }
 
 function PuzzleSceneInner() {
-  const { selectedBrickId, boardState, rotatePreview } = usePuzzleStore();
+  const {
+    selectedBrickId,
+    boardState,
+    rotateBrick,
+    rotatePreview,
+    selectBrick,
+    removeBrick,
+  } = usePuzzleStore();
   const [sceneReady, setSceneReady] = useState(false);
 
   // Check if we have an inventory brick selected (not a placed brick)
@@ -715,6 +716,44 @@ function PuzzleSceneInner() {
   // Check if we have a placed brick selected (hovering/moving)
   const hasPlacedBrickSelection = selectedBrickId &&
     boardState.placedBricks.find(b => b.instanceId === selectedBrickId);
+
+  // Keyboard handler — lives outside the R3F Canvas so React DOM's
+  // StrictMode cleanup works correctly (R3F's reconciler can leak listeners).
+  const selectedPlacedBrick = useMemo(
+    () => boardState.placedBricks.find(b => b.instanceId === selectedBrickId),
+    [boardState.placedBricks, selectedBrickId],
+  );
+  const selectedInventoryBrick = useMemo(() => {
+    if (selectedPlacedBrick) return null;
+    const puzzle = usePuzzleStore.getState().puzzle;
+    return puzzle?.inventory.find(b => b.id === selectedBrickId) ?? null;
+  }, [selectedBrickId, selectedPlacedBrick]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
+      if (selectedPlacedBrick) {
+        if (event.code === 'KeyR') {
+          rotateBrick(selectedPlacedBrick.instanceId);
+        } else if (event.code === 'Escape' || event.key === 'Escape') {
+          selectBrick(null);
+        } else if (event.code === 'Delete' || event.code === 'Backspace') {
+          removeBrick(selectedPlacedBrick.instanceId);
+          selectBrick(null);
+        }
+        return;
+      }
+      if (selectedInventoryBrick) {
+        if (event.code === 'KeyR') {
+          rotatePreview();
+        } else if (event.code === 'Escape' || event.key === 'Escape') {
+          selectBrick(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPlacedBrick, selectedInventoryBrick, rotateBrick, rotatePreview, selectBrick, removeBrick]);
 
   // Hide cursor when any brick is selected for placement/movement
   const shouldHideCursor = hasInventorySelection || hasPlacedBrickSelection;

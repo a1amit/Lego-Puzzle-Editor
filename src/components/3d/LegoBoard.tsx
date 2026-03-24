@@ -23,6 +23,8 @@ interface LegoBoardProps {
   slideDestinations?: [number, number][];
   /** Goal cells - shown with target/goal indicator */
   goalCells?: [number, number][];
+  /** Cell picker highlights — cells selected in the rule builder */
+  pickerSelectedCells?: [number, number][];
 }
 
 const CELL_SIZE = BOARD_3D.cellSize;
@@ -209,6 +211,7 @@ export function LegoBoard({
   validationResultsOverride,
   slideDestinations,
   goalCells,
+  pickerSelectedCells,
 }: LegoBoardProps) {
   const groupRef = useRef<THREE.Group>(null);
   const lastHoveredCellKeyRef = useRef<string | null>(null);
@@ -220,6 +223,7 @@ export function LegoBoard({
   const studGoalRef = useRef<THREE.InstancedMesh>(null);
   const highlightRef = useRef<THREE.InstancedMesh>(null);
   const goalRingRef = useRef<THREE.InstancedMesh>(null);
+  const pickerRef = useRef<THREE.InstancedMesh>(null);
 
   const store = usePuzzleStore();
   const hoverStoreCell = useHoverStore(s => s.hoveredCell);
@@ -229,10 +233,19 @@ export function LegoBoard({
   const validationResults = validationResultsOverride ?? store.validationResults;
   const blockedCellsArray = blockedCellsOverride ?? store.boardState.blockedCells;
 
+  // Cell picker state for rule builder
+  // Picker cells come as a prop from PuzzleScene (same pattern as goalCells)
+  const pickerCellSet = useMemo(() => {
+    if (!pickerSelectedCells || pickerSelectedCells.length === 0) return new Set<string>();
+    return new Set(pickerSelectedCells.map(([x, y]) => `${x},${y}`));
+  }, [pickerSelectedCells]);
+
   // Get cells that need highlighting from validation
   const invalidCells = useMemo(() => {
     const cells = new Set<string>();
     for (const result of validationResults) {
+      // Custom rules manage their own display — don't paint affected cells red
+      if (result.rule.startsWith('CUSTOM:')) continue;
       if (!result.isValid && result.affectedCells) {
         for (const [x, y] of result.affectedCells) {
           cells.add(`${x},${y}`);
@@ -275,6 +288,7 @@ export function LegoBoard({
     const studGoal: CellPosition[] = [];
     const highlights: HighlightInstance[] = [];
     const goalRings: CellPosition[] = [];
+    const pickerHighlights: CellPosition[] = [];
 
     for (let x = 0; x < width; x++) {
       for (let y = 0; y < height; y++) {
@@ -284,7 +298,6 @@ export function LegoBoard({
         const isInvalid = invalidCells.has(key);
         const isSlideDestination = slideDestinationCells.has(key);
         const isGoal = goalCellSet.has(key);
-
         const highlightColor = isInvalid
           ? COLORS.invalidCell
           : isSlideDestination
@@ -314,6 +327,10 @@ export function LegoBoard({
         } else if (isGoal) {
           goalRings.push([x, y]);
         }
+
+        if (pickerCellSet.has(key)) {
+          pickerHighlights.push([x, y]);
+        }
       }
     }
 
@@ -325,8 +342,9 @@ export function LegoBoard({
       studGoal,
       highlights,
       goalRings,
+      pickerHighlights,
     };
-  }, [width, height, blockedCells, hoveredCell, invalidCells, slideDestinationCells, goalCellSet]);
+  }, [width, height, blockedCells, hoveredCell, invalidCells, slideDestinationCells, goalCellSet, pickerCellSet]);
 
   useLayoutEffect(() => {
     const dynamicMeshes = [
@@ -337,6 +355,7 @@ export function LegoBoard({
       studGoalRef.current,
       highlightRef.current,
       goalRingRef.current,
+      pickerRef.current,
     ];
 
     for (const mesh of dynamicMeshes) {
@@ -354,6 +373,8 @@ export function LegoBoard({
 
     applyHighlights(highlightRef.current, instanceData.highlights);
     applyMatrices(goalRingRef.current, instanceData.goalRings, 0.015, [-Math.PI / 2, Math.PI / 4, 0]);
+    applyMatrices(pickerRef.current, instanceData.pickerHighlights, STUD_HEIGHT + 0.05, [-Math.PI / 2, 0, 0]);
+
   }, [instanceData]);
 
   // Handle pointer events
@@ -519,6 +540,19 @@ export function LegoBoard({
           transparent
           opacity={0.78}
           depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </instancedMesh>
+
+      {/* Instanced picker cell highlights (same pattern as goal rings) */}
+      <instancedMesh ref={pickerRef} args={[undefined, undefined, maxInstances]} renderOrder={999}>
+        <planeGeometry args={[0.9, 0.9]} />
+        <meshBasicMaterial
+          color="#06b6d4"
+          transparent
+          opacity={0.6}
+          depthWrite={false}
+          depthTest={false}
           side={THREE.DoubleSide}
         />
       </instancedMesh>

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { UsePuzzleEngineReturn, PlacedPiece } from '../../../engine';
 import { rotateShape, getPieceCells, getValidSlideDestinations } from '../../../engine';
 import { SHAPE_LIBRARY } from '../../../types/puzzle';
+import { useRuleBuilderStore } from '../../editor/ruleBuilder/useRuleBuilderStore';
 
 interface UseInteractions2DOptions {
   engine: UsePuzzleEngineReturn;
@@ -105,6 +106,13 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
   // ---- cell click ----
 
   const handleCellClick = useCallback((x: number, y: number) => {
+    // Cell picker mode: intercept clicks for the rule builder
+    const pickerTarget = useRuleBuilderStore.getState().cellPickerTarget;
+    if (pickerTarget) {
+      useRuleBuilderStore.getState().toggleCell(x, y);
+      return;
+    }
+
     if (blockedCells.has(`${x},${y}`)) return;
 
     if (selectedPlacedPiece) {
@@ -234,6 +242,8 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
       if (result.rule === 'GOAL_REACHED') continue;
       if (result.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED') continue;
       if (result.rule === 'PATTERN_MATCH') continue;
+      // Custom rules manage their own display — don't paint affected cells red
+      if (result.rule.startsWith('CUSTOM:')) continue;
 
       if (!result.isValid && result.affectedCells) {
         for (const [x, y] of result.affectedCells) {
