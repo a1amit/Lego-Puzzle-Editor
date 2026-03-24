@@ -377,7 +377,7 @@ function ValidationTab() {
       paramDetails: [{ name: 'maxMoves', tooltip: 'Maximum number of moves allowed.' }],
     },
     {
-      name: 'CUSTOM_RULE', type: 'CUSTOM', desc: 'Creator-defined rule using the visual rule builder. Build complex win conditions by combining 22 condition types (cell checks, row/column rules, stacking, symmetry, spatial, and count-based) with nestable logic groups (ALL, ANY, NONE, EXACTLY_N, AT_LEAST_N).',
+      name: 'CUSTOM_RULE', type: 'CUSTOM', desc: 'Creator-defined rule using the visual rule builder. Build complex win conditions by combining 29 condition types (cell checks, row/column rules, stacking, symmetry, spatial, and count-based) with nestable logic groups (ALL, ANY, NONE, EXACTLY_N, AT_LEAST_N).',
       paramDetails: [
         { name: 'label', tooltip: 'Display name shown in the validation panel.' },
         { name: 'condition', tooltip: 'Recursive condition tree with leaf conditions and logic combinators.' },
@@ -471,7 +471,7 @@ function ValidationTab() {
   }
 }`}</CopyableCode>
       <p className="text-muted-foreground text-sm mt-2">
-        <strong>22 conditions</strong> across 7 categories: Cell, Row/Column, Region, Count, Stacking (3D), Spatial, and Symmetry. Conditions can be nested inside logic groups for complex rules.
+        <strong>29 conditions</strong> across 7 categories: Cell, Row/Column, Region, Count, Stacking (3D), Spatial, and Symmetry. Conditions can be nested inside logic groups for complex rules.
       </p>
     </div>
   );
@@ -665,12 +665,17 @@ function CustomRulesTab() {
       { name: 'column_fully_covered', desc: 'Every cell in a column must have a brick.' },
       { name: 'row_is_empty', desc: 'No cells in a row may have bricks.' },
       { name: 'column_is_empty', desc: 'No cells in a column may have bricks.' },
+      { name: 'count_per_row', desc: 'Every row must have a covered cell count satisfying a comparison.' },
+      { name: 'count_per_column', desc: 'Every column must have a covered cell count satisfying a comparison.' },
+      { name: 'parity_per_row', desc: 'Every row must have an even or odd number of covered cells.' },
+      { name: 'parity_per_column', desc: 'Every column must have an even or odd number of covered cells.' },
     ]},
     { category: 'Count', items: [
       { name: 'total_pieces_placed', desc: 'Total number of pieces on the board (=, >, <, etc.).' },
       { name: 'pieces_of_color_count', desc: 'Number of placed pieces with a specific color.' },
       { name: 'pieces_of_shape_count', desc: 'Number of placed pieces with a specific shape.' },
       { name: 'covered_cell_count', desc: 'Total number of cells covered by bricks.' },
+      { name: 'max_colors_used', desc: 'Number of distinct brick colors placed on the board.' },
     ]},
     { category: 'Stacking (3D)', items: [
       { name: 'stack_height_at_cells', desc: 'Vertical stack height at specific cells.' },
@@ -681,10 +686,16 @@ function CustomRulesTab() {
       { name: 'no_adjacent_same_color', desc: 'No two adjacent cells (up/down/left/right) share the same color.' },
       { name: 'all_covered_connected', desc: 'All covered cells must form one connected group.' },
       { name: 'piece_at_position', desc: 'A specific piece must cover exactly the given cells.' },
+      { name: 'path_exists', desc: 'A path must exist through covered cells from start to end (cardinal adjacency).' },
+      { name: 'all_same_color_connected', desc: 'All cells of each color must form one connected group.' },
+      { name: 'no_shared_diagonal', desc: 'No two covered cells may share a diagonal (N-Queens constraint).' },
     ]},
     { category: 'Symmetry', items: [
       { name: 'horizontal_symmetry', desc: 'Board must be symmetric left-to-right (coverage and colors).' },
       { name: 'vertical_symmetry', desc: 'Board must be symmetric top-to-bottom (coverage and colors).' },
+    ]},
+    { category: 'Advanced', items: [
+      { name: 'custom_code', desc: 'Write JavaScript code that validates the board. Ultimate flexibility for any rule.' },
     ]},
   ];
 
@@ -695,6 +706,7 @@ function CustomRulesTab() {
     'Stacking (3D)': 'bg-orange-500/20 text-orange-300',
     'Spatial': 'bg-cyan-500/20 text-cyan-300',
     'Symmetry': 'bg-pink-500/20 text-pink-300',
+    'Advanced': 'bg-amber-500/20 text-amber-300',
   };
 
   return (
@@ -796,6 +808,53 @@ function CustomRulesTab() {
           </div>
         ))}
       </div>
+
+      <h4 className="text-foreground font-semibold mt-6">Custom Code (Advanced)</h4>
+      <p className="text-muted-foreground text-sm mb-2">
+        For rules that can't be expressed with the built-in conditions, use <code className="text-primary">custom_code</code> to write
+        JavaScript directly. Your code receives <code className="text-primary">board</code> and <code className="text-primary">helpers</code> and
+        must return <code className="text-primary">{'{ passed: boolean, message: string }'}</code>.
+      </p>
+
+      <div className="bg-secondary rounded-lg p-4 space-y-2 text-sm">
+        <div className="text-foreground font-semibold text-xs">Available in your code:</div>
+        <div className="space-y-1 text-muted-foreground text-[11px]">
+          <div><code className="text-primary">board.width</code>, <code className="text-primary">board.height</code>, <code className="text-primary">board.depth</code> &mdash; board dimensions</div>
+          <div><code className="text-primary">board.placedBricks[]</code> &mdash; array of {'{ id, shape, color, x, y, z, rotation }'}</div>
+          <div><code className="text-primary">board.blockedCells[]</code> &mdash; array of [x, y]</div>
+          <div><code className="text-primary">helpers.isOccupied(x, y)</code> &mdash; true if cell has a brick</div>
+          <div><code className="text-primary">helpers.getCellColor(x, y)</code> &mdash; color string or null</div>
+          <div><code className="text-primary">helpers.getStackHeight(x, y)</code> &mdash; number of stacked bricks</div>
+          <div><code className="text-primary">helpers.countOccupied()</code> &mdash; total occupied cells</div>
+          <div><code className="text-primary">helpers.getBricksAt(x, y)</code> &mdash; array of {'{ id, shape, color, z }'}</div>
+        </div>
+      </div>
+
+      <p className="text-muted-foreground text-sm mt-2 mb-2">
+        Use the <strong>Test</strong> button in the editor to run your code against the current board and see the result instantly.
+      </p>
+
+      <h4 className="text-foreground font-semibold mt-4">Example: No pieces on the border</h4>
+      <CopyableCode>{`for (const b of board.placedBricks) {
+  if (b.x === 0 || b.x === board.width - 1 || b.y === 0 || b.y === board.height - 1) {
+    return { passed: false, message: "A piece is on the border!" };
+  }
+}
+return { passed: true, message: "No pieces on the border" };`}</CopyableCode>
+
+      <h4 className="text-foreground font-semibold mt-4">JSON Format (custom code)</h4>
+      <CopyableCode>{`{
+  "type": "CUSTOM",
+  "rule": "CUSTOM_RULE",
+  "params": {
+    "label": "No border pieces",
+    "description": "Keep all pieces away from the edges",
+    "condition": {
+      "kind": "custom_code",
+      "code": "for (const b of board.placedBricks) {\\n  if (b.x === 0 || b.x === board.width - 1 || b.y === 0 || b.y === board.height - 1) {\\n    return { passed: false, message: \\"A piece is on the border!\\" };\\n  }\\n}\\nreturn { passed: true, message: \\"No pieces on the border\\" };"
+    }
+  }
+}`}</CopyableCode>
     </div>
   );
 }

@@ -377,6 +377,302 @@ const leafEvaluators: Record<string, LeafEvaluator> = {
     return { passed: false, message: `Piece "${cond.pieceId}" is not at the target position`, affectedCells: wrong };
   },
 
+  custom_code(cond, board) {
+    if (cond.kind !== 'custom_code') throw new Error('wrong kind');
+    if (!cond.code || cond.code.trim().length === 0) {
+      return { passed: false, message: 'No code provided' };
+    }
+
+    // Build a read-only board view and helpers for the sandboxed function
+    const occupied = getAllOccupiedCells(board);
+    const boardView = {
+      width: board.dimensions.width,
+      height: board.dimensions.height,
+      depth: board.dimensions.depth,
+      placedBricks: board.placedBricks.map(b => ({
+        id: b.id,
+        instanceId: b.instanceId,
+        shape: b.shape,
+        color: b.color,
+        x: b.position.x,
+        y: b.position.y,
+        z: b.z,
+        rotation: b.rotation,
+      })),
+      blockedCells: board.blockedCells,
+    };
+
+    const helpers = {
+      isOccupied: (x: number, y: number) => occupied.has(`${x},${y}`),
+      getCellColor: (x: number, y: number) => getTopColorAt(occupied, x, y),
+      getStackHeight: (x: number, y: number) => {
+        const bricks = occupied.get(`${x},${y}`);
+        if (!bricks || bricks.length === 0) return 0;
+        return new Set(bricks.map(b => b.z)).size;
+      },
+      countOccupied: () => occupied.size,
+      getBricksAt: (x: number, y: number) => {
+        return (occupied.get(`${x},${y}`) ?? []).map(b => ({
+          id: b.id, shape: b.shape, color: b.color, z: b.z,
+        }));
+      },
+    };
+
+    try {
+      // new Function() creates a sandboxed scope — no access to DOM, window, fetch, etc.
+      // Only `board` and `helpers` are available inside the function
+      const fn = new Function('board', 'helpers', cond.code);
+      const result = fn(boardView, helpers);
+
+      if (result && typeof result === 'object' && typeof result.passed === 'boolean') {
+        return {
+          passed: result.passed,
+          message: typeof result.message === 'string' ? result.message : (result.passed ? 'Passed' : 'Failed'),
+          affectedCells: Array.isArray(result.affectedCells) ? result.affectedCells : undefined,
+        };
+      }
+
+      return { passed: false, message: 'Code must return { passed: boolean, message: string }' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { passed: false, message: `Code error: ${msg}` };
+    }
+  },
+
+  no_shared_diagonal(cond, board) {
+    if (cond.kind !== 'no_shared_diagonal') throw new Error('wrong kind');
+    const occupied = getAllOccupiedCells(board);
+    const cells = [...occupied.keys()].map(k => {
+      const [x, y] = k.split(',').map(Number);
+      return [x, y] as [number, number];
+    });
+
+    const violations: [number, number][] = [];
+
+    for (let i = 0; i < cells.length; i++) {
+      for (let j = i + 1; j < cells.length; j++) {
+        const [x1, y1] = cells[i];
+        const [x2, y2] = cells[j];
+        if (Math.abs(x1 - x2) === Math.abs(y1 - y2)) {
+          violations.push(cells[i], cells[j]);
+        }
+      }
+    }
+
+    // Deduplicate
+    const seen = new Set<string>();
+    const unique = violations.filter(([x, y]) => {
+      const k = `${x},${y}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+    return unique.length === 0
+      ? { passed: true, message: 'No two covered cells share a diagonal' }
+      : { passed: false, message: `${unique.length} cell(s) share a diagonal with another`, affectedCells: unique };
+  },
+
+  // --- Spatial (additional) ---
+  path_exists(cond, board) {
+    if (cond.kind !== 'path_exists') throw new Error('wrong kind');
+    const occupied = getAllOccupiedCells(board);
+    const startKey = `${cond.startCell[0]},${cond.startCell[1]}`;
+    const endKey = `${cond.endCell[0]},${cond.endCell[1]}`;
+
+    // Both start and end must be occupied
+    if (!occupied.has(startKey) || !occupied.has(endKey)) {
+      return {
+        passed: false,
+        message: 'Start or end cell is not covered',
+        affectedCells: [cond.startCell as [number, number], cond.endCell as [number, number]],
+      };
+    }
+
+    // BFS from start to end through occupied cells
+    const visited = new Set<string>();
+    const queue = [startKey];
+    visited.add(startKey);
+
+    while (queue.length > 0) {
+      const key = queue.shift()!;
+      if (key === endKey) {
+        return { passed: true, message: `Path exists from (${cond.startCell.join(',')}) to (${cond.endCell.join(',')})` };
+      }
+      const [x, y] = key.split(',').map(Number);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+        const nk = `${x + dx},${y + dy}`;
+        if (occupied.has(nk) && !visited.has(nk)) {
+          visited.add(nk);
+          queue.push(nk);
+        }
+      }
+    }
+
+    return {
+      passed: false,
+      message: `No path from (${cond.startCell.join(',')}) to (${cond.endCell.join(',')})`,
+      affectedCells: [cond.startCell as [number, number], cond.endCell as [number, number]],
+    };
+  },
+
+  all_same_color_connected(cond, board) {
+    if (cond.kind !== 'all_same_color_connected') throw new Error('wrong kind');
+    const occupied = getAllOccupiedCells(board);
+    if (occupied.size === 0) {
+      return { passed: true, message: 'No covered cells (trivially connected)' };
+    }
+
+    // Group cells by top color
+    const colorGroups = new Map<string, string[]>();
+    for (const [key] of occupied) {
+      const [x, y] = key.split(',').map(Number);
+      const color = getTopColorAt(occupied, x, y);
+      if (!color) continue;
+      if (!colorGroups.has(color)) colorGroups.set(color, []);
+      colorGroups.get(color)!.push(key);
+    }
+
+    const disconnected: [number, number][] = [];
+
+    for (const [, cells] of colorGroups) {
+      if (cells.length <= 1) continue;
+      const cellSet = new Set(cells);
+      const visited = new Set<string>();
+      const queue = [cells[0]];
+      visited.add(cells[0]);
+
+      while (queue.length > 0) {
+        const key = queue.shift()!;
+        const [x, y] = key.split(',').map(Number);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+          const nk = `${x + dx},${y + dy}`;
+          if (cellSet.has(nk) && !visited.has(nk)) {
+            visited.add(nk);
+            queue.push(nk);
+          }
+        }
+      }
+
+      // Any cell not reached is disconnected
+      for (const key of cells) {
+        if (!visited.has(key)) {
+          const [x, y] = key.split(',').map(Number);
+          disconnected.push([x, y]);
+        }
+      }
+    }
+
+    return disconnected.length === 0
+      ? { passed: true, message: 'All same-color cells are connected' }
+      : { passed: false, message: `${disconnected.length} cell(s) are disconnected from their color group`, affectedCells: disconnected };
+  },
+
+  // --- Count (additional) ---
+  max_colors_used(cond, board) {
+    if (cond.kind !== 'max_colors_used') throw new Error('wrong kind');
+    const colors = new Set(board.placedBricks.map(b => b.color.toLowerCase()));
+    const count = colors.size;
+    const pass = compareValues(count, cond.operator, cond.value);
+    return {
+      passed: pass,
+      message: pass
+        ? `${count} color(s) used (${comparisonText(cond.operator)} ${cond.value})`
+        : `${count} color(s) used, need ${comparisonText(cond.operator)} ${cond.value}`,
+    };
+  },
+
+  // --- Row/Column (additional) ---
+  count_per_row(cond, board) {
+    if (cond.kind !== 'count_per_row') throw new Error('wrong kind');
+    const occupied = getAllOccupiedCells(board);
+    const failing: [number, number][] = [];
+
+    for (let y = 0; y < board.dimensions.height; y++) {
+      let count = 0;
+      for (let x = 0; x < board.dimensions.width; x++) {
+        if (occupied.has(`${x},${y}`)) count++;
+      }
+      if (!compareValues(count, cond.operator, cond.value)) {
+        for (let x = 0; x < board.dimensions.width; x++) {
+          if (occupied.has(`${x},${y}`)) failing.push([x, y]);
+        }
+      }
+    }
+
+    return failing.length === 0
+      ? { passed: true, message: `Every row has covered cell count ${comparisonText(cond.operator)} ${cond.value}` }
+      : { passed: false, message: `Some rows don't have covered count ${comparisonText(cond.operator)} ${cond.value}`, affectedCells: failing };
+  },
+
+  count_per_column(cond, board) {
+    if (cond.kind !== 'count_per_column') throw new Error('wrong kind');
+    const occupied = getAllOccupiedCells(board);
+    const failing: [number, number][] = [];
+
+    for (let x = 0; x < board.dimensions.width; x++) {
+      let count = 0;
+      for (let y = 0; y < board.dimensions.height; y++) {
+        if (occupied.has(`${x},${y}`)) count++;
+      }
+      if (!compareValues(count, cond.operator, cond.value)) {
+        for (let y = 0; y < board.dimensions.height; y++) {
+          if (occupied.has(`${x},${y}`)) failing.push([x, y]);
+        }
+      }
+    }
+
+    return failing.length === 0
+      ? { passed: true, message: `Every column has covered cell count ${comparisonText(cond.operator)} ${cond.value}` }
+      : { passed: false, message: `Some columns don't have covered count ${comparisonText(cond.operator)} ${cond.value}`, affectedCells: failing };
+  },
+
+  parity_per_row(cond, board) {
+    if (cond.kind !== 'parity_per_row') throw new Error('wrong kind');
+    const occupied = getAllOccupiedCells(board);
+    const failing: [number, number][] = [];
+    const targetRemainder = cond.parity === 'even' ? 0 : 1;
+
+    for (let y = 0; y < board.dimensions.height; y++) {
+      let count = 0;
+      for (let x = 0; x < board.dimensions.width; x++) {
+        if (occupied.has(`${x},${y}`)) count++;
+      }
+      if (count % 2 !== targetRemainder) {
+        for (let x = 0; x < board.dimensions.width; x++) {
+          if (occupied.has(`${x},${y}`)) failing.push([x, y]);
+        }
+      }
+    }
+
+    return failing.length === 0
+      ? { passed: true, message: `Every row has ${cond.parity} covered cell count` }
+      : { passed: false, message: `Some rows don't have ${cond.parity} covered cell count`, affectedCells: failing };
+  },
+
+  parity_per_column(cond, board) {
+    if (cond.kind !== 'parity_per_column') throw new Error('wrong kind');
+    const occupied = getAllOccupiedCells(board);
+    const failing: [number, number][] = [];
+    const targetRemainder = cond.parity === 'even' ? 0 : 1;
+
+    for (let x = 0; x < board.dimensions.width; x++) {
+      let count = 0;
+      for (let y = 0; y < board.dimensions.height; y++) {
+        if (occupied.has(`${x},${y}`)) count++;
+      }
+      if (count % 2 !== targetRemainder) {
+        for (let y = 0; y < board.dimensions.height; y++) {
+          if (occupied.has(`${x},${y}`)) failing.push([x, y]);
+        }
+      }
+    }
+
+    return failing.length === 0
+      ? { passed: true, message: `Every column has ${cond.parity} covered cell count` }
+      : { passed: false, message: `Some columns don't have ${cond.parity} covered cell count`, affectedCells: failing };
+  },
+
   // --- Symmetry ---
   horizontal_symmetry(cond, board) {
     if (cond.kind !== 'horizontal_symmetry') throw new Error('wrong kind');

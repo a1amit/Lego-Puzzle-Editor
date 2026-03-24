@@ -8,7 +8,21 @@ export function CellPickerOverlay() {
   const cellCount = useRuleBuilderStore(s => s.cellPickerCells.size);
   const stopCellPicker = useRuleBuilderStore(s => s.stopCellPicker);
   const clearPickerCells = useRuleBuilderStore(s => s.clearPickerCells);
+  const singleTarget = useRuleBuilderStore(s => s.singleCellPickerTarget);
 
+  // Single-cell picker mode (path_exists start/end)
+  if (singleTarget) {
+    const label = singleTarget.field === 'startCell' ? 'start' : 'end';
+    const color = singleTarget.field === 'startCell' ? 'emerald' : 'red';
+    return (
+      <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-[var(--surface-raised)]/95 backdrop-blur-md border border-${color}-500/40 rounded-xl shadow-xl`}>
+        <Crosshair className={`w-4 h-4 text-${color}-400 animate-pulse`} />
+        <span className="text-xs text-foreground font-medium">Click a cell to set the <strong>{label}</strong> point</span>
+      </div>
+    );
+  }
+
+  // Multi-cell picker mode
   if (!isPickingCells) return null;
 
   return (

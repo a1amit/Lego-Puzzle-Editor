@@ -25,6 +25,8 @@ const ComparisonParamsSchema = z.object({
   operator: ComparisonOperatorSchema,
   value: z.number(),
 });
+export const ParitySchema = z.enum(['even', 'odd']);
+export type Parity = z.infer<typeof ParitySchema>;
 
 // ============================================
 // LEAF CONDITION KINDS
@@ -53,9 +55,21 @@ export const LEAF_KINDS = [
   'no_adjacent_same_color',
   'all_covered_connected',
   'piece_at_position',
+  'path_exists',
+  'all_same_color_connected',
+  'no_shared_diagonal',
   // Symmetry
   'horizontal_symmetry',
   'vertical_symmetry',
+  // Count (additional)
+  'max_colors_used',
+  // Row/Column (additional)
+  'count_per_row',
+  'count_per_column',
+  'parity_per_row',
+  'parity_per_column',
+  // Ultimate — creator writes JavaScript
+  'custom_code',
 ] as const;
 
 export type LeafKind = (typeof LEAF_KINDS)[number];
@@ -151,6 +165,52 @@ const PieceAtPositionSchema = z.object({
   cells: CellArraySchema,
 });
 
+// --- Spatial (additional) ---
+const PathExistsSchema = z.object({
+  kind: z.literal('path_exists'),
+  startCell: z.tuple([z.number(), z.number()]),
+  endCell: z.tuple([z.number(), z.number()]),
+});
+
+const AllSameColorConnectedSchema = z.object({
+  kind: z.literal('all_same_color_connected'),
+});
+
+// --- Count (additional) ---
+const MaxColorsUsedSchema = z.object({
+  kind: z.literal('max_colors_used'),
+}).merge(ComparisonParamsSchema);
+
+// --- Row/Column (additional) ---
+const CountPerRowSchema = z.object({
+  kind: z.literal('count_per_row'),
+}).merge(ComparisonParamsSchema);
+
+const CountPerColumnSchema = z.object({
+  kind: z.literal('count_per_column'),
+}).merge(ComparisonParamsSchema);
+
+const ParityPerRowSchema = z.object({
+  kind: z.literal('parity_per_row'),
+  parity: ParitySchema,
+});
+
+const ParityPerColumnSchema = z.object({
+  kind: z.literal('parity_per_column'),
+  parity: ParitySchema,
+});
+
+const NoSharedDiagonalSchema = z.object({
+  kind: z.literal('no_shared_diagonal'),
+});
+
+const CustomCodeSchema = z.object({
+  kind: z.literal('custom_code'),
+  /** JavaScript function body. Receives `board` and `helpers` as arguments.
+   *  Must return { passed: boolean, message: string } */
+  code: z.string(),
+});
+
 // --- Symmetry conditions ---
 const HorizontalSymmetrySchema = z.object({
   kind: z.literal('horizontal_symmetry'),
@@ -182,8 +242,17 @@ export const LeafConditionSchema = z.discriminatedUnion('kind', [
   NoAdjacentSameColorSchema,
   AllCoveredConnectedSchema,
   PieceAtPositionSchema,
+  PathExistsSchema,
+  AllSameColorConnectedSchema,
+  NoSharedDiagonalSchema,
+  MaxColorsUsedSchema,
+  CountPerRowSchema,
+  CountPerColumnSchema,
+  ParityPerRowSchema,
+  ParityPerColumnSchema,
   HorizontalSymmetrySchema,
   VerticalSymmetrySchema,
+  CustomCodeSchema,
 ]);
 
 export type LeafCondition = z.infer<typeof LeafConditionSchema>;

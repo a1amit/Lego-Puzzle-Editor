@@ -191,21 +191,23 @@ Creators can define custom win conditions without code using the **Custom Rules*
 }
 ```
 
-**22 condition types** across 7 categories:
+**28 condition types** across 7 categories:
 
 | Category | Conditions |
 |----------|-----------|
 | Cell | `cells_are_covered`, `cells_are_empty`, `cells_have_color` |
-| Row/Column | `row_fully_covered`, `column_fully_covered`, `row_is_empty`, `column_is_empty` |
-| Region | `region_fully_covered`, `region_is_empty`, `region_has_single_color` |
-| Count | `total_pieces_placed`, `pieces_of_color_count`, `pieces_of_shape_count`, `covered_cell_count` |
+| Row/Column | `row_fully_covered`, `column_fully_covered`, `row_is_empty`, `column_is_empty`, `count_per_row`, `count_per_column`, `parity_per_row`, `parity_per_column` |
+| Count | `total_pieces_placed`, `pieces_of_color_count`, `pieces_of_shape_count`, `covered_cell_count`, `max_colors_used` |
 | Stacking (3D) | `stack_height_at_cells`, `max_stack_height`, `min_stack_height` |
-| Spatial | `no_adjacent_same_color`, `all_covered_connected`, `piece_at_position` |
+| Spatial | `no_adjacent_same_color`, `all_covered_connected`, `piece_at_position`, `path_exists`, `all_same_color_connected`, `no_shared_diagonal` |
 | Symmetry | `horizontal_symmetry`, `vertical_symmetry` |
+| Advanced | `custom_code` — write JavaScript to define any rule |
 
 **5 logic combinators** for nesting: `ALL` (AND), `ANY` (OR), `NONE` (NOR), `EXACTLY_N`, `AT_LEAST_N`
 
 Conditions that take numeric values use comparison operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`. Cell-based conditions accept `cells: [[x,y], ...]` arrays, selectable via the interactive cell picker in the editor.
+
+The `custom_code` condition lets creators write JavaScript that receives `board` and `helpers` objects and returns `{ passed, message }`. Use the **Test** button in the editor to validate your code against the current board state.
 
 ## Deployment
 

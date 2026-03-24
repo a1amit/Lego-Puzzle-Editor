@@ -401,7 +401,14 @@ function DragDropManager() {
 
   // Handle board cell click
   const handleCellClick = useCallback((x: number, y: number) => {
-    // Cell picker mode: intercept clicks for the rule builder
+    // Single-cell picker mode (path_exists start/end)
+    const singleTarget = useRuleBuilderStore.getState().singleCellPickerTarget;
+    if (singleTarget) {
+      useRuleBuilderStore.getState().pickSingleCell(x, y);
+      return;
+    }
+
+    // Multi-cell picker mode: intercept clicks for the rule builder
     const pickerTarget = useRuleBuilderStore.getState().cellPickerTarget;
     if (pickerTarget) {
       useRuleBuilderStore.getState().toggleCell(x, y);

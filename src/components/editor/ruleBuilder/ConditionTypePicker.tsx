@@ -5,7 +5,7 @@ import { CONDITION_META, CONDITION_CATEGORIES, type ConditionCategory } from '..
 import type { LeafKind } from '../../../types/customRules';
 import { LEAF_KINDS } from '../../../types/customRules';
 import { Badge } from '../../ui/shadcn/badge';
-import { Layers, Grid3X3, Hash, Box, Move, FlipHorizontal } from 'lucide-react';
+import { Layers, Grid3X3, Hash, Box, Move, FlipHorizontal, Code } from 'lucide-react';
 
 interface ConditionTypePickerProps {
   onSelect: (kind: LeafKind) => void;
@@ -21,6 +21,7 @@ const CATEGORY_ICONS: Record<ConditionCategory, typeof Grid3X3> = {
   'Stacking': Box,
   'Spatial': Move,
   'Symmetry': FlipHorizontal,
+  'Advanced': Code,
 };
 
 export function ConditionTypePicker({ onSelect, onSelectCombinator, onClose, anchorRef }: ConditionTypePickerProps) {

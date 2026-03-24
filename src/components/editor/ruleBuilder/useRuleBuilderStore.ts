@@ -19,11 +19,14 @@ interface RuleBuilderState {
   customRules: CustomRuleEntry[];
   activeRuleId: string | null;
 
-  // Cell picker
+  // Cell picker (multi-cell)
   cellPickerTarget: { ruleId: string; path: number[] } | null;
   cellPickerCells: Set<string>;
   /** Monotonic counter — increments on every picker cell change to guarantee reactive updates in R3F */
   cellPickerVersion: number;
+
+  // Single-cell picker (for start/end cells in path_exists)
+  singleCellPickerTarget: { ruleId: string; path: number[]; field: string } | null;
 
   // Actions
   addRule: () => void;
@@ -35,11 +38,15 @@ interface RuleBuilderState {
   removeChildAtPath: (ruleId: string, path: number[], childIndex: number) => void;
   setActiveRule: (id: string | null) => void;
 
-  // Cell picker
+  // Cell picker (multi-cell)
   startCellPicker: (ruleId: string, path: number[]) => void;
   stopCellPicker: () => void;
   toggleCell: (x: number, y: number) => void;
   clearPickerCells: () => void;
+
+  // Single-cell picker
+  startSingleCellPicker: (ruleId: string, path: number[], field: string) => void;
+  pickSingleCell: (x: number, y: number) => void;
 
   // Sync
   syncToJSON: () => void;
@@ -98,6 +105,7 @@ let nextId = 1;
 export const useRuleBuilderStore = create<RuleBuilderState>((set, get) => ({
   customRules: [],
   cellPickerVersion: 0,
+  singleCellPickerTarget: null,
   activeRuleId: null,
   cellPickerTarget: null,
   cellPickerCells: new Set(),
@@ -240,6 +248,44 @@ export const useRuleBuilderStore = create<RuleBuilderState>((set, get) => ({
 
   clearPickerCells() {
     set(s => ({ cellPickerCells: new Set(), cellPickerVersion: s.cellPickerVersion + 1 }));
+  },
+
+  // --- Single-cell picker (for path_exists start/end) ---
+  startSingleCellPicker(ruleId, path, field) {
+    set({
+      singleCellPickerTarget: { ruleId, path, field },
+      // Also clear multi-cell picker if active
+      cellPickerTarget: null,
+      cellPickerCells: new Set(),
+    });
+  },
+
+  pickSingleCell(x, y) {
+    const { singleCellPickerTarget } = get();
+    if (!singleCellPickerTarget) return;
+
+    const { ruleId, path, field } = singleCellPickerTarget;
+    const rule = get().customRules.find(r => r.id === ruleId);
+    if (!rule) return;
+
+    // Update the condition's field (e.g. startCell or endCell) with the picked cell
+    get().updateConditionAtPath(ruleId, path, {
+      ...(() => {
+        // Get current node at path
+        let node: any = rule.condition;
+        for (const idx of path) {
+          if (node.children) node = node.children[idx];
+        }
+        return node;
+      })(),
+      [field]: [x, y],
+    } as ConditionNode);
+
+    // Exit picker mode
+    set(s => ({
+      singleCellPickerTarget: null,
+      cellPickerVersion: s.cellPickerVersion + 1,
+    }));
   },
 
   // --- Sync ---
