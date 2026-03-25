@@ -5,11 +5,13 @@ interface PuzzleGridProps {
   puzzles: GalleryPuzzle[];
   onPuzzleClick: (slug: string) => void;
   onPuzzleEdit?: (slug: string) => void;
+  onPuzzleLike?: (slug: string) => void;
   ownedSlugs?: Set<string>;
   solvedSlugs?: Set<string>;
+  likedSlugs?: Set<string>;
 }
 
-export function PuzzleGrid({ puzzles, onPuzzleClick, onPuzzleEdit, ownedSlugs, solvedSlugs }: PuzzleGridProps) {
+export function PuzzleGrid({ puzzles, onPuzzleClick, onPuzzleEdit, onPuzzleLike, ownedSlugs, solvedSlugs, likedSlugs }: PuzzleGridProps) {
   return (
     <div role="list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {puzzles.map((puzzle) => (
@@ -18,7 +20,9 @@ export function PuzzleGrid({ puzzles, onPuzzleClick, onPuzzleEdit, ownedSlugs, s
             puzzle={puzzle}
             onClick={onPuzzleClick}
             onEdit={onPuzzleEdit && ownedSlugs?.has(puzzle.slug) ? onPuzzleEdit : undefined}
+            onLike={onPuzzleLike && !puzzle.isLegacy ? onPuzzleLike : undefined}
             isSolved={solvedSlugs?.has(puzzle.slug)}
+            isLiked={likedSlugs?.has(puzzle.slug)}
           />
         </div>
       ))}

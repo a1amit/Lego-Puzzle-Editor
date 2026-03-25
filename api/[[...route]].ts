@@ -127,6 +127,22 @@ app.get('/users/me/puzzles', async (c) => {
   return c.json({ puzzles });
 });
 
+// GET /api/users/me/likes — slugs of puzzles the user has liked
+app.get('/users/me/likes', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user) return c.json({ error: 'User not found' }, 404);
+
+  const likes = await Like.find({ userId: user._id }).select('puzzleId').lean();
+  const puzzleIds = likes.map(l => l.puzzleId);
+  const puzzles = await Puzzle.find({ _id: { $in: puzzleIds } }).select('slug').lean();
+  const slugs = puzzles.map(p => p.slug);
+
+  return c.json({ slugs });
+});
+
 // GET /api/users/me/completions
 app.get('/users/me/completions', async (c) => {
   const authUser = c.get('authUser');

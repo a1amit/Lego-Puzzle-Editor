@@ -28,7 +28,7 @@ A community-driven puzzle platform where users create, solve, and share virtual 
 
 ### Gamification
 - **XP System** — Earn XP for solving puzzles (easy: 50, medium: 100, hard: 200, expert: 400)
-- **8 Level Tiers** — Brick Beginner through Puzzle Grandmaster
+- **8 Level Tiers** — Brick Beginner through Puzzle Grandmaster, with selectable profile banners
 - **Day Streaks** — Track consecutive days of puzzle solving
 - **Leaderboard** — All-time, monthly, and weekly rankings
 - **Creator Milestones** — Bonus XP when your puzzles reach 10 and 50 unique solvers
@@ -142,6 +142,9 @@ scripts/                    # Migration scripts (fix-xp, fix-streaks, etc.)
 | `POST` | `/api/puzzles/:slug/complete` | Report puzzle completion |
 | `POST` | `/api/puzzles/:slug/like` | Toggle like on a puzzle |
 | `GET` | `/api/users/me` | Current user profile (upsert) |
+| `PATCH` | `/api/users/me` | Update profile (selectedTier) |
+| `GET` | `/api/users/me/likes` | Slugs of puzzles the user has liked |
+| `GET` | `/api/users/me/completions` | User's puzzle completions with titles |
 | `GET` | `/api/users/:username` | Public user profile |
 | `GET` | `/api/leaderboard` | Leaderboard (all/weekly/monthly) |
 | `POST` | `/api/chat` | AI assistant proxy |

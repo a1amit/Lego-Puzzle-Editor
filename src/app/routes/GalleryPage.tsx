@@ -7,8 +7,9 @@ import { GalleryFilters } from '../../components/gallery/GalleryFilters';
 import { FeaturedSection } from '../../components/gallery/FeaturedSection';
 import { PUZZLE_CATEGORIES } from '../../config/puzzleCategories';
 import { useGalleryStore, type SortOption } from '../../store/galleryStore';
-import { useInfinitePuzzlesQuery } from '../../hooks/queries';
+import { useInfinitePuzzlesQuery, useLikeMutation } from '../../hooks/queries';
 import { useAppAuth } from '../../auth/AuthProvider';
+import { toast } from 'sonner';
 import type { GalleryPuzzle } from '../../store/galleryStore';
 
 const PAGE_SIZE = 6;
@@ -49,6 +50,8 @@ export default function GalleryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [ownedSlugs, setOwnedSlugs] = useState<Set<string>>(new Set());
   const [solvedSlugs, setSolvedSlugs] = useState<Set<string>>(new Set());
+  const [likedSlugs, setLikedSlugs] = useState<Set<string>>(new Set());
+  const likeMutation = useLikeMutation();
 
   // Debounced search
   useEffect(() => {
@@ -80,16 +83,17 @@ export default function GalleryPage() {
   // Total API puzzle count (from first page response)
   const apiTotal = data?.pages[0]?.pagination.total ?? 0;
 
-  // Fetch user's own puzzle slugs and completed puzzle slugs
+  // Fetch user's own puzzle slugs, completed slugs, and liked slugs
   useEffect(() => {
-    if (!isSignedIn) { setOwnedSlugs(new Set()); setSolvedSlugs(new Set()); return; }
+    if (!isSignedIn) { setOwnedSlugs(new Set()); setSolvedSlugs(new Set()); setLikedSlugs(new Set()); return; }
     (async () => {
       try {
         const token = await getToken();
         if (!token) return;
-        const [puzzlesRes, compRes] = await Promise.all([
+        const [puzzlesRes, compRes, likesRes] = await Promise.all([
           fetch('/api/users/me/puzzles', { headers: { Authorization: `Bearer ${token}` } }),
           fetch('/api/users/me/completions', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/users/me/likes', { headers: { Authorization: `Bearer ${token}` } }),
         ]);
         if (puzzlesRes.ok) {
           const { puzzles } = await puzzlesRes.json();
@@ -98,6 +102,10 @@ export default function GalleryPage() {
         if (compRes.ok) {
           const { completions } = await compRes.json();
           setSolvedSlugs(new Set((completions || []).map((c: any) => c.puzzleSlug)));
+        }
+        if (likesRes.ok) {
+          const { slugs } = await likesRes.json();
+          setLikedSlugs(new Set(slugs || []));
         }
       } catch { /* ignore */ }
     })();
@@ -151,6 +159,20 @@ export default function GalleryPage() {
   const handlePuzzleClick = useCallback((slug: string) => {
     navigate(`/puzzle/${slug}`, { viewTransition: true });
   }, [navigate]);
+
+  const handlePuzzleLike = useCallback((slug: string) => {
+    if (!isSignedIn) {
+      toast.error('Sign in to like puzzles');
+      return;
+    }
+    // Optimistic update
+    setLikedSlugs(prev => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug); else next.add(slug);
+      return next;
+    });
+    likeMutation.mutate(slug);
+  }, [isSignedIn, likeMutation]);
 
   const categories = ['All', ...PUZZLE_CATEGORIES.map(c => c.category)];
 
@@ -241,7 +263,7 @@ export default function GalleryPage() {
                   </div>
                 </div>
               )}
-              <PuzzleGrid puzzles={displayPuzzles} onPuzzleClick={handlePuzzleClick} onPuzzleEdit={handlePuzzleEdit} ownedSlugs={ownedSlugs} solvedSlugs={solvedSlugs} />
+              <PuzzleGrid puzzles={displayPuzzles} onPuzzleClick={handlePuzzleClick} onPuzzleEdit={handlePuzzleEdit} onPuzzleLike={handlePuzzleLike} ownedSlugs={ownedSlugs} solvedSlugs={solvedSlugs} likedSlugs={likedSlugs} />
             </div>
 
             {/* Pagination controls */}

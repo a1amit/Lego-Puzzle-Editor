@@ -103,6 +103,23 @@ function ShapePreviewMini({ cells, color = 'var(--primary)' }: { cells: number[]
   );
 }
 
+/** Large section heading with icon, colored left border, and divider */
+function SectionTitle({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5 mt-8 mb-3 first:mt-0 pb-2 border-b border-border">
+      {icon && <div className="text-primary">{icon}</div>}
+      <h3 className="text-base font-bold text-foreground tracking-tight">{children}</h3>
+    </div>
+  );
+}
+
+/** Medium subsection heading — slightly smaller, no divider, muted accent */
+function SubTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h4 className="text-sm font-semibold text-foreground/80 mt-5 mb-2 pl-0.5 border-l-2 border-primary/40 pl-2.5">{children}</h4>
+  );
+}
+
 function OverviewTab() {
   return (
     <div className="space-y-4">
@@ -148,10 +165,7 @@ function OverviewTab() {
       </p>
 
       {/* View Modes */}
-      <h4 className="text-foreground font-semibold mt-6 flex items-center gap-2">
-        <Layers className="w-4 h-4 text-primary" />
-        View Modes
-      </h4>
+      <SectionTitle icon={<Layers className="w-4 h-4" />}>View Modes</SectionTitle>
       <div className="bg-secondary rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
           <Badge variant="default" className="text-xs">3D</Badge>
@@ -164,10 +178,7 @@ function OverviewTab() {
       </div>
 
       {/* 3D Controls */}
-      <h4 className="text-foreground font-semibold mt-6 flex items-center gap-2">
-        <Mouse className="w-4 h-4 text-primary" />
-        3D View Controls
-      </h4>
+      <SectionTitle icon={<Mouse className="w-4 h-4" />}>3D View Controls</SectionTitle>
       <div className="bg-secondary rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
           <KBD>Left-click + Drag</KBD>
@@ -184,10 +195,7 @@ function OverviewTab() {
       </div>
 
       {/* 2D Controls */}
-      <h4 className="text-foreground font-semibold mt-6 flex items-center gap-2">
-        <Move className="w-4 h-4 text-primary" />
-        2D View Controls (Slider Puzzles)
-      </h4>
+      <SectionTitle icon={<Move className="w-4 h-4" />}>2D View Controls (Slider Puzzles)</SectionTitle>
       <div className="bg-secondary rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
           <KBD>Click piece</KBD>
@@ -204,10 +212,7 @@ function OverviewTab() {
       </div>
 
       {/* Brick Controls */}
-      <h4 className="text-foreground font-semibold mt-6 flex items-center gap-2">
-        <Keyboard className="w-4 h-4 text-primary" />
-        Brick Controls
-      </h4>
+      <SectionTitle icon={<Keyboard className="w-4 h-4" />}>Brick Controls</SectionTitle>
       <div className="bg-secondary rounded-lg p-4 space-y-2">
         <div className="flex items-center gap-3 text-sm">
           <KBD>Click inventory brick</KBD>
@@ -235,7 +240,7 @@ function OverviewTab() {
         </div>
       </div>
 
-      <h4 className="text-foreground font-semibold mt-6">JSON Structure</h4>
+      <SectionTitle>JSON Structure</SectionTitle>
       <CopyableCode>{`{
   "title": "Puzzle Name",
   "description": "Instructions for the player",
@@ -250,12 +255,12 @@ function OverviewTab() {
   "goal": { ... },
   "metadata": {
     "author": "Your Name",
-    "difficulty": "easy|medium|hard",
+    "difficulty": "easy|medium|hard|expert",
     "tags": ["tag1", "tag2"]
   }
 }`}</CopyableCode>
 
-      <h4 className="text-foreground font-semibold mt-6">Board Configuration</h4>
+      <SectionTitle>Board Configuration</SectionTitle>
       <ul className="list-disc list-inside text-muted-foreground space-y-1">
         <li><code className="text-primary">width</code> - Number of columns (1-20)</li>
         <li><code className="text-primary">height</code> - Number of rows (1-20)</li>
@@ -311,7 +316,7 @@ function ShapesTab() {
         })}
       </div>
 
-      <h4 className="text-foreground font-semibold mt-6">Inventory Item Format (for 3D puzzles)</h4>
+      <SectionTitle>Inventory Item Format (3D Puzzles)</SectionTitle>
       <CopyableCode>{`{
   "id": "brick-1",
   "shape": "T-tetromino",
@@ -319,7 +324,30 @@ function ShapesTab() {
   "quantity": 2
 }`}</CopyableCode>
 
-      <h4 className="text-foreground font-semibold mt-6">Cell-Based Piece Definition (for Slider Puzzles)</h4>
+      <SectionTitle>Custom Shapes (3D Puzzles)</SectionTitle>
+      <p className="text-muted-foreground text-sm mb-3">
+        Not limited to the built-in shapes above — define any arbitrary shape using <code className="text-primary">custom_shapes</code> in your puzzle definition:
+      </p>
+      <CopyableCode>{`"custom_shapes": {
+  "my-L-shape": {
+    "name": "my-L-shape",
+    "cells": [[0,0], [1,0], [2,0], [2,1], [2,2]]
+  }
+}`}</CopyableCode>
+      <p className="text-muted-foreground text-sm mt-2 mb-1">
+        Then reference it by name in your inventory, just like any built-in shape:
+      </p>
+      <CopyableCode>{`{
+  "id": "custom-1",
+  "shape": "my-L-shape",
+  "color": "#FF6600",
+  "quantity": 1
+}`}</CopyableCode>
+      <p className="text-muted-foreground text-sm mt-2">
+        Each cell is <code className="text-primary">[x, y]</code> relative to the piece origin. You can create any polyomino shape this way.
+      </p>
+
+      <SectionTitle>Cell-Based Piece Definition (Slider Puzzles)</SectionTitle>
       <p className="text-muted-foreground text-sm mb-3">
         For slider puzzles, pieces are defined by the exact cells they cover in <code className="text-primary">initial_state</code>:
       </p>
@@ -436,14 +464,14 @@ function ValidationTab() {
         ))}
       </div>
 
-      <h4 className="text-foreground font-semibold mt-6">Rule Format (Coverage Puzzle)</h4>
+      <SubTitle>Rule Format (Coverage Puzzle)</SubTitle>
       <CopyableCode>{`"validation_rules": [
   { "type": "COVERAGE", "rule": "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
   { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
   { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
 ]`}</CopyableCode>
 
-      <h4 className="text-foreground font-semibold mt-6">Rule Format (Slider Puzzle)</h4>
+      <SubTitle>Rule Format (Slider Puzzle)</SubTitle>
       <CopyableCode>{`"validation_rules": [
   { "type": "MOVEMENT", "rule": "SLIDING_ONLY" },
   { "type": "ROTATION", "rule": "NO_ROTATION" },
@@ -451,7 +479,7 @@ function ValidationTab() {
   { "type": "GOAL", "rule": "GOAL_REACHED" }
 ]`}</CopyableCode>
 
-      <h4 className="text-foreground font-semibold mt-6">Custom Rule Example</h4>
+      <SubTitle>Custom Rule Example</SubTitle>
       <p className="text-muted-foreground text-sm mb-2">
         Custom rules let you combine conditions with logic groups (ALL, ANY, NONE). Use the <strong>Custom Rules</strong> tab in the editor for a visual builder, or define them in JSON:
       </p>
@@ -495,7 +523,7 @@ function SliderTab() {
         </div>
       </div>
 
-      <h4 className="text-foreground font-semibold">Key Differences from 3D Puzzles</h4>
+      <SectionTitle>Key Differences from 3D Puzzles</SectionTitle>
       <div className="bg-secondary rounded-lg p-4 space-y-3">
         <div className="flex items-start gap-3 text-sm">
           <Badge className="bg-blue-500/20 text-blue-300 text-xs shrink-0">viewMode</Badge>
@@ -519,7 +547,7 @@ function SliderTab() {
         </div>
       </div>
 
-      <h4 className="text-foreground font-semibold mt-6">Goal Definition</h4>
+      <SectionTitle>Goal Definition</SectionTitle>
       <p className="text-muted-foreground text-sm mb-3">
         The <code className="text-primary">goal</code> property defines the win condition:
       </p>
@@ -531,7 +559,7 @@ function SliderTab() {
   "hideGoalVisualization": true
 }`}</CopyableCode>
 
-      <h4 className="text-foreground font-semibold mt-6">Example: Minimal Slider</h4>
+      <SubTitle>Example: Minimal Slider</SubTitle>
       <CopyableCode>{`{
   "title": "Mini Slider",
   "description": "Slide the red block to the bottom",
@@ -554,7 +582,7 @@ function SliderTab() {
   "goal": { "targetPieceId": "goal", "cells": [[1,4],[2,4],[1,5],[2,5]] }
 }`}</CopyableCode>
 
-      <h4 className="text-foreground font-semibold mt-6">How Sliding Works</h4>
+      <SectionTitle>How Sliding Works</SectionTitle>
       <div className="bg-secondary rounded-lg p-4 space-y-2">
         {[
           'Click a piece to select it',
@@ -591,7 +619,7 @@ function NonogramTab() {
         </div>
       </div>
 
-      <h4 className="text-foreground font-semibold">Key Components</h4>
+      <SectionTitle>Key Components</SectionTitle>
       <div className="bg-secondary rounded-lg p-4 space-y-3">
         <div className="flex items-start gap-3 text-sm">
           <Badge className="bg-emerald-500/20 text-emerald-300 text-xs shrink-0">nonogram_hints</Badge>
@@ -611,7 +639,7 @@ function NonogramTab() {
         </div>
       </div>
 
-      <h4 className="text-foreground font-semibold mt-6">Nonogram Hints Format</h4>
+      <SubTitle>Nonogram Hints Format</SubTitle>
       <CopyableCode>{`"nonogram_hints": {
   "rows": [
     [4],      // Row 0: 4 consecutive filled cells
@@ -625,7 +653,7 @@ function NonogramTab() {
   ]
 }`}</CopyableCode>
 
-      <h4 className="text-foreground font-semibold mt-6">Target Pattern Format</h4>
+      <SubTitle>Target Pattern Format</SubTitle>
       <CopyableCode>{`"target_pattern": {
   "rows": [
     [1, 1, 1, 1, 0],
@@ -715,7 +743,7 @@ function CustomRulesTab() {
         Custom rules let you define your own win conditions without writing code. Use the <strong>Custom Rules</strong> tab in the editor to build rules visually, or define them in JSON.
       </p>
 
-      <h4 className="text-foreground font-semibold mt-4">How It Works</h4>
+      <SectionTitle>How It Works</SectionTitle>
       <div className="space-y-2 text-sm text-muted-foreground">
         <p>Each custom rule has:</p>
         <ul className="list-disc list-inside space-y-1 ml-2">
@@ -725,7 +753,7 @@ function CustomRulesTab() {
         </ul>
       </div>
 
-      <h4 className="text-foreground font-semibold mt-4">Logic Groups</h4>
+      <SectionTitle>Logic Groups</SectionTitle>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {[
           { name: 'ALL (AND)', desc: 'Every condition must pass', color: 'border-l-blue-400' },
@@ -742,12 +770,12 @@ function CustomRulesTab() {
         You can also use <strong>EXACTLY N</strong> (exactly N conditions must pass) and <strong>AT LEAST N</strong> (N or more must pass). Logic groups can be nested inside each other for complex rules.
       </p>
 
-      <h4 className="text-foreground font-semibold mt-4">Cell Picker</h4>
+      <SubTitle>Cell Picker</SubTitle>
       <p className="text-muted-foreground text-sm">
         For conditions that target specific cells, click the <strong>Pick</strong> button to enter cell picker mode. Click cells on the board to select/deselect them, then click <strong>Done</strong>. Works in both 2D and 3D views.
       </p>
 
-      <h4 className="text-foreground font-semibold mt-4">Condition Types ({conditions.reduce((n, c) => n + c.items.length, 0)} total)</h4>
+      <SectionTitle>Condition Types ({conditions.reduce((n, c) => n + c.items.length, 0)} total)</SectionTitle>
       <div className="space-y-3">
         {conditions.map(cat => (
           <div key={cat.category}>
@@ -768,7 +796,7 @@ function CustomRulesTab() {
         ))}
       </div>
 
-      <h4 className="text-foreground font-semibold mt-6">JSON Format</h4>
+      <SectionTitle>JSON Format</SectionTitle>
       <p className="text-muted-foreground text-sm mb-2">
         Custom rules are stored in <code className="text-primary">validation_rules</code> with type <code className="text-primary">"CUSTOM"</code>:
       </p>
@@ -789,7 +817,7 @@ function CustomRulesTab() {
   }
 }`}</CopyableCode>
 
-      <h4 className="text-foreground font-semibold mt-6">Comparison Operators</h4>
+      <SubTitle>Comparison Operators</SubTitle>
       <p className="text-muted-foreground text-sm mb-2">
         Count and stacking conditions use these operators:
       </p>
@@ -809,7 +837,7 @@ function CustomRulesTab() {
         ))}
       </div>
 
-      <h4 className="text-foreground font-semibold mt-6">Custom Code (Advanced)</h4>
+      <SubTitle>Custom Code (Advanced)</SubTitle>
       <p className="text-muted-foreground text-sm mb-2">
         For rules that can't be expressed with the built-in conditions, use <code className="text-primary">custom_code</code> to write
         JavaScript directly. Your code receives <code className="text-primary">board</code> and <code className="text-primary">helpers</code> and
@@ -834,7 +862,7 @@ function CustomRulesTab() {
         Use the <strong>Test</strong> button in the editor to run your code against the current board and see the result instantly.
       </p>
 
-      <h4 className="text-foreground font-semibold mt-4">Example: No pieces on the border</h4>
+      <SubTitle>Example: No pieces on the border</SubTitle>
       <CopyableCode>{`for (const b of board.placedBricks) {
   if (b.x === 0 || b.x === board.width - 1 || b.y === 0 || b.y === board.height - 1) {
     return { passed: false, message: "A piece is on the border!" };
@@ -842,7 +870,7 @@ function CustomRulesTab() {
 }
 return { passed: true, message: "No pieces on the border" };`}</CopyableCode>
 
-      <h4 className="text-foreground font-semibold mt-4">JSON Format (custom code)</h4>
+      <SubTitle>JSON Format (custom code)</SubTitle>
       <CopyableCode>{`{
   "type": "CUSTOM",
   "rule": "CUSTOM_RULE",
@@ -863,7 +891,7 @@ function ExamplesTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h4 className="text-foreground font-semibold mb-2">Coverage Puzzle (3D)</h4>
+        <h4 className="text-base font-bold text-foreground mb-2">Coverage Puzzle (3D)</h4>
         <p className="text-muted-foreground text-sm mb-3">
           Cover every cell on an 8x4 board using 8 T-tetrominoes.
         </p>
@@ -886,7 +914,7 @@ function ExamplesTab() {
       </div>
 
       <div>
-        <h4 className="text-foreground font-semibold mb-2">Slider Puzzle (2D)</h4>
+        <h4 className="text-base font-bold text-foreground mb-2">Slider Puzzle (2D)</h4>
         <p className="text-muted-foreground text-sm mb-3">
           Klotski-style puzzle. Slide the red 2x2 block to the goal position.
         </p>
