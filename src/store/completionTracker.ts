@@ -8,9 +8,10 @@ export async function recordCompletion(params: {
   puzzleTitle: string;
   moveCount: number;
   timeSeconds: number;
+  difficulty?: string;
   getToken: () => Promise<string | null>;
 }): Promise<{ xpEarned: number; totalXP: number; level: number; levelUp: boolean } | null> {
-  const { puzzleSlug, moveCount, timeSeconds, getToken } = params;
+  const { puzzleSlug, moveCount, timeSeconds, difficulty, getToken } = params;
 
   try {
     const token = await getToken();
@@ -22,7 +23,7 @@ export async function recordCompletion(params: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ moveCount, timeSeconds }),
+      body: JSON.stringify({ moveCount, timeSeconds, difficulty }),
     });
 
     if (res.ok) {

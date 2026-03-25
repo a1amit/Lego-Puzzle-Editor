@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useUser } from '../../auth/AuthProvider';
-import { Trophy, Puzzle, Star, Flame, ArrowLeft } from 'lucide-react';
+import { Trophy, Puzzle, Star, Flame, ArrowLeft, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { LevelTitleCard, TierRoadmap } from '../../components/ui/LevelTitleCard';
 import { useAppAuth } from '../../auth/AuthProvider';
@@ -176,7 +177,7 @@ export default function ProfilePage() {
       {/* Rank roadmap */}
       <TierRoadmap currentLevel={profile.level} className="mb-6" />
 
-      {/* Recent completions (from API) */}
+      {/* Solved puzzles */}
       {completions.length === 0 ? (
         <div className="rounded-xl bg-card/50 border border-dashed border-border p-8 text-center">
           <p className="text-muted-foreground mb-3">Start solving puzzles to earn XP and level up!</p>
@@ -186,30 +187,108 @@ export default function ProfilePage() {
         </div>
       ) : (
         <div>
-          <h2 className="text-lg font-semibold text-foreground mb-3">Recent Completions</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-3">
+            <CheckCircle2 className="h-5 w-5 inline-block mr-1.5 -mt-0.5 text-green-400" />
+            Puzzles Solved
+          </h2>
           <div className="space-y-2">
-            {completions.slice(0, 20).map((c, i) => (
-              <Link
-                key={i}
-                to={`/puzzle/${c.puzzleSlug}`}
-                className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors"
-              >
-                <Puzzle className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{SLUG_TO_TITLE[c.puzzleSlug] || c.puzzleSlug}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {c.moveCount} moves &middot; {c.timeSeconds}s &middot; {new Date(c.completedAt).toLocaleDateString()}
-                  </p>
-                </div>
-                {c.xpEarned > 0 && (
-                  <span className="text-xs font-bold text-primary shrink-0">+{c.xpEarned} XP</span>
-                )}
-              </Link>
-            ))}
+            <GroupedCompletions completions={completions} />
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+interface GroupedPuzzle {
+  slug: string;
+  title: string;
+  totalXp: number;
+  bestMoves: number;
+  bestTime: number;
+  solveCount: number;
+  latestDate: string;
+  solves: { moveCount: number; timeSeconds: number; xpEarned: number; completedAt: string }[];
+}
+
+function groupCompletions(completions: CompletionEntry[]): GroupedPuzzle[] {
+  const map = new Map<string, GroupedPuzzle>();
+  for (const c of completions) {
+    let group = map.get(c.puzzleSlug);
+    if (!group) {
+      group = {
+        slug: c.puzzleSlug,
+        title: SLUG_TO_TITLE[c.puzzleSlug] || c.puzzleSlug,
+        totalXp: 0,
+        bestMoves: c.moveCount,
+        bestTime: c.timeSeconds,
+        solveCount: 0,
+        latestDate: c.completedAt,
+        solves: [],
+      };
+      map.set(c.puzzleSlug, group);
+    }
+    group.solveCount++;
+    group.totalXp += c.xpEarned;
+    if (c.moveCount < group.bestMoves) group.bestMoves = c.moveCount;
+    if (c.timeSeconds < group.bestTime) group.bestTime = c.timeSeconds;
+    if (c.completedAt > group.latestDate) group.latestDate = c.completedAt;
+    group.solves.push({ moveCount: c.moveCount, timeSeconds: c.timeSeconds, xpEarned: c.xpEarned, completedAt: c.completedAt });
+  }
+  // Sort: most recently solved first
+  return Array.from(map.values()).sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+}
+
+function GroupedCompletions({ completions }: { completions: CompletionEntry[] }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const groups = groupCompletions(completions);
+
+  const toggle = (slug: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug); else next.add(slug);
+      return next;
+    });
+  };
+
+  return (
+    <>
+      {groups.map(g => {
+        const isOpen = expanded.has(g.slug);
+        return (
+          <div key={g.slug} className="rounded-xl bg-card border border-border overflow-hidden">
+            <div className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => toggle(g.slug)}>
+              <Puzzle className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0">
+                <Link to={`/puzzle/${g.slug}`} className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors" onClick={e => e.stopPropagation()}>
+                  {g.title}
+                </Link>
+                <p className="text-xs text-muted-foreground">
+                  Best: {g.bestMoves} moves &middot; {g.bestTime}s &middot; Solved {g.solveCount}{g.solveCount === 1 ? ' time' : ' times'}
+                </p>
+              </div>
+              {g.totalXp > 0 && (
+                <span className="text-xs font-bold text-primary shrink-0">+{g.totalXp} XP</span>
+              )}
+              <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+            {isOpen && (
+              <div className="border-t border-border bg-muted/10 px-3 py-2 space-y-1">
+                {g.solves.map((s, i) => (
+                  <div key={i} className="flex items-center gap-3 text-xs text-muted-foreground py-1">
+                    <span className="w-24 shrink-0">{new Date(s.completedAt).toLocaleDateString()}</span>
+                    <span>{s.moveCount} moves</span>
+                    <span>&middot;</span>
+                    <span>{s.timeSeconds}s</span>
+                    {s.xpEarned > 0 && <span className="ml-auto text-primary font-medium">+{s.xpEarned} XP</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
   );
 }
 

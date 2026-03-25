@@ -360,7 +360,14 @@ app.patch('/puzzles/:slug', async (c) => {
 
   const body = await c.req.json<{ definition?: Record<string, unknown>; category?: string; difficulty?: string; tags?: string[] }>();
 
-  if (body.definition) puzzle.definition = body.definition;
+  if (body.definition) {
+    puzzle.definition = body.definition;
+    // Sync difficulty from definition metadata if not explicitly provided
+    const metaDiff = (body.definition as any)?.metadata?.difficulty;
+    if (!body.difficulty && metaDiff) {
+      puzzle.difficulty = metaDiff as 'easy' | 'medium' | 'hard' | 'expert';
+    }
+  }
   if (body.category) puzzle.category = body.category;
   if (body.difficulty) puzzle.difficulty = body.difficulty as 'easy' | 'medium' | 'hard' | 'expert';
   if (body.tags) puzzle.tags = body.tags;
@@ -368,6 +375,73 @@ app.patch('/puzzles/:slug', async (c) => {
 
   await puzzle.save();
   return c.json({ puzzle });
+});
+
+// POST /api/puzzles/sync-difficulty — admin: sync DB difficulty from definition.metadata.difficulty
+app.post('/puzzles/sync-difficulty', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user || user.role !== 'admin') return c.json({ error: 'Admin only' }, 403);
+
+  const puzzles = await Puzzle.find({ 'definition.metadata.difficulty': { $exists: true } });
+  let updated = 0;
+  for (const p of puzzles) {
+    const metaDiff = (p.definition as any)?.metadata?.difficulty;
+    if (metaDiff && metaDiff !== p.difficulty) {
+      p.difficulty = metaDiff;
+      await p.save();
+      updated++;
+    }
+  }
+
+  return c.json({ updated, total: puzzles.length });
+});
+
+// POST /api/puzzles/fix-xp — admin: recalculate XP for completions with wrong difficulty
+app.post('/puzzles/fix-xp', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user || user.role !== 'admin') return c.json({ error: 'Admin only' }, 403);
+
+  const body = await c.req.json<{ corrections: { slug: string; newDifficulty: Difficulty }[] }>();
+  const results: { slug: string; completionsFixed: number; totalXpDelta: number }[] = [];
+
+  for (const { slug, newDifficulty } of body.corrections) {
+    const newXp = calculateXP({ difficulty: newDifficulty, isFirstSolve: true });
+    // Only fix first-solve completions that earned XP
+    const completions = await Completion.find({ puzzleSlug: slug, isFirstSolve: true, xpEarned: { $gt: 0, $ne: newXp } });
+
+    let totalDelta = 0;
+    for (const comp of completions) {
+      const delta = newXp - comp.xpEarned;
+      comp.xpEarned = newXp;
+      await comp.save();
+      await User.updateOne({ _id: comp.userId }, { $inc: { xp: delta } });
+      totalDelta += delta;
+    }
+
+    results.push({ slug, completionsFixed: completions.length, totalXpDelta: totalDelta });
+  }
+
+  // Recalculate levels for all affected users
+  const affectedUserIds = new Set<string>();
+  for (const { slug } of body.corrections) {
+    const comps = await Completion.find({ puzzleSlug: slug, isFirstSolve: true }).select('userId');
+    comps.forEach(c => affectedUserIds.add(c.userId.toString()));
+  }
+  for (const uid of affectedUserIds) {
+    const u = await User.findById(uid);
+    if (u) {
+      u.level = levelFromXP(u.xp);
+      await u.save();
+    }
+  }
+
+  return c.json({ results });
 });
 
 // DELETE /api/puzzles/:slug — delete own puzzle

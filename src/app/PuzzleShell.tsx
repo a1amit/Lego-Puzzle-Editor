@@ -129,11 +129,13 @@ function PreviewPanel() {
       const timeSeconds = Math.round((Date.now() - solveStartRef.current) / 1000);
 
       if (slug && puzzle) {
+        const meta = (puzzle as { metadata?: { difficulty?: string } }).metadata;
         recordCompletion({
           puzzleSlug: slug,
           puzzleTitle: puzzle.title,
           moveCount,
           timeSeconds,
+          difficulty: meta?.difficulty,
           getToken,
         }).then(result => {
           if (result) {
@@ -258,6 +260,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
   );
   const [hasEverBeenVisible, setHasEverBeenVisible] = useState(visible);
   const [puzzleStatus, setPuzzleStatus] = useState<'draft' | 'published' | null>(null);
+  const [puzzleDifficulty, setPuzzleDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>('medium');
   const [isLoadingPuzzle, setIsLoadingPuzzle] = useState(false);
   const [isOwnPuzzle, setIsOwnPuzzle] = useState(false);
 
@@ -299,6 +302,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     if (!isCreateRoute || !visible) return;
     setPuzzle(BLANK_PUZZLE);
     resetPuzzle();
+    setPuzzleDifficulty('medium');
   }, [isCreateRoute, visible, setPuzzle, resetPuzzle]);
 
   // Load puzzle from slug — hardcoded puzzles in layout effect (before paint), API puzzles async
@@ -312,6 +316,8 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     if (hardcoded) {
       setPuzzle(hardcoded);
       setIsLoadingPuzzle(false);
+      const meta = (hardcoded as { metadata?: { difficulty?: string } }).metadata;
+      setPuzzleDifficulty((meta?.difficulty as typeof puzzleDifficulty) || 'medium');
     } else {
       // Clear stale puzzle immediately so the old puzzle doesn't flash while API loads
       setIsLoadingPuzzle(true);
@@ -347,6 +353,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
           const { puzzle: apiPuzzle } = await res.json();
           if (apiPuzzle) {
             setPuzzleStatus(apiPuzzle.status ?? null);
+            setPuzzleDifficulty(apiPuzzle.difficulty ?? 'medium');
             setIsOwnPuzzle(myId ? apiPuzzle.authorId === myId : false);
             if (apiPuzzle.definition) {
               setPuzzle(apiPuzzle.definition);
@@ -395,7 +402,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
           const res = await fetch(`/api/puzzles/${slug}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ definition: puzzle }),
+            body: JSON.stringify({ definition: puzzle, difficulty: puzzleDifficulty }),
           });
           if (!res.ok) {
             const data = await res.json();
@@ -405,7 +412,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
           const res = await fetch('/api/puzzles/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ definition: puzzle, category: 'Coverage', difficulty: 'medium' }),
+            body: JSON.stringify({ definition: puzzle, category: 'Coverage', difficulty: puzzleDifficulty }),
           });
           if (!res.ok) {
             const data = await res.json();
@@ -491,9 +498,27 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
       {/* Creator toolbar — shown for owners and admins */}
       {(isEditRoute || isOwnPuzzle || userRole === 'admin') && visible && (
         <div className="flex items-center gap-2 px-4 py-2 bg-card/80 backdrop-blur-sm border-b border-border shrink-0 z-20">
-          <span className="text-xs text-muted-foreground mr-auto">
+          <span className="text-xs text-muted-foreground">
             {isCreateRoute ? 'New Puzzle' : `Editing: ${usePuzzleStore.getState().puzzle?.title || slug}`}
           </span>
+          <div className="flex items-center gap-1 mr-auto ml-3">
+            {(['easy', 'medium', 'hard', 'expert'] as const).map(d => (
+              <button
+                key={d}
+                onClick={() => setPuzzleDifficulty(d)}
+                className={`h-6 px-2 text-[11px] capitalize rounded-md border transition-colors ${
+                  puzzleDifficulty === d
+                    ? d === 'easy' ? 'bg-green-500/30 text-green-300 border-green-500/50'
+                    : d === 'medium' ? 'bg-yellow-500/30 text-yellow-300 border-yellow-500/50'
+                    : d === 'hard' ? 'bg-orange-500/30 text-orange-300 border-orange-500/50'
+                    : 'bg-red-500/30 text-red-300 border-red-500/50'
+                    : 'bg-transparent text-muted-foreground border-border hover:border-muted-foreground/50'
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
           <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleSaveDraft}>
             <Save className="h-3 w-3" />{puzzleStatus === 'published' ? 'Save' : 'Save Draft'}
           </Button>

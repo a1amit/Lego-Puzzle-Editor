@@ -16,7 +16,7 @@ function getLocalPuzzles() {
       _id: p.id,
       slug: p.id,
       category: cat.category,
-      difficulty: 'medium' as const,
+      difficulty: ((p.puzzle as any).metadata?.difficulty || 'medium') as 'easy' | 'medium' | 'hard' | 'expert',
       tags: [],
       isLegacy: true,
       isFeatured: false,
