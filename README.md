@@ -2,7 +2,7 @@
 
 A community-driven puzzle platform where users create, solve, and share virtual Lego brick puzzles. Features both 2D and 3D renderers, a built-in puzzle creator with live preview, gamification with XP and leaderboards, and an AI puzzle assistant.
 
-![React](https://img.shields.io/badge/React-19.2-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue) ![Three.js](https://img.shields.io/badge/Three.js-0.183-green) ![Vite](https://img.shields.io/badge/Vite-8-purple) ![Tailwind](https://img.shields.io/badge/Tailwind-4.2-cyan)
+![React](https://img.shields.io/badge/React-19.2-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue) ![Three.js](https://img.shields.io/badge/Three.js-0.183-green) ![Vite](https://img.shields.io/badge/Vite-8-purple) ![Tailwind](https://img.shields.io/badge/Tailwind-4.2-cyan)
 
 ## Features
 
@@ -116,7 +116,7 @@ scripts/                    # Migration scripts (fix-xp, fix-streaks, etc.)
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 19, TypeScript 5.9, Vite 8 |
+| **Frontend** | React 19, TypeScript 6, Vite 8 |
 | **3D Engine** | Three.js, @react-three/fiber, @react-three/drei |
 | **State** | Zustand (UI state), TanStack Query (server state) |
 | **Styling** | Tailwind CSS 4.2, shadcn/ui, Framer Motion |
@@ -169,7 +169,15 @@ Puzzles are fully data-driven via JSON with Zod validation:
     { "type": "COVERAGE", "rule": "ALL_BOARD_SQUARES_MUST_BE_COVERED" },
     { "type": "PLACEMENT", "rule": "NO_BRICK_OVERLAP" },
     { "type": "PLACEMENT", "rule": "NO_BRICKS_OUT_OF_BOUNDS" }
-  ]
+  ],
+  "custom_shapes": {
+    "my-shape": { "name": "my-shape", "cells": [[0,0],[1,0],[2,0],[2,1]] }
+  },
+  "metadata": {
+    "author": "Your Name",
+    "difficulty": "easy|medium|hard|expert",
+    "tags": ["coverage", "3D"]
+  }
 }
 ```
 
