@@ -14,10 +14,12 @@ interface PuzzleCardProps {
   puzzle: GalleryPuzzle;
   onClick: (slug: string) => void;
   onEdit?: (slug: string) => void;
+  onLike?: (slug: string) => void;
   isSolved?: boolean;
+  isLiked?: boolean;
 }
 
-export function PuzzleCard({ puzzle, onClick, onEdit, isSolved }: PuzzleCardProps) {
+export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked }: PuzzleCardProps) {
   const def = puzzle.definition ?? {} as Record<string, any>;
   const dimensions = def.board?.dimensions ?? { width: 8, height: 4 };
   const viewMode = def.viewMode ?? '3D';
@@ -89,10 +91,28 @@ export function PuzzleCard({ puzzle, onClick, onEdit, isSolved }: PuzzleCardProp
             <Users className="h-3 w-3" />
             {puzzle.stats.completions}
           </span>
-          <span className="flex items-center gap-1">
-            <Heart className="h-3 w-3" />
-            {puzzle.stats.likes}
-          </span>
+          {onLike ? (
+            <span
+              role="button"
+              tabIndex={0}
+              className={`flex items-center gap-1 transition-colors ${
+                isLiked
+                  ? 'text-red-400 hover:text-red-300'
+                  : 'hover:text-red-400'
+              }`}
+              title={isLiked ? 'Unlike' : 'Like'}
+              onClick={(e) => { e.stopPropagation(); onLike(puzzle.slug); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onLike(puzzle.slug); } }}
+            >
+              <Heart className={`h-3 w-3 ${isLiked ? 'fill-current' : ''}`} />
+              {puzzle.stats.likes}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3" />
+              {puzzle.stats.likes}
+            </span>
+          )}
           <span className="ml-auto flex items-center gap-2 text-[10px]">
             {isSolved && (
               <span className="flex items-center gap-0.5 font-semibold text-success">

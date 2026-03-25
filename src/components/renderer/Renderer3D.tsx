@@ -42,7 +42,6 @@ function DragDropManager3D({ engine }: DragDropManager3DProps) {
     movePiece,
     rotatePiece,
     selectPiece,
-    rotatePreview,
     setHoveredCell,
   } = engine;
   
@@ -117,33 +116,8 @@ function DragDropManager3D({ engine }: DragDropManager3DProps) {
     return true;
   }, [selectedInventoryPiece, hoveredCell, board, width, height, previewRotation, ghostZLevel]);
   
-  // Keyboard events
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (selectedPlacedPiece) {
-        if (event.code === 'KeyR') {
-          rotatePiece(selectedPlacedPiece.instanceId);
-        } else if (event.code === 'Escape') {
-          selectPiece(null);
-        } else if (event.code === 'Delete' || event.code === 'Backspace') {
-          removePiece(selectedPlacedPiece.instanceId);
-          selectPiece(null);
-        }
-        return;
-      }
-      
-      if (selectedInventoryPiece) {
-        if (event.code === 'KeyR') {
-          rotatePreview();
-        } else if (event.code === 'Escape') {
-          selectPiece(null);
-        }
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPlacedPiece, selectedInventoryPiece, rotatePiece, rotatePreview, selectPiece, removePiece]);
+  // Keyboard handling moved to Renderer3D (outside R3F Canvas)
+  // to avoid R3F reconciler issues with StrictMode leaking listeners.
   
   // Cell hover handler
   const handleCellHover = useCallback((x: number, y: number | null) => {
@@ -353,32 +327,75 @@ function BackgroundGrid() {
 // ============================================
 
 export function Renderer3D({ engine, className = '' }: Renderer3DProps) {
-  const { selectedPieceId, board, rotatePreview, hoveredCell, puzzle, previewRotation } = engine;
-  
+  const {
+    selectedPieceId,
+    board,
+    rotatePiece,
+    rotatePreview,
+    selectPiece,
+    removePiece,
+    hoveredCell,
+    puzzle,
+    previewRotation,
+  } = engine;
+
   // Check if we have an inventory piece selected
-  const hasInventorySelection = selectedPieceId && 
+  const hasInventorySelection = selectedPieceId &&
     !board.placedPieces.find(p => p.instanceId === selectedPieceId);
-  
+
   // Check if we have a placed piece selected
-  const hasPlacedPieceSelection = selectedPieceId && 
+  const hasPlacedPieceSelection = selectedPieceId &&
     board.placedPieces.find(p => p.instanceId === selectedPieceId);
-  
+
   const shouldHideCursor = hasInventorySelection || hasPlacedPieceSelection;
   const boardCellCount = board.dimensions.width * board.dimensions.height;
   const isLargeBoard = boardCellCount >= 400;
   const effectiveDpr = isLargeBoard
     ? ([1, 1.5] as [number, number])
     : (SCENE_3D.renderer.dpr as unknown as [number, number]);
-  
+
   // Cursor position for drag preview overlay
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
-  
-  // Get selected inventory piece
+
+  // Get selected pieces for keyboard handling
+  const selectedPlacedPiece = useMemo(
+    () => board.placedPieces.find(p => p.instanceId === selectedPieceId),
+    [board.placedPieces, selectedPieceId],
+  );
   const selectedInventoryPiece = useMemo(() => {
+    if (selectedPlacedPiece) return null;
     if (!hasInventorySelection) return null;
     return puzzle?.inventory.find(p => p.id === selectedPieceId) ?? null;
-  }, [puzzle, selectedPieceId, hasInventorySelection]);
-  
+  }, [puzzle, selectedPieceId, hasInventorySelection, selectedPlacedPiece]);
+
+  // Keyboard handler — lives outside the R3F Canvas so React DOM's
+  // StrictMode cleanup works correctly.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
+      if (selectedPlacedPiece) {
+        if (event.code === 'KeyR') {
+          rotatePiece(selectedPlacedPiece.instanceId);
+        } else if (event.code === 'Escape') {
+          selectPiece(null);
+        } else if (event.code === 'Delete' || event.code === 'Backspace') {
+          removePiece(selectedPlacedPiece.instanceId);
+          selectPiece(null);
+        }
+        return;
+      }
+      if (selectedInventoryPiece) {
+        if (event.code === 'KeyR') {
+          rotatePreview();
+        } else if (event.code === 'Escape') {
+          selectPiece(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPlacedPiece, selectedInventoryPiece, rotatePiece, rotatePreview, selectPiece, removePiece]);
+
   // Track cursor for preview
   useEffect(() => {
     if (!hasInventorySelection) return;

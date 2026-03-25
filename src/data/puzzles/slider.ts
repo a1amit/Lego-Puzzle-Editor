@@ -72,7 +72,7 @@ export const SLIDER_PUZZLE: PuzzleDefinition = {
   ],
   metadata: {
     author: "CS Escape Room",
-    difficulty: "hard",
+    difficulty: "medium",
     tags: ["slider", "2D", "klotski"]
   }
 };
@@ -163,7 +163,7 @@ export const KLOTSKI_CROSSWAY: PuzzleDefinition =
 
   "metadata": {
     "author": "Variant",
-    "difficulty": "medium",
+    "difficulty": "expert",
     "tags": ["slider", "2D", "klotski"]
   }
 };

@@ -11,6 +11,7 @@ import { useMemo, useCallback, useEffect, useState, useRef } from 'react';
 import type { UsePuzzleEngineReturn } from '../../engine';
 import { getValidSlideDestinations } from '../../engine';
 import { SCENE_2D } from '../../config/sceneConfig';
+import { useRuleBuilderStore } from '../editor/ruleBuilder/useRuleBuilderStore';
 
 import {
   SvgDefs,
@@ -40,6 +41,10 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     hoveredCell,
     setHoveredCell,
   } = engine;
+
+  // Cell picker state (subscribed for reactivity)
+  const isPickerActive = useRuleBuilderStore(s => s.cellPickerTarget !== null);
+  const pickerCells = useRuleBuilderStore(s => s.cellPickerCells);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState<{ w: number; h: number } | null>(null);
@@ -198,6 +203,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
               const isHovered = hoveredCell?.x === x && hoveredCell?.y === y;
               const isInvalid = invalidCells.has(key);
               const isValidDest = validDestinations.has(key);
+              const isPickerSel = isPickerActive && pickerCells.has(key);
 
               return (
                 <GridCell
@@ -209,6 +215,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                   isHovered={isHovered && !selectedPlacedPiece}
                   isInvalid={isInvalid}
                   isValidDestination={isValidDest}
+                  isPickerSelected={isPickerSel}
                   onClick={() => handleCellClick(x, y)}
                   onPointerEnter={() => onCellPointerEnter(x, y)}
                   onPointerLeave={onCellPointerLeave}

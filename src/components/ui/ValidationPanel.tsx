@@ -76,7 +76,7 @@ export function ValidationPanel({ className = '', engine }: ValidationPanelProps
   };
 
   return (
-    <div className={`flex flex-col overflow-hidden ${className}`}>
+    <div aria-live="polite" className={`flex flex-col overflow-hidden ${className}`}>
       {/* Header */}
       <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-[var(--surface-raised)] to-[var(--surface-base)] border-b border-border flex items-center justify-between">
         <h3 className="text-sm font-semibold tracking-wide text-foreground flex items-center gap-2">
@@ -181,7 +181,9 @@ export function ValidationPanel({ className = '', engine }: ValidationPanelProps
                       text-xs font-semibold tracking-wide
                       ${result.isValid ? 'text-success' : 'text-destructive'}
                     `}>
-                      {FRIENDLY_RULE_NAMES[result.rule] || result.rule.replace(/_/g, ' ')}
+                      {result.rule.startsWith('CUSTOM:')
+                        ? result.rule.slice(7)
+                        : FRIENDLY_RULE_NAMES[result.rule] || result.rule.replace(/_/g, ' ')}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       {result.message}

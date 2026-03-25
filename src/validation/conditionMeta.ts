@@ -1,0 +1,535 @@
+import type { LeafKind, LeafCondition, ConditionNode } from '../types/customRules';
+
+// ============================================
+// CONDITION CATEGORIES
+// ============================================
+
+export type ConditionCategory =
+  | 'Cell'
+  | 'Row/Column'
+  | 'Count'
+  | 'Stacking'
+  | 'Spatial'
+  | 'Symmetry'
+  | 'Advanced';
+
+// ============================================
+// CONDITION METADATA
+// ============================================
+
+export interface ConditionMeta {
+  label: string;
+  description: string;
+  category: ConditionCategory;
+  needsCells: boolean;
+  needsColor: boolean;
+  needsShape: boolean;
+  needsComparison: boolean;
+  needsRowCol: 'row' | 'column' | null;
+  needsPieceId: boolean;
+  needsParity: boolean;
+  needsStartEndCells: boolean;
+  needsCode: boolean;
+  is3DOnly: boolean;
+  defaultParams: () => LeafCondition;
+}
+
+export const CONDITION_META: Record<LeafKind, ConditionMeta> = {
+  // --- Cell ---
+  cells_are_covered: {
+    label: 'Cells are covered',
+    description: 'Specific cells must have bricks on them',
+    category: 'Cell',
+    needsCells: true,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'cells_are_covered', cells: [] }),
+  },
+  cells_are_empty: {
+    label: 'Cells are empty',
+    description: 'Specific cells must not have any bricks',
+    category: 'Cell',
+    needsCells: true,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'cells_are_empty', cells: [] }),
+  },
+  cells_have_color: {
+    label: 'Cells have color',
+    description: 'Specific cells must be covered by a brick of a given color',
+    category: 'Cell',
+    needsCells: true,
+    needsColor: true,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'cells_have_color', cells: [], color: '#D01012' }),
+  },
+
+  // --- Row/Column ---
+  row_fully_covered: {
+    label: 'Row fully covered',
+    description: 'Every cell in a row must have a brick',
+    category: 'Row/Column',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: 'row',
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'row_fully_covered', row: 0 }),
+  },
+  column_fully_covered: {
+    label: 'Column fully covered',
+    description: 'Every cell in a column must have a brick',
+    category: 'Row/Column',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: 'column',
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'column_fully_covered', column: 0 }),
+  },
+  row_is_empty: {
+    label: 'Row is empty',
+    description: 'No cells in a row may have bricks',
+    category: 'Row/Column',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: 'row',
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'row_is_empty', row: 0 }),
+  },
+  column_is_empty: {
+    label: 'Column is empty',
+    description: 'No cells in a column may have bricks',
+    category: 'Row/Column',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: 'column',
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'column_is_empty', column: 0 }),
+  },
+
+  // --- Count ---
+  total_pieces_placed: {
+    label: 'Total pieces placed',
+    description: 'The total number of pieces on the board',
+    category: 'Count',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'total_pieces_placed', operator: 'eq', value: 1 }),
+  },
+  pieces_of_color_count: {
+    label: 'Pieces of color count',
+    description: 'Number of placed pieces with a specific color',
+    category: 'Count',
+    needsCells: false,
+    needsColor: true,
+    needsShape: false,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'pieces_of_color_count', color: '#D01012', operator: 'eq', value: 1 }),
+  },
+  pieces_of_shape_count: {
+    label: 'Pieces of shape count',
+    description: 'Number of placed pieces with a specific shape',
+    category: 'Count',
+    needsCells: false,
+    needsColor: false,
+    needsShape: true,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'pieces_of_shape_count', shape: 'T-tetromino', operator: 'eq', value: 1 }),
+  },
+  covered_cell_count: {
+    label: 'Covered cell count',
+    description: 'Total number of cells covered by bricks',
+    category: 'Count',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'covered_cell_count', operator: 'eq', value: 1 }),
+  },
+
+  // --- 3D / Stacking ---
+  stack_height_at_cells: {
+    label: 'Stack height at cells',
+    description: 'The vertical stack height at specific cells',
+    category: 'Stacking',
+    needsCells: true,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: true,
+    defaultParams: () => ({ kind: 'stack_height_at_cells', cells: [], operator: 'gte', value: 2 }),
+  },
+  max_stack_height: {
+    label: 'Max stack height',
+    description: 'The tallest stack on the board',
+    category: 'Stacking',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: true,
+    defaultParams: () => ({ kind: 'max_stack_height', operator: 'gte', value: 3 }),
+  },
+  min_stack_height: {
+    label: 'Min stack height',
+    description: 'The shortest non-empty stack on the board',
+    category: 'Stacking',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: true,
+    defaultParams: () => ({ kind: 'min_stack_height', operator: 'gte', value: 1 }),
+  },
+
+  // --- Spatial ---
+  no_adjacent_same_color: {
+    label: 'No adjacent same color',
+    description: 'No two horizontally or vertically adjacent cells share a color',
+    category: 'Spatial',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'no_adjacent_same_color' }),
+  },
+  all_covered_connected: {
+    label: 'All covered cells connected',
+    description: 'All covered cells must form one connected group',
+    category: 'Spatial',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'all_covered_connected' }),
+  },
+  piece_at_position: {
+    label: 'Piece at position',
+    description: 'A specific piece must cover exactly these cells',
+    category: 'Spatial',
+    needsCells: true,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: true,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'piece_at_position', pieceId: '', cells: [] }),
+  },
+
+  no_shared_diagonal: {
+    label: 'No shared diagonal',
+    description: 'No two covered cells may share a diagonal (N-Queens constraint)',
+    category: 'Spatial',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'no_shared_diagonal' }),
+  },
+
+  // --- Symmetry ---
+  horizontal_symmetry: {
+    label: 'Horizontal symmetry',
+    description: 'The board must be symmetric left-to-right (coverage and colors)',
+    category: 'Symmetry',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'horizontal_symmetry' }),
+  },
+  vertical_symmetry: {
+    label: 'Vertical symmetry',
+    description: 'The board must be symmetric top-to-bottom (coverage and colors)',
+    category: 'Symmetry',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'vertical_symmetry' }),
+  },
+
+  // --- Spatial (additional) ---
+  path_exists: {
+    label: 'Path exists',
+    description: 'A path must exist through covered cells from start to end (cardinal adjacency)',
+    category: 'Spatial',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: true,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'path_exists', startCell: [0, 0], endCell: [0, 0] }),
+  },
+  all_same_color_connected: {
+    label: 'All same color connected',
+    description: 'All cells of each color must form one connected group',
+    category: 'Spatial',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'all_same_color_connected' }),
+  },
+
+  // --- Count (additional) ---
+  max_colors_used: {
+    label: 'Max colors used',
+    description: 'The number of distinct brick colors placed on the board',
+    category: 'Count',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'max_colors_used', operator: 'lte', value: 3 }),
+  },
+
+  // --- Row/Column (additional) ---
+  count_per_row: {
+    label: 'Count per row',
+    description: 'Every row must have a covered cell count satisfying the comparison',
+    category: 'Row/Column',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'count_per_row', operator: 'gte', value: 1 }),
+  },
+  count_per_column: {
+    label: 'Count per column',
+    description: 'Every column must have a covered cell count satisfying the comparison',
+    category: 'Row/Column',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: true,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'count_per_column', operator: 'gte', value: 1 }),
+  },
+  parity_per_row: {
+    label: 'Parity per row',
+    description: 'Every row must have an even or odd number of covered cells',
+    category: 'Row/Column',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: true,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'parity_per_row', parity: 'even' }),
+  },
+  custom_code: {
+    label: 'Custom code',
+    description: 'Write JavaScript code that validates the board (ultimate flexibility)',
+    category: 'Advanced',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: false,
+    needsStartEndCells: false,
+    needsCode: true,
+    is3DOnly: false,
+    defaultParams: () => ({
+      kind: 'custom_code',
+      code: '// Available: board, helpers\n// board.width, board.height, board.placedBricks, board.blockedCells\n// helpers.getCellColor(x,y), helpers.isOccupied(x,y), helpers.getStackHeight(x,y)\n// Must return: { passed: boolean, message: string }\n\nreturn { passed: true, message: "Rule passed" };',
+    }),
+  },
+  parity_per_column: {
+    label: 'Parity per column',
+    description: 'Every column must have an even or odd number of covered cells',
+    category: 'Row/Column',
+    needsCells: false,
+    needsColor: false,
+    needsShape: false,
+    needsComparison: false,
+    needsRowCol: null,
+    needsPieceId: false,
+    needsParity: true,
+    needsStartEndCells: false,
+    needsCode: false,
+    is3DOnly: false,
+    defaultParams: () => ({ kind: 'parity_per_column', parity: 'even' }),
+  },
+};
+
+// ============================================
+// CATEGORY HELPERS
+// ============================================
+
+export const CONDITION_CATEGORIES: ConditionCategory[] = [
+  'Cell',
+  'Row/Column',
+  'Count',
+  'Stacking',
+  'Spatial',
+  'Symmetry',
+  'Advanced',
+];
+
+export function getConditionsByCategory(category: ConditionCategory): LeafKind[] {
+  return (Object.entries(CONDITION_META) as [LeafKind, ConditionMeta][])
+    .filter(([, meta]) => meta.category === category)
+    .map(([kind]) => kind);
+}
+
+export function createDefaultLeaf(kind: LeafKind): LeafCondition {
+  return CONDITION_META[kind].defaultParams();
+}
+
+export function createDefaultCombinator(): ConditionNode {
+  return { kind: 'ALL', children: [] };
+}

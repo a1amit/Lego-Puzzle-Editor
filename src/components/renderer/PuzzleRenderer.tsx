@@ -11,7 +11,7 @@
  */
 
 import { Suspense, lazy } from 'react';
-import { Loader2, Box, Grid3x3 } from 'lucide-react';
+import { LoaderCircle, Box, Grid3x3 } from 'lucide-react';
 import { Badge } from '../ui/shadcn/badge';
 import type { ViewMode } from '../../types/puzzle';
 import type { UsePuzzleEngineReturn } from '../../engine';
@@ -28,7 +28,7 @@ function LoadingFallback() {
   return (
     <div className="w-full h-full flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <LoaderCircle className="w-8 h-8 text-primary animate-spin" />
         <span className="text-muted-foreground text-sm">Loading renderer...</span>
       </div>
     </div>

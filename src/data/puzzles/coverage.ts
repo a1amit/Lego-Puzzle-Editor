@@ -29,7 +29,7 @@ export const DEFAULT_PUZZLE: PuzzleDefinition = {
   ],
   metadata: {
     author: "CS Escape Room",
-    difficulty: "medium",
+    difficulty: "easy",
     tags: ["tetromino", "coverage", "classic"]
   }
 };
@@ -82,7 +82,7 @@ export const COLORFUL_COVERAGE_PUZZLE: PuzzleDefinition = {
   ],
   metadata: {
     author: "CS Escape Room",
-    difficulty: "hard",
+    difficulty: "medium",
     tags: ["tetromino", "coverage", "colorful", "mixed"]
   }
 };

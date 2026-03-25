@@ -17,7 +17,7 @@ import {
   Search,
   Puzzle,
   Plus,
-  CheckCircle2,
+  CircleCheck,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -85,7 +85,7 @@ function PuzzleCard({
             {item.puzzle.description?.slice(0, 60) || 'No description'}
           </div>
         </div>
-        {isActive && <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />}
+        {isActive && <CircleCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />}
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">

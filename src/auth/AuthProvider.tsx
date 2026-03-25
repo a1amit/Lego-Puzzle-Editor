@@ -10,18 +10,41 @@
  * boundary fallback — all features work except auth.
  */
 
-import { createContext, useContext, Component, type ReactNode } from 'react';
+import { createContext, useContext, Component, type ReactNode, type PropsWithChildren } from 'react';
 import {
   ClerkProvider,
   useAuth as useClerkAuth,
-  useUser,
-  Show,
-  UserButton,
-  SignInButton,
-  SignUpButton,
+  useUser as useClerkUser,
+  Show as ClerkShow,
+  UserButton as ClerkUserButton,
+  SignInButton as ClerkSignInButton,
+  SignUpButton as ClerkSignUpButton,
 } from '@clerk/react';
 
-export { Show, UserButton, SignInButton, SignUpButton, useUser };
+// VITE_CLERK_PUBLISHABLE_KEY from .env.local or .env
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+// ── Safe Clerk re-exports ─────────────────────────────────────────────
+// When ClerkProvider is absent (no publishable key), these render nothing
+// or return safe defaults instead of throwing.
+
+const NO_USER = { isLoaded: true as const, isSignedIn: false as const, user: null };
+export function useUser() {
+  try {
+    return useClerkUser();
+  } catch {
+    return NO_USER;
+  }
+}
+
+// Noop fallbacks when Clerk is not configured
+function Noop() { return null; }
+function NoopChildren({ children }: PropsWithChildren) { return <>{children}</>; }
+
+export const Show = PUBLISHABLE_KEY ? ClerkShow : Noop as unknown as typeof ClerkShow;
+export const UserButton = PUBLISHABLE_KEY ? ClerkUserButton : Noop as unknown as typeof ClerkUserButton;
+export const SignInButton = PUBLISHABLE_KEY ? ClerkSignInButton : NoopChildren as unknown as typeof ClerkSignInButton;
+export const SignUpButton = PUBLISHABLE_KEY ? ClerkSignUpButton : NoopChildren as unknown as typeof ClerkSignUpButton;
 
 // ── Auth context (works with or without Clerk) ──────────────────────
 
@@ -73,9 +96,6 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 }
 
 // ── Provider (used in main.tsx) ─────────────────────────────────────
-
-// VITE_CLERK_PUBLISHABLE_KEY from .env.local or .env
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const noAuthFallback = (

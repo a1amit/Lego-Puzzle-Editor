@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { Trophy, Medal, Award, ArrowLeft, Flame } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { getLevelTitle } from '../../store/xpUtils';
+import { useLeaderboardQuery } from '../../hooks/queries';
 
 type TimeWindow = 'all' | 'monthly' | 'weekly';
 
@@ -20,38 +21,13 @@ interface LeaderboardEntry {
 }
 
 export default function LeaderboardPage() {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('all');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      setIsLoading(true);
-
-      // Try API first
-      try {
-        const res = await fetch(`/api/leaderboard?window=${timeWindow}&limit=50`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.entries?.length > 0) {
-            setEntries(data.entries.map((e: Record<string, unknown>) => ({
-              ...e,
-              displayName: (e.displayName as string) || (e.username as string),
-              isCurrentUser: false,
-            })));
-            setIsLoading(false);
-            return;
-          }
-        }
-      } catch {
-        // API not available
-      }
-
-      setEntries([]);
-      setIsLoading(false);
-    }
-    load();
-  }, [timeWindow]);
+  const { data, isLoading } = useLeaderboardQuery(timeWindow);
+  const entries = (data?.entries || []).map((e: Record<string, unknown>) => ({
+    ...e,
+    displayName: (e.displayName as string) || (e.username as string),
+    isCurrentUser: false,
+  })) as LeaderboardEntry[];
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -65,10 +41,12 @@ export default function LeaderboardPage() {
           Leaderboard
         </h1>
 
-        <div className="flex items-center gap-1 p-1 bg-secondary rounded-lg border border-border">
+        <div role="tablist" aria-label="Leaderboard time window" className="flex items-center gap-1 p-1 bg-secondary rounded-lg border border-border">
           {(['all', 'monthly', 'weekly'] as TimeWindow[]).map(w => (
             <Button
               key={w}
+              role="tab"
+              aria-selected={timeWindow === w}
               variant={timeWindow === w ? 'default' : 'ghost'}
               size="sm"
               className="h-7 px-3 text-xs capitalize"
@@ -96,7 +74,7 @@ export default function LeaderboardPage() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div role="list" aria-label="Leaderboard entries" className="space-y-2">
           {entries.map((entry) => (
             <Link
               key={entry._id}

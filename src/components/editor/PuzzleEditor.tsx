@@ -102,8 +102,11 @@ const puzzleJsonSchema = {
         required: ['type', 'rule'],
         properties: {
           type: { type: 'string', enum: ['COVERAGE', 'PLACEMENT', 'COUNT', 'MOVEMENT', 'ROTATION', 'PATTERN', 'GOAL', 'CONSTRAINT', 'MAX_MOVES', 'CUSTOM'] },
-          rule: { type: 'string', enum: ['ALL_BOARD_SQUARES_MUST_BE_COVERED', 'ALL_BRICKS_MUST_BE_USED', 'NO_BRICK_OVERLAP', 'NO_BRICKS_OUT_OF_BOUNDS', 'NO_BLOCKED_CELLS', 'SLIDING_ONLY', 'FREE_PLACEMENT', 'NO_ROTATION', 'NO_BRICK_REMOVAL', 'PATTERN_MATCH', 'GOAL_REACHED', 'MAX_MOVES'] },
-          params: { type: 'object' },
+          rule: { type: 'string', enum: ['ALL_BOARD_SQUARES_MUST_BE_COVERED', 'ALL_BRICKS_MUST_BE_USED', 'NO_BRICK_OVERLAP', 'NO_BRICKS_OUT_OF_BOUNDS', 'NO_BLOCKED_CELLS', 'SLIDING_ONLY', 'FREE_PLACEMENT', 'NO_ROTATION', 'NO_BRICK_REMOVAL', 'PATTERN_MATCH', 'GOAL_REACHED', 'MAX_MOVES', 'CUSTOM_RULE'] },
+          params: {
+            type: 'object',
+            description: 'Rule-specific parameters. For CUSTOM_RULE: { label: string, condition: { kind: "ALL"|"ANY"|"NONE"|..., children: [...] } or leaf condition like { kind: "cells_are_covered", cells: [[x,y],...] } }',
+          },
         },
       },
     },

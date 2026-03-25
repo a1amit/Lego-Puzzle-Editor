@@ -127,6 +127,22 @@ app.get('/users/me/puzzles', async (c) => {
   return c.json({ puzzles });
 });
 
+// GET /api/users/me/likes — slugs of puzzles the user has liked
+app.get('/users/me/likes', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user) return c.json({ error: 'User not found' }, 404);
+
+  const likes = await Like.find({ userId: user._id }).select('puzzleId').lean();
+  const puzzleIds = likes.map(l => l.puzzleId);
+  const puzzles = await Puzzle.find({ _id: { $in: puzzleIds } }).select('slug').lean();
+  const slugs = puzzles.map(p => p.slug);
+
+  return c.json({ slugs });
+});
+
 // GET /api/users/me/completions
 app.get('/users/me/completions', async (c) => {
   const authUser = c.get('authUser');
@@ -140,7 +156,28 @@ app.get('/users/me/completions', async (c) => {
     .limit(50)
     .lean();
 
-  return c.json({ completions });
+  // Attach puzzle titles from DB
+  const slugs = [...new Set(completions.map(c => c.puzzleSlug))];
+  const puzzleDocs = await Puzzle.find({ slug: { $in: slugs } }).select('slug definition.title').lean();
+  const titleMap = new Map(puzzleDocs.map(p => [p.slug, (p.definition as any)?.title as string]));
+  const enriched = completions.map(c => ({ ...c, puzzleTitle: titleMap.get(c.puzzleSlug) || undefined }));
+
+  return c.json({ completions: enriched });
+});
+
+// PATCH /api/users/me — update own profile fields
+app.patch('/users/me', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user) return c.json({ error: 'User not found' }, 404);
+
+  const body = await c.req.json<{ selectedTier?: string | null }>();
+  if ('selectedTier' in body) user.selectedTier = body.selectedTier;
+
+  await user.save();
+  return c.json({ user });
 });
 
 // GET /api/users/:username — public profile
@@ -149,7 +186,7 @@ app.get('/users/:username', async (c) => {
   const user = await User.findOne({ username }).select('-clerkId').lean();
   if (!user) return c.json({ error: 'User not found' }, 404);
 
-  const [puzzles, completions] = await Promise.all([
+  const [puzzles, rawCompletions] = await Promise.all([
     Puzzle.find({ authorId: user._id, status: 'published' })
       .sort({ createdAt: -1 })
       .select({ 'definition.inventory': 0, 'definition.validation_rules': 0, 'definition.board.initial_state': 0, 'definition.board.blocked_cells': 0, 'definition.goal': 0 })
@@ -159,6 +196,12 @@ app.get('/users/:username', async (c) => {
       .limit(20)
       .lean(),
   ]);
+
+  // Attach puzzle titles from DB
+  const slugs = [...new Set(rawCompletions.map(c => c.puzzleSlug))];
+  const puzzleDocs = await Puzzle.find({ slug: { $in: slugs } }).select('slug definition.title').lean();
+  const titleMap = new Map(puzzleDocs.map(p => [p.slug, (p.definition as any)?.title as string]));
+  const completions = rawCompletions.map(c => ({ ...c, puzzleTitle: titleMap.get(c.puzzleSlug) || undefined }));
 
   return c.json({ user, puzzles, completions });
 });
@@ -360,7 +403,14 @@ app.patch('/puzzles/:slug', async (c) => {
 
   const body = await c.req.json<{ definition?: Record<string, unknown>; category?: string; difficulty?: string; tags?: string[] }>();
 
-  if (body.definition) puzzle.definition = body.definition;
+  if (body.definition) {
+    puzzle.definition = body.definition;
+    // Sync difficulty from definition metadata if not explicitly provided
+    const metaDiff = (body.definition as any)?.metadata?.difficulty;
+    if (!body.difficulty && metaDiff) {
+      puzzle.difficulty = metaDiff as 'easy' | 'medium' | 'hard' | 'expert';
+    }
+  }
   if (body.category) puzzle.category = body.category;
   if (body.difficulty) puzzle.difficulty = body.difficulty as 'easy' | 'medium' | 'hard' | 'expert';
   if (body.tags) puzzle.tags = body.tags;
@@ -368,6 +418,73 @@ app.patch('/puzzles/:slug', async (c) => {
 
   await puzzle.save();
   return c.json({ puzzle });
+});
+
+// POST /api/puzzles/sync-difficulty — admin: sync DB difficulty from definition.metadata.difficulty
+app.post('/puzzles/sync-difficulty', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user || user.role !== 'admin') return c.json({ error: 'Admin only' }, 403);
+
+  const puzzles = await Puzzle.find({ 'definition.metadata.difficulty': { $exists: true } });
+  let updated = 0;
+  for (const p of puzzles) {
+    const metaDiff = (p.definition as any)?.metadata?.difficulty;
+    if (metaDiff && metaDiff !== p.difficulty) {
+      p.difficulty = metaDiff;
+      await p.save();
+      updated++;
+    }
+  }
+
+  return c.json({ updated, total: puzzles.length });
+});
+
+// POST /api/puzzles/fix-xp — admin: recalculate XP for completions with wrong difficulty
+app.post('/puzzles/fix-xp', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user || user.role !== 'admin') return c.json({ error: 'Admin only' }, 403);
+
+  const body = await c.req.json<{ corrections: { slug: string; newDifficulty: Difficulty }[] }>();
+  const results: { slug: string; completionsFixed: number; totalXpDelta: number }[] = [];
+
+  for (const { slug, newDifficulty } of body.corrections) {
+    const newXp = calculateXP({ difficulty: newDifficulty, isFirstSolve: true });
+    // Only fix first-solve completions that earned XP
+    const completions = await Completion.find({ puzzleSlug: slug, isFirstSolve: true, xpEarned: { $gt: 0, $ne: newXp } });
+
+    let totalDelta = 0;
+    for (const comp of completions) {
+      const delta = newXp - comp.xpEarned;
+      comp.xpEarned = newXp;
+      await comp.save();
+      await User.updateOne({ _id: comp.userId }, { $inc: { xp: delta } });
+      totalDelta += delta;
+    }
+
+    results.push({ slug, completionsFixed: completions.length, totalXpDelta: totalDelta });
+  }
+
+  // Recalculate levels for all affected users
+  const affectedUserIds = new Set<string>();
+  for (const { slug } of body.corrections) {
+    const comps = await Completion.find({ puzzleSlug: slug, isFirstSolve: true }).select('userId');
+    comps.forEach(c => affectedUserIds.add(c.userId.toString()));
+  }
+  for (const uid of affectedUserIds) {
+    const u = await User.findById(uid);
+    if (u) {
+      u.level = levelFromXP(u.xp);
+      await u.save();
+    }
+  }
+
+  return c.json({ results });
 });
 
 // DELETE /api/puzzles/:slug — delete own puzzle
@@ -522,13 +639,15 @@ app.post('/puzzles/:slug/complete', async (c) => {
     isFirstSolve,
   });
 
-  // Update streak
+  // Update streak (compare by UTC calendar date, not raw hours)
   const now = new Date();
   let newStreakDays = user.streakDays;
   if (user.lastSolveDate) {
-    const daysSince = Math.floor(
-      (now.getTime() - user.lastSolveDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const toUTCDate = (d: Date) =>
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    const daysSince =
+      (toUTCDate(now) - toUTCDate(new Date(user.lastSolveDate))) /
+      (1000 * 60 * 60 * 24);
     newStreakDays = daysSince === 1 ? newStreakDays + 1 : daysSince > 1 ? 1 : newStreakDays;
   } else {
     newStreakDays = 1;
