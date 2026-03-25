@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useUser } from '../../auth/AuthProvider';
-import { Trophy, Puzzle, Star, Flame, ArrowLeft, ChevronDown, CheckCircle2, Play } from 'lucide-react';
+import { Trophy, Puzzle, Star, Flame, ArrowLeft, ChevronDown, CircleCheck, Play } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { LevelTitleCard, TierRoadmap } from '../../components/ui/LevelTitleCard';
 import { useAppAuth } from '../../auth/AuthProvider';
@@ -222,7 +222,7 @@ export default function ProfilePage() {
       ) : (
         <div>
           <h2 className="text-lg font-semibold text-foreground mb-3">
-            <CheckCircle2 className="h-5 w-5 inline-block mr-1.5 -mt-0.5 text-green-400" />
+            <CircleCheck className="h-5 w-5 inline-block mr-1.5 -mt-0.5 text-green-400" />
             Puzzles Solved
           </h2>
           <div className="space-y-2">

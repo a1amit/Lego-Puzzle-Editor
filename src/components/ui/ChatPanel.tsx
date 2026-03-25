@@ -12,7 +12,7 @@ import remarkBreaks from 'remark-breaks';
 import { sendChatMessage, isApiKeyConfigured, ChatMessage } from '../../services/ChatService';
 import { isDesignIntent, getDesignContext } from '../../services/puzzleContext';
 import { usePuzzleStore } from '../../store/puzzleStore';
-import { ArrowUp, X, Plus, Lightbulb, ClipboardCheck, BarChart3, Zap, Wand2, GripHorizontal } from 'lucide-react';
+import { ArrowUp, X, Plus, Lightbulb, ClipboardCheck, ChartBar, Zap, WandSparkles, GripHorizontal } from 'lucide-react';
 import { Button } from '../ui/shadcn/button';
 import { LegoHelperIcon } from './LegoHelperIcon';
 
@@ -317,7 +317,7 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
       content: "Explain the rules of this puzzle",
     },
     {
-      icon: <BarChart3 className="w-5 h-5 text-pink-400" />,
+      icon: <ChartBar className="w-5 h-5 text-pink-400" />,
       title: "Progress",
       content: "How am I doing so far?",
     },
@@ -327,7 +327,7 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
       content: "What strategy should I use?",
     },
     {
-      icon: <Wand2 className="w-5 h-5 text-emerald-400" />,
+      icon: <WandSparkles className="w-5 h-5 text-emerald-400" />,
       title: "Design",
       content: "Help me design a new puzzle",
     },

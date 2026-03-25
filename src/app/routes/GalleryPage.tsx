@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, SlidersHorizontal, Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, SlidersHorizontal, Plus, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { PuzzleGrid, PuzzleGridSkeleton } from '../../components/gallery/PuzzleGrid';
 import { GalleryFilters } from '../../components/gallery/GalleryFilters';
@@ -258,7 +258,7 @@ export default function GalleryPage() {
               {isFetching && (
                 <div className="absolute inset-0 z-10 bg-background/60 backdrop-blur-[2px] rounded-xl flex items-center justify-center">
                   <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border shadow-lg">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
                     <span className="text-sm text-muted-foreground">Loading puzzles...</span>
                   </div>
                 </div>
@@ -292,7 +292,7 @@ export default function GalleryPage() {
                   disabled={!hasNext || isFetchingNextPage}
                 >
                   {isFetchingNextPage ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
                       Next
