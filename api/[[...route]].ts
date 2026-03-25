@@ -140,7 +140,28 @@ app.get('/users/me/completions', async (c) => {
     .limit(50)
     .lean();
 
-  return c.json({ completions });
+  // Attach puzzle titles from DB
+  const slugs = [...new Set(completions.map(c => c.puzzleSlug))];
+  const puzzleDocs = await Puzzle.find({ slug: { $in: slugs } }).select('slug definition.title').lean();
+  const titleMap = new Map(puzzleDocs.map(p => [p.slug, (p.definition as any)?.title as string]));
+  const enriched = completions.map(c => ({ ...c, puzzleTitle: titleMap.get(c.puzzleSlug) || undefined }));
+
+  return c.json({ completions: enriched });
+});
+
+// PATCH /api/users/me — update own profile fields
+app.patch('/users/me', async (c) => {
+  const authUser = c.get('authUser');
+  if (!authUser) return c.json({ error: 'Unauthorized' }, 401);
+
+  const user = await User.findOne({ clerkId: authUser.clerkId });
+  if (!user) return c.json({ error: 'User not found' }, 404);
+
+  const body = await c.req.json<{ selectedTier?: string | null }>();
+  if ('selectedTier' in body) user.selectedTier = body.selectedTier;
+
+  await user.save();
+  return c.json({ user });
 });
 
 // GET /api/users/:username — public profile
@@ -149,7 +170,7 @@ app.get('/users/:username', async (c) => {
   const user = await User.findOne({ username }).select('-clerkId').lean();
   if (!user) return c.json({ error: 'User not found' }, 404);
 
-  const [puzzles, completions] = await Promise.all([
+  const [puzzles, rawCompletions] = await Promise.all([
     Puzzle.find({ authorId: user._id, status: 'published' })
       .sort({ createdAt: -1 })
       .select({ 'definition.inventory': 0, 'definition.validation_rules': 0, 'definition.board.initial_state': 0, 'definition.board.blocked_cells': 0, 'definition.goal': 0 })
@@ -159,6 +180,12 @@ app.get('/users/:username', async (c) => {
       .limit(20)
       .lean(),
   ]);
+
+  // Attach puzzle titles from DB
+  const slugs = [...new Set(rawCompletions.map(c => c.puzzleSlug))];
+  const puzzleDocs = await Puzzle.find({ slug: { $in: slugs } }).select('slug definition.title').lean();
+  const titleMap = new Map(puzzleDocs.map(p => [p.slug, (p.definition as any)?.title as string]));
+  const completions = rawCompletions.map(c => ({ ...c, puzzleTitle: titleMap.get(c.puzzleSlug) || undefined }));
 
   return c.json({ user, puzzles, completions });
 });

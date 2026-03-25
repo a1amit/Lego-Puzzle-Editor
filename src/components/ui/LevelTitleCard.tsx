@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getLevelTier, getAllTiers, xpToReachLevel, type LevelTier } from '../../store/xpUtils';
 
 // ── Inline SVG icons for each tier ──────────────────────────────────
@@ -87,11 +88,18 @@ function TierIcon({ icon, size = 32 }: { icon: LevelTier['icon']; size?: number 
 interface LevelTitleCardProps {
   level: number;
   xp: number;
+  /** Override the displayed tier (for selected banner) */
+  overrideTier?: string | null;
   className?: string;
 }
 
-export function LevelTitleCard({ level, xp, className = '' }: LevelTitleCardProps) {
-  const tier = getLevelTier(level);
+export function LevelTitleCard({ level, xp, overrideTier, className = '' }: LevelTitleCardProps) {
+  const actualTier = getLevelTier(level);
+  const allTiers = getAllTiers();
+  const displayTier = overrideTier
+    ? allTiers.find(t => t.title === overrideTier) ?? actualTier
+    : actualTier;
+
   const currentLevelXP = xpToReachLevel(level);
   const nextLevelXP = xpToReachLevel(level + 1);
   const rawProgress = nextLevelXP > currentLevelXP
@@ -100,7 +108,7 @@ export function LevelTitleCard({ level, xp, className = '' }: LevelTitleCardProp
   const progress = xp > 0 ? Math.max(3, rawProgress) : 0;
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${tier.gradient} p-5 ${className}`}>
+    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${displayTier.gradient} p-5 ${className}`}>
       {/* Subtle pattern overlay */}
       <div className="absolute inset-0 opacity-[0.04]" style={{
         backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
@@ -110,25 +118,25 @@ export function LevelTitleCard({ level, xp, className = '' }: LevelTitleCardProp
       {/* Glow effect */}
       <div
         className="absolute -top-12 -right-12 w-40 h-40 rounded-full blur-3xl opacity-20"
-        style={{ backgroundColor: tier.accent }}
+        style={{ backgroundColor: displayTier.accent }}
       />
 
       <div className="relative flex items-center gap-4">
         {/* Icon */}
         <div
           className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0"
-          style={{ backgroundColor: tier.accent + '20', color: tier.accent }}
+          style={{ backgroundColor: displayTier.accent + '20', color: displayTier.accent }}
         >
-          <TierIcon icon={tier.icon} size={32} />
+          <TierIcon icon={displayTier.icon} size={32} />
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
-            <h3 className={`text-lg font-bold ${tier.textColor}`}>{tier.title}</h3>
+            <h3 className={`text-lg font-bold ${displayTier.textColor}`}>{displayTier.title}</h3>
             <span className="text-xs text-white/40">Lv.{level}</span>
           </div>
-          <p className="text-xs text-white/50 italic mt-0.5">{tier.subtitle}</p>
+          <p className="text-xs text-white/50 italic mt-0.5">{displayTier.subtitle}</p>
 
           {/* XP progress bar */}
           <div className="mt-2.5">
@@ -141,8 +149,8 @@ export function LevelTitleCard({ level, xp, className = '' }: LevelTitleCardProp
                 className="h-full rounded-full transition-all duration-700 ease-out"
                 style={{
                   width: `${Math.min(100, progress)}%`,
-                  backgroundColor: tier.accent,
-                  boxShadow: `0 0 8px ${tier.accent}60`,
+                  backgroundColor: displayTier.accent,
+                  boxShadow: `0 0 8px ${displayTier.accent}60`,
                 }}
               />
             </div>
@@ -157,33 +165,91 @@ export function LevelTitleCard({ level, xp, className = '' }: LevelTitleCardProp
 
 interface TierRoadmapProps {
   currentLevel: number;
+  /** Currently selected tier title (persisted choice) */
+  selectedTier?: string | null;
+  /** Called when user picks a tier as their banner */
+  onSelectTier?: (tierTitle: string | null) => void | Promise<void>;
+  /** Is this the user's own profile (show set button) */
+  isOwnProfile?: boolean;
   className?: string;
 }
 
-export function TierRoadmap({ currentLevel, className = '' }: TierRoadmapProps) {
+export function TierRoadmap({ currentLevel, selectedTier, onSelectTier, isOwnProfile, className = '' }: TierRoadmapProps) {
   const tiers = getAllTiers();
+  const [previewTier, setPreviewTier] = useState<LevelTier | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   return (
     <div className={className}>
       <h2 className="text-lg font-semibold text-foreground mb-3">Rank Roadmap</h2>
+
+      {/* Preview banner */}
+      {previewTier && (
+        <div className="mb-3 space-y-2">
+          <div className={`relative overflow-hidden rounded-xl bg-gradient-to-r ${previewTier.gradient} p-4`}>
+            <div
+              className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-3xl opacity-20"
+              style={{ backgroundColor: previewTier.accent }}
+            />
+            <div className="relative flex items-center gap-3">
+              <div
+                className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0"
+                style={{ backgroundColor: previewTier.accent + '20', color: previewTier.accent }}
+              >
+                <TierIcon icon={previewTier.icon} size={28} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className={`text-base font-bold ${previewTier.textColor}`}>{previewTier.title}</h3>
+                <p className="text-xs text-white/50 italic">{previewTier.subtitle}</p>
+              </div>
+              {isOwnProfile && onSelectTier && (
+                <button
+                  disabled={isSaving || selectedTier === previewTier.title}
+                  onClick={async () => {
+                    setIsSaving(true);
+                    await onSelectTier(previewTier.title);
+                    setIsSaving(false);
+                    setPreviewTier(null);
+                  }}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
+                    selectedTier === previewTier.title
+                      ? 'bg-white/10 text-white/50 cursor-default'
+                      : 'bg-white/15 text-white/80 hover:bg-white/25'
+                  }`}
+                >
+                  {isSaving ? 'Saving...' : selectedTier === previewTier.title ? 'Current banner' : 'Set as banner'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         {tiers.map((tier, i) => {
           const isReached = currentLevel >= tier.minLevel;
           const isCurrent = currentLevel >= tier.minLevel &&
             (i === tiers.length - 1 || currentLevel < tiers[i + 1].minLevel);
           const xpNeeded = xpToReachLevel(tier.minLevel);
+          const isSelected = selectedTier === tier.title;
+          const isPreviewing = previewTier?.title === tier.title;
 
           return (
             <div
               key={tier.title}
+              onClick={() => isReached && setPreviewTier(isPreviewing ? null : tier)}
               className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                isCurrent
-                  ? `bg-gradient-to-r ${tier.gradient} border-transparent ring-1`
-                  : isReached
-                    ? 'bg-card/80 border-border'
-                    : 'bg-card/30 border-border/50 opacity-60'
+                isReached ? 'cursor-pointer' : ''
+              } ${
+                isPreviewing
+                  ? `bg-gradient-to-r ${tier.gradient} border-transparent ring-2`
+                  : isCurrent
+                    ? `bg-gradient-to-r ${tier.gradient} border-transparent ring-1`
+                    : isReached
+                      ? 'bg-card/80 border-border hover:border-primary/30'
+                      : 'bg-card/30 border-border/50 opacity-60'
               }`}
-              style={isCurrent ? { '--tw-ring-color': tier.accent + '40' } as React.CSSProperties : undefined}
+              style={isPreviewing || isCurrent ? { '--tw-ring-color': tier.accent + '40' } as React.CSSProperties : undefined}
             >
               {/* Icon */}
               <div
@@ -198,17 +264,20 @@ export function TierRoadmap({ currentLevel, className = '' }: TierRoadmapProps) 
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm font-semibold ${isCurrent ? tier.textColor : isReached ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  <span className={`text-sm font-semibold ${isPreviewing || isCurrent ? tier.textColor : isReached ? 'text-foreground' : 'text-muted-foreground'}`}>
                     {tier.title}
                   </span>
                   {isCurrent && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/15 text-white/70">Current</span>
                   )}
-                  {isReached && !isCurrent && (
+                  {isSelected && !isCurrent && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">Banner</span>
+                  )}
+                  {isReached && !isCurrent && !isSelected && (
                     <span className="text-[10px] text-muted-foreground">Reached</span>
                   )}
                 </div>
-                <p className={`text-xs ${isCurrent ? 'text-white/50' : 'text-muted-foreground'}`}>
+                <p className={`text-xs ${isPreviewing || isCurrent ? 'text-white/50' : 'text-muted-foreground'}`}>
                   Level {tier.minLevel}+ &middot; {xpNeeded.toLocaleString()} XP
                 </p>
               </div>

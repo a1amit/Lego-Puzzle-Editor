@@ -14,6 +14,7 @@ export interface IUser extends Document {
   puzzlesCompleted: number;
   streakDays: number;
   lastSolveDate: Date | null;
+  selectedTier: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +34,7 @@ const UserSchema = new Schema<IUser>(
     puzzlesCompleted: { type: Number, default: 0 },
     streakDays: { type: Number, default: 0 },
     lastSolveDate: { type: Date, default: null },
+    selectedTier: { type: String, default: null },
   },
   { timestamps: true }
 );

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../services/apiClient';
 import type { GalleryPuzzle, SortOption } from '../store/galleryStore';
 
@@ -45,6 +45,36 @@ export function usePuzzlesQuery(filters: {
     queryKey: queryKeys.puzzles.list(filters),
     queryFn: () => apiClient.get<PuzzleListResponse>(`/puzzles?${params}`),
     staleTime: 60_000,
+  });
+}
+
+export function useInfinitePuzzlesQuery(filters: {
+  search?: string;
+  category?: string | null;
+  difficulty?: string | null;
+  sort?: SortOption;
+  limit?: number;
+}) {
+  const limit = filters.limit || 5;
+  return useInfiniteQuery({
+    queryKey: ['puzzles', 'infinite', filters],
+    queryFn: ({ pageParam = 1 }) => {
+      const params = new URLSearchParams();
+      if (filters.search) params.set('search', filters.search);
+      if (filters.category) params.set('category', filters.category);
+      if (filters.difficulty) params.set('difficulty', filters.difficulty);
+      params.set('sort', filters.sort || 'newest');
+      params.set('page', String(pageParam));
+      params.set('limit', String(limit));
+      return apiClient.get<PuzzleListResponse>(`/puzzles?${params}`);
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.page < lastPage.pagination.totalPages
+        ? lastPage.pagination.page + 1
+        : undefined,
+    staleTime: 60_000,
+    maxPages: 10,
   });
 }
 

@@ -1,16 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, SlidersHorizontal, Plus } from 'lucide-react';
+import { Search, SlidersHorizontal, Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
-import { PuzzleGrid } from '../../components/gallery/PuzzleGrid';
+import { PuzzleGrid, PuzzleGridSkeleton } from '../../components/gallery/PuzzleGrid';
 import { GalleryFilters } from '../../components/gallery/GalleryFilters';
 import { FeaturedSection } from '../../components/gallery/FeaturedSection';
 import { PUZZLE_CATEGORIES } from '../../config/puzzleCategories';
 import { useGalleryStore, type SortOption } from '../../store/galleryStore';
+import { useInfinitePuzzlesQuery } from '../../hooks/queries';
 import { useAppAuth } from '../../auth/AuthProvider';
+import type { GalleryPuzzle } from '../../store/galleryStore';
 
-// Map hard-coded puzzles to the gallery format for offline/fallback
-function getLocalPuzzles() {
+const PAGE_SIZE = 6;
+
+// Map hard-coded puzzles to the gallery format
+function getLocalPuzzles(): GalleryPuzzle[] {
   return PUZZLE_CATEGORIES.flatMap(cat =>
     cat.puzzles.map(p => ({
       _id: p.id,
@@ -33,26 +37,48 @@ function getLocalPuzzles() {
   );
 }
 
+const localPuzzles = getLocalPuzzles();
+
 export default function GalleryPage() {
   const navigate = useNavigate();
-  const {
-    search, category, difficulty, sort,
-    puzzles: apiPuzzles, isLoading,
-    setSearch, setCategory, setDifficulty, setSort,
-    fetchPuzzles,
-  } = useGalleryStore();
+  const { search, category, difficulty, sort, setSearch, setCategory, setDifficulty, setSort } = useGalleryStore();
 
   const { isSignedIn, getToken } = useAppAuth();
   const [showFilters, setShowFilters] = useState(false);
-  const [localPuzzles] = useState(getLocalPuzzles);
   const [searchInput, setSearchInput] = useState(search);
+  const [currentPage, setCurrentPage] = useState(1);
   const [ownedSlugs, setOwnedSlugs] = useState<Set<string>>(new Set());
   const [solvedSlugs, setSolvedSlugs] = useState<Set<string>>(new Set());
 
-  // Fetch from API on mount (falls back to local puzzles)
+  // Debounced search
   useEffect(() => {
-    fetchPuzzles();
-  }, [fetchPuzzles, search, category, difficulty, sort]);
+    const timer = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, setSearch]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, category, difficulty, sort]);
+
+  // Infinite query for API puzzles (fetches pages on demand)
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfinitePuzzlesQuery({ search, category, difficulty, sort, limit: PAGE_SIZE });
+
+  // Flatten all loaded API pages
+  const apiPuzzles = useMemo(
+    () => data?.pages.flatMap(p => p.puzzles) ?? [],
+    [data],
+  );
+
+  // Total API puzzle count (from first page response)
+  const apiTotal = data?.pages[0]?.pagination.total ?? 0;
 
   // Fetch user's own puzzle slugs and completed puzzle slugs
   useEffect(() => {
@@ -77,26 +103,46 @@ export default function GalleryPage() {
     })();
   }, [isSignedIn, getToken]);
 
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput), 300);
-    return () => clearTimeout(timer);
-  }, [searchInput, setSearch]);
-
   // Merge local (built-in) puzzles with API puzzles, deduplicating by slug
-  const displayPuzzles = (() => {
+  const allPuzzles = useMemo(() => {
     const apiSlugs = new Set(apiPuzzles.map(p => p.slug));
     const deduped = localPuzzles.filter(p => !apiSlugs.has(p.slug));
-    return [...deduped, ...apiPuzzles];
-  })();
+    const merged = [...deduped, ...apiPuzzles];
 
-  // Apply client-side filters to local puzzles
-  const filteredPuzzles = displayPuzzles.filter(p => {
-    if (category && p.category !== category) return false;
-    if (difficulty && p.difficulty !== difficulty) return false;
-    if (search && !p.definition.title.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+    return merged.filter(p => {
+      if (p.isLegacy) {
+        if (category && p.category !== category) return false;
+        if (difficulty && p.difficulty !== difficulty) return false;
+        if (search && !p.definition.title.toLowerCase().includes(search.toLowerCase())) return false;
+      }
+      return true;
+    });
+  }, [apiPuzzles, category, difficulty, search]);
+
+  // Pagination
+  const localFilteredCount = allPuzzles.filter(p => p.isLegacy).length;
+  const estimatedTotal = localFilteredCount + apiTotal;
+  const totalPages = Math.max(1, Math.ceil(estimatedTotal / PAGE_SIZE));
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const displayPuzzles = allPuzzles.slice(start, start + PAGE_SIZE);
+
+  const hasPrev = currentPage > 1;
+  const hasNext = currentPage < totalPages;
+
+  const handleNext = () => {
+    const nextPage = currentPage + 1;
+    const nextStart = nextPage * PAGE_SIZE;
+    // Prefetch next API page if we're running low on loaded data
+    if (nextStart >= allPuzzles.length && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+    setCurrentPage(nextPage);
+  };
+
+  const handlePrev = () => {
+    setCurrentPage(p => Math.max(1, p - 1));
+  };
 
   const handlePuzzleEdit = useCallback((slug: string) => {
     navigate(`/puzzle/${slug}/edit`, { viewTransition: true });
@@ -176,19 +222,65 @@ export default function GalleryPage() {
         </div>
 
         {/* Puzzle grid */}
-        {isLoading && filteredPuzzles.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-64 rounded-xl bg-card border border-border animate-pulse" />
-            ))}
-          </div>
-        ) : filteredPuzzles.length === 0 ? (
+        {isLoading ? (
+          <PuzzleGridSkeleton count={PAGE_SIZE} />
+        ) : displayPuzzles.length === 0 && !isFetching ? (
           <div className="text-center py-20">
             <p className="text-muted-foreground text-lg">No puzzles found</p>
             <p className="text-muted-foreground text-sm mt-1">Try adjusting your filters</p>
           </div>
         ) : (
-          <PuzzleGrid puzzles={filteredPuzzles} onPuzzleClick={handlePuzzleClick} onPuzzleEdit={handlePuzzleEdit} ownedSlugs={ownedSlugs} solvedSlugs={solvedSlugs} />
+          <>
+            {/* Loading overlay while fetching new data (filter change, page change) */}
+            <div className="relative">
+              {isFetching && (
+                <div className="absolute inset-0 z-10 bg-background/60 backdrop-blur-[2px] rounded-xl flex items-center justify-center">
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border shadow-lg">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <span className="text-sm text-muted-foreground">Loading puzzles...</span>
+                  </div>
+                </div>
+              )}
+              <PuzzleGrid puzzles={displayPuzzles} onPuzzleClick={handlePuzzleClick} onPuzzleEdit={handlePuzzleEdit} ownedSlugs={ownedSlugs} solvedSlugs={solvedSlugs} />
+            </div>
+
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-3 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handlePrev}
+                  disabled={!hasPrev}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+
+                <span className="text-sm text-muted-foreground px-3">
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handleNext}
+                  disabled={!hasNext || isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

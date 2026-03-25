@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useUser } from '../../auth/AuthProvider';
-import { Trophy, Puzzle, Star, Flame, ArrowLeft, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Trophy, Puzzle, Star, Flame, ArrowLeft, ChevronDown, CheckCircle2, Play } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { LevelTitleCard, TierRoadmap } from '../../components/ui/LevelTitleCard';
 import { useAppAuth } from '../../auth/AuthProvider';
@@ -27,11 +28,13 @@ interface ProfileData {
   puzzlesCreated: number;
   puzzlesCompleted: number;
   streakDays: number;
+  selectedTier: string | null;
   isOwnProfile: boolean;
 }
 
 interface CompletionEntry {
   puzzleSlug: string;
+  puzzleTitle?: string;
   moveCount: number;
   timeSeconds: number;
   xpEarned: number;
@@ -43,8 +46,31 @@ export default function ProfilePage() {
   const { user: clerkUser } = useUser();
   const { getToken, isLoaded: authLoaded } = useAppAuth();
 
+  const queryClient = useQueryClient();
   const storeUsername = useUserStore((s) => s.profile?.username);
   const isOwnProfile = clerkUser?.id === userId || (!!storeUsername && storeUsername === userId);
+
+  const handleSelectTier = async (tierTitle: string | null) => {
+    // Optimistic update — reflect immediately in the UI
+    queryClient.setQueryData(['users', 'me', 'full'], (old: any) => {
+      if (!old) return old;
+      return { ...old, apiUser: { ...old.apiUser, selectedTier: tierTitle } };
+    });
+
+    const token = await getToken();
+    if (!token) return;
+    const res = await fetch('/api/users/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ selectedTier: tierTitle }),
+    });
+    if (res.ok) {
+      toast.success(`Banner set to ${tierTitle}`);
+    } else {
+      toast.error('Failed to update banner');
+      queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
+    }
+  };
 
   // Own profile: fetch /users/me + /users/me/completions (needs auth token)
   const ownProfileQuery = useQuery({
@@ -90,6 +116,7 @@ export default function ProfilePage() {
       puzzlesCreated: apiUser.puzzlesCreated || 0,
       puzzlesCompleted: apiUser.puzzlesCompleted || 0,
       streakDays: apiUser.streakDays || 0,
+      selectedTier: apiUser.selectedTier || null,
       isOwnProfile: true,
     };
     completions = apiCompletions || [];
@@ -105,6 +132,7 @@ export default function ProfilePage() {
       puzzlesCreated: apiUser.puzzlesCreated || 0,
       puzzlesCompleted: apiUser.puzzlesCompleted || 0,
       streakDays: apiUser.streakDays || 0,
+      selectedTier: apiUser.selectedTier || null,
       isOwnProfile: false,
     };
     completions = apiCompletions || [];
@@ -164,7 +192,7 @@ export default function ProfilePage() {
       )}
 
       {/* Level title card with XP bar */}
-      <LevelTitleCard level={profile.level} xp={profile.xp} className="mb-6" />
+      <LevelTitleCard level={profile.level} xp={profile.xp} overrideTier={profile.selectedTier} className="mb-6" />
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -175,7 +203,13 @@ export default function ProfilePage() {
       </div>
 
       {/* Rank roadmap */}
-      <TierRoadmap currentLevel={profile.level} className="mb-6" />
+      <TierRoadmap
+        currentLevel={profile.level}
+        selectedTier={profile.selectedTier}
+        onSelectTier={profile.isOwnProfile ? handleSelectTier : undefined}
+        isOwnProfile={profile.isOwnProfile}
+        className="mb-6"
+      />
 
       {/* Solved puzzles */}
       {completions.length === 0 ? (
@@ -218,7 +252,7 @@ function groupCompletions(completions: CompletionEntry[]): GroupedPuzzle[] {
     if (!group) {
       group = {
         slug: c.puzzleSlug,
-        title: SLUG_TO_TITLE[c.puzzleSlug] || c.puzzleSlug,
+        title: c.puzzleTitle || SLUG_TO_TITLE[c.puzzleSlug] || c.puzzleSlug,
         totalXp: 0,
         bestMoves: c.moveCount,
         bestTime: c.timeSeconds,
@@ -260,9 +294,7 @@ function GroupedCompletions({ completions }: { completions: CompletionEntry[] })
             <div className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => toggle(g.slug)}>
               <Puzzle className="h-4 w-4 text-muted-foreground shrink-0" />
               <div className="flex-1 min-w-0">
-                <Link to={`/puzzle/${g.slug}`} className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors" onClick={e => e.stopPropagation()}>
-                  {g.title}
-                </Link>
+                <p className="text-sm font-medium text-foreground truncate">{g.title}</p>
                 <p className="text-xs text-muted-foreground">
                   Best: {g.bestMoves} moves &middot; {g.bestTime}s &middot; Solved {g.solveCount}{g.solveCount === 1 ? ' time' : ' times'}
                 </p>
@@ -270,6 +302,14 @@ function GroupedCompletions({ completions }: { completions: CompletionEntry[] })
               {g.totalXp > 0 && (
                 <span className="text-xs font-bold text-primary shrink-0">+{g.totalXp} XP</span>
               )}
+              <Link
+                to={`/puzzle/${g.slug}`}
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
+                onClick={e => e.stopPropagation()}
+              >
+                <Play className="h-3 w-3" />
+                Play
+              </Link>
               <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </div>
             {isOpen && (

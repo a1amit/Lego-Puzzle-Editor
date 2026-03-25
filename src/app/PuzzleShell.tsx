@@ -8,6 +8,7 @@ import { ValidationPanel } from '../components/ui/ValidationPanel';
 import { PuzzleInfoPanel } from '../components/ui/PuzzleInfoPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/shadcn/tabs';
 import { Button } from '../components/ui/shadcn/button';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePuzzleStore } from '../store/puzzleStore';
 import { useEditorViewStore, type EditorViewMode } from '../store/editorViewStore';
 import { useAppAuth } from '../auth/AuthProvider';
@@ -16,7 +17,7 @@ import { SoundManager } from '../services/SoundManager';
 import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../config/puzzleCategories';
 import { recordCompletion } from '../store/completionTracker';
 import { useUserStore } from '../store/userStore';
-import { useGalleryStore } from '../store/galleryStore';
+
 import { Save, Upload, ArchiveRestore } from 'lucide-react';
 import { CellPickerOverlay } from '../components/editor/ruleBuilder/CellPickerOverlay';
 
@@ -247,6 +248,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
   const setPuzzle = usePuzzleStore((s) => s.setPuzzle);
   const resetPuzzle = usePuzzleStore((s) => s.resetPuzzle);
   const { isSignedIn, getToken } = useAppAuth();
+  const queryClient = useQueryClient();
 
   // Shared view mode store (Header also reads this)
   const viewMode = useEditorViewStore((s) => s.viewMode);
@@ -453,7 +455,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
         }
         const data = await res.json();
         setPuzzleStatus('published');
-        useGalleryStore.getState().reset();
+        queryClient.invalidateQueries({ queryKey: ['puzzles'] });
         return data;
       })(),
       {
@@ -479,7 +481,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
           throw new Error(data.error || 'Failed to unpublish');
         }
         setPuzzleStatus('draft');
-        useGalleryStore.getState().reset();
+        queryClient.invalidateQueries({ queryKey: ['puzzles'] });
       })(),
       {
         loading: 'Unpublishing...',
