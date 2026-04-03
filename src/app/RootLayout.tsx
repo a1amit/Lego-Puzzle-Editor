@@ -27,14 +27,7 @@ const LevelUpPopup = React.lazy(() =>
 export function RootLayout() {
   const [showChat, setShowChat] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    const hasVisited = localStorage.getItem('lego-puzzle-hasVisited');
-    if (!hasVisited) {
-      localStorage.setItem('lego-puzzle-hasVisited', 'true');
-      return true;
-    }
-    return false;
-  });
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const lastActionError = usePuzzleStore((s) => s.lastActionError);
   const location = useLocation();
@@ -47,6 +40,14 @@ export function RootLayout() {
   const showLevelUp = useGamificationStore((s) => s.showLevelUp);
   const dismissLevelUp = useGamificationStore((s) => s.dismissLevelUp);
   const processOfflineQueue = useGamificationStore((s) => s.processOfflineQueue);
+
+  // Show onboarding on first puzzle visit
+  useEffect(() => {
+    if (isPuzzleRoute && !localStorage.getItem('lego-puzzle-hasVisited')) {
+      localStorage.setItem('lego-puzzle-hasVisited', 'true');
+      setShowOnboarding(true);
+    }
+  }, [isPuzzleRoute]);
 
   // Set up API client token provider
   useEffect(() => {
