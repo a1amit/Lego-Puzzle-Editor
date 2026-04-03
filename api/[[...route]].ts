@@ -717,13 +717,13 @@ app.get('/leaderboard', async (c) => {
   }
 
   const [users, total] = await Promise.all([
-    User.find({ xp: { $gt: 0 }, ...dateFilter })
+    User.find({ ...dateFilter })
       .sort({ xp: -1, puzzlesCompleted: -1 })
       .skip(skip)
       .limit(limitNum)
       .select('username displayName avatarUrl xp level puzzlesCompleted puzzlesCreated streakDays')
       .lean(),
-    User.countDocuments({ xp: { $gt: 0 }, ...dateFilter }),
+    User.countDocuments({ ...dateFilter }),
   ]);
 
   const entries = users.map((user, index) => ({
@@ -754,8 +754,9 @@ app.post('/chat', async (c) => {
   if (!apiKey) return c.json({ error: 'Chat service not configured' }, 503);
 
   const openRouterUrl = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
-  const primaryModel = process.env.CHAT_MODEL || 'stepfun/step-3.5-flash:free';
-  const fallbackModel = process.env.CHAT_FALLBACK_MODEL || 'google/gemma-3-27b-it:free';
+  const primaryModel = process.env.CHAT_MODEL || 'qwen/qwen3.6-plus:free';
+  const fallbackModel = process.env.CHAT_FALLBACK_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free';
+  const lastResortModel = 'openrouter/free';
   const maxTokens = parseInt(process.env.CHAT_MAX_TOKENS || '1000');
   const temperature = parseFloat(process.env.CHAT_TEMPERATURE || '0.7');
 
@@ -778,27 +779,24 @@ app.post('/chat', async (c) => {
     return (data as { choices?: { message?: { content?: string } }[] }).choices?.[0]?.message?.content || '';
   }
 
-  try {
-    const content = await callModel(primaryModel);
-    if (content) return c.json({ success: true, message: content });
+  const models = [primaryModel, fallbackModel, lastResortModel].filter(
+    (m, i, arr) => arr.indexOf(m) === i,
+  );
 
-    if (primaryModel !== fallbackModel) {
-      const fb = await callModel(fallbackModel);
-      return c.json({ success: true, message: fb });
+  for (let i = 0; i < models.length; i++) {
+    try {
+      const content = await callModel(models[i]);
+      if (content) return c.json({ success: true, message: content });
+    } catch (error) {
+      if (i === models.length - 1) {
+        return c.json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Chat service error',
+        }, 500);
+      }
     }
-    return c.json({ success: false, error: 'Empty response from model' }, 500);
-  } catch (error) {
-    if (primaryModel !== fallbackModel) {
-      try {
-        const fb = await callModel(fallbackModel);
-        return c.json({ success: true, message: fb });
-      } catch { /* both failed */ }
-    }
-    return c.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Chat service error',
-    }, 500);
   }
+  return c.json({ success: false, error: 'All models returned empty responses' }, 500);
 });
 
 // ---------------------------------------------------------------------------

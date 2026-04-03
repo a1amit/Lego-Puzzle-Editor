@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -121,6 +122,8 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
 
   // Connect to puzzle store for context
   const { puzzle, isComplete, moveCount, boardState, validationResults, inventoryState } = usePuzzleStore();
+  const location = useLocation();
+  const isPuzzleRoute = location.pathname.startsWith('/puzzle/') || location.pathname === '/create';
 
   // Desktop Drag Handlers (pointer events)
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -186,7 +189,13 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   };
 
   const getPuzzleContext = (): string => {
-    if (!puzzle) return "No puzzle currently loaded.";
+    if (!isPuzzleRoute || !puzzle) {
+      return `<puzzle-context>
+<status>NO_PUZZLE_LOADED</status>
+<note>The user is browsing the site (gallery, leaderboard, or profile). No puzzle is being solved right now. Do not reference any specific puzzle. Offer general help, suggest browsing the gallery, or offer to help design a new puzzle.</note>
+</puzzle-context>`;
+    }
+
     const placedCount = boardState.placedBricks.length;
     const totalInventory = puzzle.inventory.reduce((sum, b) => sum + b.quantity, 0);
     const { width, height } = boardState.dimensions;
@@ -204,28 +213,46 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
       })
       .filter(Boolean);
 
-    // Validation status: "✓ NO_BRICK_OVERLAP" or "✗ ALL_BOARD_SQUARES_MUST_BE_COVERED: 5 cells uncovered"
+    // Validation rules defined on the puzzle
+    const ruleDefinitions = puzzle.validation_rules.map(r => {
+      if (r.rule === 'CUSTOM_RULE' && r.params) {
+        const p = r.params as { label?: string; description?: string };
+        return `- CUSTOM: ${p.label || 'Custom Rule'}${p.description ? ` — ${p.description}` : ''}`;
+      }
+      return `- ${r.type}: ${r.rule}`;
+    });
+
+    // Validation status: "PASS NO_BRICK_OVERLAP" or "FAIL ALL_BOARD_SQUARES_MUST_BE_COVERED: 5 cells uncovered"
     const validationLines = validationResults.map(r =>
       `- ${r.isValid ? 'PASS' : 'FAIL'} ${r.rule}${!r.isValid && r.message ? `: ${r.message}` : ''}`
     );
 
-    return `
-PUZZLE: ${puzzle.title}
-DESCRIPTION: ${puzzle.description}
-BOARD: ${width}×${height}, TYPE: ${puzzle.viewMode === '3D' ? '3D Construction' : '2D Grid/Slider'}
-STATUS: ${isComplete ? 'SOLVED' : 'IN PROGRESS'}
-MOVES: ${moveCount}
-PROGRESS: ${placedCount}/${totalInventory} bricks placed
+    return `<puzzle-context>
+<puzzle-info>
+  <title>${puzzle.title}</title>
+  <description>${puzzle.description}</description>
+  <board>${width}x${height}, ${puzzle.viewMode === '3D' ? '3D Construction' : '2D Grid'}</board>
+  <status>${isComplete ? 'SOLVED' : 'IN_PROGRESS'}</status>
+  <moves>${moveCount}</moves>
+  <progress>${placedCount}/${totalInventory} bricks placed</progress>
+</puzzle-info>
 
-BOARD STATE (placed bricks):
+<rules-defined>
+${ruleDefinitions.join('\n')}
+</rules-defined>
+
+<board-state>
 ${placedLines.length > 0 ? placedLines.join('\n') : '(empty board)'}
+</board-state>
 
-REMAINING INVENTORY:
+<remaining-inventory>
 ${remainingLines.length > 0 ? remainingLines.join('\n') : '(all placed)'}
+</remaining-inventory>
 
-VALIDATION:
+<validation-status>
 ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked yet)'}
-    `.trim();
+</validation-status>
+</puzzle-context>`;
   };
 
   const sendMessage = async (content?: string) => {
