@@ -15,7 +15,7 @@ export default defineConfig({
     build: {
         rolldownOptions: {
             output: {
-                manualChunks: function (id) {
+                manualChunks(id) {
                     if (id.includes('node_modules/react-dom'))
                         return 'vendor-react';
                     if (id.includes('node_modules/react/'))
@@ -26,6 +26,8 @@ export default defineConfig({
                         return 'vendor-monaco';
                     if (id.includes('node_modules/zustand') || id.includes('node_modules/zod'))
                         return 'vendor-utils';
+                    if (id.includes('node_modules/react-router') || id.includes('node_modules/@clerk'))
+                        return 'vendor-router-auth';
                 },
             },
         },

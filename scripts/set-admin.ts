@@ -3,6 +3,7 @@
  * Usage: npx tsx scripts/set-admin.ts
  */
 import 'dotenv/config';
+import '../api/_lib/dns-fix.js';
 import mongoose from 'mongoose';
 
 async function main() {

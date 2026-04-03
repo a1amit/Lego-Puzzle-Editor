@@ -72,8 +72,9 @@ async function callDirect(messages: ChatMessage[]): Promise<ChatResponse> {
     }
 
     const url = import.meta.env.VITE_OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
-    const model = import.meta.env.VITE_CHAT_MODEL || 'stepfun/step-3.5-flash:free';
-    const fallbackModel = 'google/gemma-3-27b-it:free';
+    const primaryModel = import.meta.env.VITE_CHAT_MODEL || 'qwen/qwen3.6-plus:free';
+    const fallbackModel = 'nvidia/nemotron-3-super-120b-a12b:free';
+    const lastResortModel = 'openrouter/free';
     const maxTokens = Number(import.meta.env.VITE_CHAT_MAX_TOKENS) || 1000;
     const temperature = Number(import.meta.env.VITE_CHAT_TEMPERATURE) || 0.7;
 
@@ -104,13 +105,15 @@ async function callDirect(messages: ChatMessage[]): Promise<ChatResponse> {
         }
     }
 
-    const result = await callModel(model);
-    if (result.success) return result;
+    const models = [primaryModel, fallbackModel, lastResortModel].filter(
+        (m, i, arr) => arr.indexOf(m) === i,
+    );
 
-    if (model !== fallbackModel) {
-        return callModel(fallbackModel);
+    for (const modelId of models) {
+        const result = await callModel(modelId);
+        if (result.success) return result;
     }
-    return result;
+    return { success: false, message: '', error: 'All models unavailable. Please try again later.' };
 }
 
 /**
@@ -135,7 +138,7 @@ export async function sendChatMessage(
     requestTimestamps.push(now);
 
     const systemPrompt = puzzleContext
-        ? `${CHATBOT_SYSTEM_PROMPT}\n\nCURRENT PUZZLE CONTEXT:\n${puzzleContext}`
+        ? `${CHATBOT_SYSTEM_PROMPT}\n\n${puzzleContext}`
         : CHATBOT_SYSTEM_PROMPT;
 
     const messages: ChatMessage[] = [
