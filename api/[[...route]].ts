@@ -174,7 +174,7 @@ app.patch('/users/me', async (c) => {
   if (!user) return c.json({ error: 'User not found' }, 404);
 
   const body = await c.req.json<{ selectedTier?: string | null }>();
-  if ('selectedTier' in body) user.selectedTier = body.selectedTier;
+  if ('selectedTier' in body) user.selectedTier = body.selectedTier ?? null;
 
   await user.save();
   return c.json({ user });
