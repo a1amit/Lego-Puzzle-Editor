@@ -7,7 +7,7 @@ import {
   isCombinator,
   isLeaf,
 } from '@/types/customRules'
-import type { ConditionNode, CombinatorNode, LeafCondition } from '@/types/customRules'
+import type { ConditionNode } from '@/types/customRules'
 
 describe('LeafConditionSchema', () => {
   describe('cell conditions', () => {

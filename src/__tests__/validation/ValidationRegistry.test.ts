@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   ValidationRegistry,
   rotateShape,
@@ -6,7 +6,7 @@ import {
   getAllOccupiedCells,
   getOccupiedCellsAtZ,
 } from '@/validation/ValidationRegistry';
-import type { PlacedBrick } from '@/types/puzzle';
+import type { BoardState, PlacedBrick } from '@/types/puzzle';
 import { createBoardState as createBoard, createPlacedBrick as createBrick } from '../helpers';
 
 // ============================================

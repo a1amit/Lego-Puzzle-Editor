@@ -95,6 +95,7 @@ describe('createInitialBoard', () => {
               shape: 'unit',
               color: '#ff0000',
               position: [2, 3] as [number, number],
+              rotation: 0,
             },
           ],
           blocked_cells: [],
@@ -143,6 +144,7 @@ describe('createInitialBoard', () => {
               shape: 'unit',
               color: '#ff0000',
               position: [0, 0] as [number, number],
+              rotation: 0,
             },
           ],
           blocked_cells: [],
@@ -236,8 +238,8 @@ describe('createInitialBoard', () => {
       board: {
         dimensions: { width: 8, height: 4, depth: 1 },
         initial_state: [
-          { id: 'a', shape: 'unit', color: '#ff0000', position: [0, 0] as [number, number] },
-          { id: 'b', shape: 'unit', color: '#00ff00', position: [1, 0] as [number, number] },
+          { id: 'a', shape: 'unit', color: '#ff0000', position: [0, 0] as [number, number], rotation: 0 },
+          { id: 'b', shape: 'unit', color: '#00ff00', position: [1, 0] as [number, number], rotation: 0 },
         ],
         blocked_cells: [],
       },
@@ -325,7 +327,7 @@ describe('createInitialInventory', () => {
       board: {
         dimensions: { width: 4, height: 4, depth: 1 },
         initial_state: [
-          { id: 'inline1', shape: 'unit', color: '#ff0000', position: [0, 0] as [number, number] },
+          { id: 'inline1', shape: 'unit', color: '#ff0000', position: [0, 0] as [number, number], rotation: 0 },
         ],
         blocked_cells: [],
       },

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePuzzleStore } from '@/store/puzzleStore';
 import type { PuzzleDefinition, PlacedBrick } from '@/types/puzzle';
-import { SHAPE_LIBRARY, DEFAULT_PUZZLE } from '@/types/puzzle';
+import { DEFAULT_PUZZLE } from '@/types/puzzle';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
