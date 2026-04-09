@@ -289,7 +289,7 @@ app.get('/puzzles', async (c) => {
   const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
   const skip = (pageNum - 1) * limitNum;
 
-  let sortOption: Record<string, 1 | -1> = {};
+  let sortOption: Record<string, 1 | -1>;
   switch (sort) {
     case 'popular':    sortOption = { 'stats.plays': -1 }; break;
     case 'difficulty': sortOption = { difficulty: 1 }; break;

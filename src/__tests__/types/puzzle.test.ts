@@ -396,27 +396,27 @@ describe('PuzzleDefinitionSchema', () => {
   })
 
   it('rejects missing required title', () => {
-    const { title, ...noTitle } = minimalPuzzle
+    const { title: _title, ...noTitle } = minimalPuzzle
     expect(() => PuzzleDefinitionSchema.parse(noTitle)).toThrow()
   })
 
   it('rejects missing required description', () => {
-    const { description, ...noDesc } = minimalPuzzle
+    const { description: _description, ...noDesc } = minimalPuzzle
     expect(() => PuzzleDefinitionSchema.parse(noDesc)).toThrow()
   })
 
   it('rejects missing required board', () => {
-    const { board, ...noBoard } = minimalPuzzle
+    const { board: _board, ...noBoard } = minimalPuzzle
     expect(() => PuzzleDefinitionSchema.parse(noBoard)).toThrow()
   })
 
   it('rejects missing required inventory', () => {
-    const { inventory, ...noInventory } = minimalPuzzle
+    const { inventory: _inventory, ...noInventory } = minimalPuzzle
     expect(() => PuzzleDefinitionSchema.parse(noInventory)).toThrow()
   })
 
   it('rejects missing required validation_rules', () => {
-    const { validation_rules, ...noRules } = minimalPuzzle
+    const { validation_rules: _rules, ...noRules } = minimalPuzzle
     expect(() => PuzzleDefinitionSchema.parse(noRules)).toThrow()
   })
 
