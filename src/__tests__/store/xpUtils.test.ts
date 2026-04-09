@@ -4,7 +4,7 @@ import {
   levelFromXP,
   getLevelTitle,
   getLevelTier,
-} from './xpUtils'
+} from '@/store/xpUtils'
 
 describe('xpToReachLevel', () => {
   it('returns 0 XP for level 0', () => {

@@ -159,7 +159,6 @@ export async function sendChatMessage(
  * Validates that chat is available (either via proxy or direct API key).
  */
 export function isApiKeyConfigured(): boolean {
-    // Always return true — the proxy will be tried first, and if it fails we check the direct key
-    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-    return true || (!!apiKey && apiKey !== 'your_openrouter_api_key_here');
+    // Always return true — the proxy will be tried first
+    return true;
 }
