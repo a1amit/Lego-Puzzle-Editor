@@ -18,7 +18,7 @@ import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../config/puzzleCategories';
 import { recordCompletion } from '../store/completionTracker';
 import { useUserStore } from '../store/userStore';
 
-import { Save, Upload, ArchiveRestore, BookOpen } from 'lucide-react';
+import { Save, Upload, ArchiveRestore, BookOpen, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { CellPickerOverlay } from '../components/editor/ruleBuilder/CellPickerOverlay';
 
 // Lazy-loaded heavy components
@@ -91,10 +91,11 @@ function SidePanel({ puzzle, showInfo, setShowInfo, activeEngine, validationResu
   activeEngine: any; validationResults: { rule: string; isValid: boolean; message?: string }[];
   isComplete: boolean; flipped?: boolean;
 }) {
+  const togglePanelFlip = useEditorViewStore((s) => s.togglePanelFlip);
   return (
     <div className={`h-full min-w-[300px] bg-gradient-to-b from-card to-background ${flipped ? 'border-r' : 'border-l'} border-border shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col`}>
-      <div className="shrink-0 px-3 pt-2 pb-1 flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-muted-foreground truncate">
+      <div className="shrink-0 px-3 pt-2 pb-1 flex items-center gap-1.5">
+        <span className="text-[11px] font-semibold text-muted-foreground truncate flex-1">
           {puzzle?.title}
         </span>
         <Button
@@ -105,6 +106,15 @@ function SidePanel({ puzzle, showInfo, setShowInfo, activeEngine, validationResu
         >
           <BookOpen className="w-3 h-3" />
           Rules & Controls
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={togglePanelFlip}
+          title={flipped ? 'Move panel to right' : 'Move panel to left'}
+        >
+          {flipped ? <PanelRightOpen className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5" />}
         </Button>
       </div>
       <Tabs defaultValue="inventory" className="flex-1 min-h-0 flex flex-col gap-0 px-2 pb-2">
