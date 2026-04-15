@@ -17,17 +17,17 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Surface system */
-  --surface-overlay: oklch(0.13 0.005 285 / 0.8);
-  --surface-base: oklch(0.13 0.005 285);
-  --surface-raised: oklch(0.17 0.005 285);
-  --surface-panel: oklch(0.20 0.005 285);
-  --surface-sunken: oklch(0.11 0.005 285);
+  /* Surface system — rich saturated navy */
+  --surface-overlay: oklch(0.11 0.045 250 / 0.88);
+  --surface-base: oklch(0.11 0.045 250);
+  --surface-raised: oklch(0.17 0.055 250);
+  --surface-panel: oklch(0.22 0.06 250);
+  --surface-sunken: oklch(0.08 0.035 250);
 
-  /* Border hierarchy */
-  --border-subtle: oklch(0.24 0.005 285);
-  --border-default: oklch(0.28 0.005 285);
-  --border-strong: oklch(0.35 0.005 285);
+  /* Border hierarchy — blue-tinted */
+  --border-subtle: oklch(0.22 0.05 250);
+  --border-default: oklch(0.27 0.055 250);
+  --border-strong: oklch(0.34 0.06 250);
 
   /* Spacing scale */
   --space-xs: 0.25rem;
@@ -38,42 +38,46 @@
   --space-2xl: 2rem;
   --panel-padding: 0.875rem;
 
-  /* Dark theme as default — vibrant accent pops */
-  --background: oklch(0.13 0.005 285);
-  --foreground: oklch(0.95 0.005 285);
-  --card: oklch(0.17 0.005 285);
-  --card-foreground: oklch(0.95 0.005 285);
-  --popover: oklch(0.17 0.005 285);
-  --popover-foreground: oklch(0.95 0.005 285);
-  --primary: oklch(0.65 0.22 265);
+  /* Dark theme — rich saturated navy + blue + gold */
+  --background: oklch(0.11 0.045 250);
+  --foreground: oklch(0.88 0.02 240);
+  --card: oklch(0.17 0.055 250);
+  --card-foreground: oklch(0.88 0.02 240);
+  --popover: oklch(0.17 0.055 250);
+  --popover-foreground: oklch(0.88 0.02 240);
+  --primary: oklch(0.62 0.18 250);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.22 0.005 285);
-  --secondary-foreground: oklch(0.95 0.005 285);
-  --muted: oklch(0.25 0.005 285);
-  --muted-foreground: oklch(0.67 0.01 285);
-  --accent: oklch(0.65 0.22 265);
-  --accent-foreground: oklch(0.98 0 0);
-  --destructive: oklch(0.62 0.22 25);
-  --border: oklch(0.28 0.005 285);
-  --input: oklch(0.28 0.005 285);
-  --ring: oklch(0.65 0.22 265);
+  --secondary: oklch(0.16 0.05 250);
+  --secondary-foreground: oklch(0.88 0.02 240);
+  --muted: oklch(0.20 0.05 250);
+  --muted-foreground: oklch(0.55 0.03 240);
+  --accent: oklch(0.75 0.16 75);
+  --accent-foreground: oklch(0.12 0.02 75);
+  --destructive: oklch(0.50 0.18 25);
+  --border: oklch(0.24 0.05 250);
+  --input: oklch(0.19 0.05 250);
+  --ring: oklch(0.62 0.18 250);
 
   /* Charts */
-  --chart-1: oklch(0.65 0.22 265);
+  --chart-1: oklch(0.60 0.16 255);
   --chart-2: oklch(0.65 0.17 162);
-  --chart-3: oklch(0.75 0.19 70);
+  --chart-3: oklch(0.72 0.14 70);
   --chart-4: oklch(0.63 0.26 304);
   --chart-5: oklch(0.65 0.24 16);
 
-  /* Sidebar */
-  --sidebar: oklch(0.15 0.005 285);
-  --sidebar-foreground: oklch(0.95 0.005 285);
-  --sidebar-primary: oklch(0.65 0.22 265);
+  /* Sidebar — slightly lighter navy */
+  --sidebar: oklch(0.13 0.05 250);
+  --sidebar-foreground: oklch(0.88 0.02 240);
+  --sidebar-primary: oklch(0.62 0.18 250);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.22 0.005 285);
-  --sidebar-accent-foreground: oklch(0.95 0.005 285);
-  --sidebar-border: oklch(0.28 0.005 285);
-  --sidebar-ring: oklch(0.65 0.22 265);
+  --sidebar-accent: oklch(0.20 0.06 250);
+  --sidebar-accent-foreground: oklch(0.88 0.02 240);
+  --sidebar-border: oklch(0.22 0.05 250);
+  --sidebar-ring: oklch(0.62 0.18 250);
+
+  /* Gold accent — bright yellow-gold like reference */
+  --gold: oklch(0.78 0.17 80);
+  --gold-foreground: oklch(0.15 0.03 80);
 }
 
 @theme inline {
@@ -134,6 +138,10 @@
   --color-lego-dark-tan: #958A73;
   --color-lego-coral: #FF879C;
 
+  /* Gold accent */
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+
   /* Semantic colors */
   --color-success: oklch(0.65 0.2 155);
   --color-success-foreground: oklch(0.98 0 0);
@@ -152,8 +160,9 @@
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(circle at 20% 0%, oklch(0.60 0.18 265 / 0.12), transparent 38%),
-      radial-gradient(circle at 80% 100%, oklch(0.42 0.20 295 / 0.12), transparent 34%);
+      radial-gradient(ellipse at 20% 0%, oklch(0.28 0.12 245 / 0.30), transparent 50%),
+      radial-gradient(ellipse at 80% 0%, oklch(0.22 0.10 260 / 0.20), transparent 40%),
+      radial-gradient(ellipse at 50% 100%, oklch(0.18 0.08 235 / 0.18), transparent 50%);
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -166,6 +175,91 @@ html, body, #root {
   height: 100%;
   overflow: hidden;
 }
+
+/* ─── Animated Lego Background ─── */
+@keyframes lego-wander {
+  0%   { transform: translate(0, 0) rotate(var(--r0, 0deg)); }
+  25%  { transform: translate(var(--dx1, 20px), var(--dy1, -30px)) rotate(var(--r1, 15deg)); }
+  50%  { transform: translate(var(--dx2, -15px), var(--dy2, 20px)) rotate(var(--r2, -10deg)); }
+  75%  { transform: translate(var(--dx3, 25px), var(--dy3, 10px)) rotate(var(--r3, 20deg)); }
+  100% { transform: translate(0, 0) rotate(var(--r0, 0deg)); }
+}
+
+.lego-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  /* Children (bricks) opt-in to pointer events individually */
+}
+.lego-bg-brick {
+  position: absolute;
+  border-radius: 4px;
+  left: var(--x, 10%);
+  top: var(--y, 10%);
+  width: var(--w, 40px);
+  aspect-ratio: var(--ar, 2/1);
+  opacity: var(--brick-opacity, 0.13);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  animation: lego-wander var(--dur, 30s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+/* Lego stud circles on brick */
+.lego-bg-brick::before,
+.lego-bg-brick::after {
+  content: '';
+  position: absolute;
+  top: -25%;
+  width: 35%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: inherit;
+  filter: brightness(1.2);
+  box-shadow: inset 0 -1px 2px rgba(0,0,0,0.2);
+}
+.lego-bg-brick::before { left: 15%; }
+.lego-bg-brick::after { right: 15%; }
+/* Single-stud bricks (1x1) */
+.lego-bg-brick[data-studs="1"]::before { display: none; }
+.lego-bg-brick[data-studs="1"]::after { left: 50%; right: auto; transform: translateX(-50%); }
+
+/* Interactive brick (positioned via JS transform, GPU-composited) */
+.lego-bg-brick-interactive {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 4px;
+  width: var(--w, 40px);
+  aspect-ratio: var(--ar, 2/1);
+  opacity: 0.13;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  will-change: transform;
+  contain: layout style size;
+  backface-visibility: hidden;
+}
+.lego-bg-brick-interactive.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+  z-index: 50;
+}
+.lego-bg-brick-interactive::before,
+.lego-bg-brick-interactive::after {
+  content: '';
+  position: absolute;
+  top: -25%;
+  width: 35%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: inherit;
+  filter: brightness(1.2);
+}
+.lego-bg-brick-interactive::before { left: 15%; }
+.lego-bg-brick-interactive::after { right: 15%; }
+.lego-bg-brick-interactive[data-studs="1"]::before { display: none; }
+.lego-bg-brick-interactive[data-studs="1"]::after { left: 50%; right: auto; transform: translateX(-50%); }
 
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }

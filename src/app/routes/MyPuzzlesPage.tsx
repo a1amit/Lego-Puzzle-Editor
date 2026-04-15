@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { Plus, Pencil, Eye, Trash2, FileText, ArrowLeft } from 'lucide-react';
+import { Plus, Pencil, Eye, Trash2, FileText, FolderOpen } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { Badge } from '../../components/ui/shadcn/badge';
 import { useAppAuth } from '../../auth/AuthProvider';
@@ -19,9 +19,9 @@ interface PuzzleEntry {
   publishedAt: string | null;
 }
 
-const STATUS_STYLES: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
+const STATUS_STYLES: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; className?: string }> = {
   draft: { label: 'Draft', variant: 'secondary' },
-  published: { label: 'Published', variant: 'default' },
+  published: { label: 'Published', variant: 'default', className: 'bg-success/15 text-success border-success/20' },
   unlisted: { label: 'Unlisted', variant: 'outline' },
   archived: { label: 'Archived', variant: 'outline' },
 };
@@ -56,7 +56,6 @@ export default function MyPuzzlesPage() {
 
   const handleDelete = (slug: string) => {
     if (deletingSlug === slug) {
-      // Confirmed — actually delete
       setDeletingSlug(null);
       toast.promise(
         (async () => {
@@ -85,58 +84,61 @@ export default function MyPuzzlesPage() {
 
   if (!isSignedIn) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+      <div className="px-4 sm:px-6 py-12 text-center">
         <h2 className="text-xl font-semibold text-foreground">Sign in to manage your puzzles</h2>
         <Button asChild variant="outline" className="mt-4">
-          <Link to="/"><ArrowLeft className="h-4 w-4 mr-2" />Back to Gallery</Link>
+          <Link to="/">Back to Gallery</Link>
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="px-4 sm:px-6 py-6">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/"><ArrowLeft className="h-4 w-4" /></Link>
-          </Button>
-          <h1 className="text-2xl font-bold text-foreground">My Puzzles</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
+              <FolderOpen className="h-5 w-5 text-primary" />
+            </div>
+            My Puzzles
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">{puzzles.length} puzzle{puzzles.length !== 1 ? 's' : ''} created</p>
         </div>
-        <Button onClick={() => navigate('/create')} size="sm" className="gap-1.5">
+        <Button onClick={() => navigate('/create')} size="sm" className="gap-1.5 bg-gold text-gold-foreground hover:bg-gold/90 font-semibold">
           <Plus className="h-4 w-4" />New Puzzle
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 rounded-xl bg-card border border-border animate-pulse" />
+            <div key={i} className="h-[72px] rounded-xl bg-card border border-border animate-pulse" />
           ))}
         </div>
       ) : puzzles.length === 0 ? (
         <div className="rounded-xl bg-card/50 border border-dashed border-border p-12 text-center">
           <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground mb-4">You haven't created any puzzles yet.</p>
-          <Button onClick={() => navigate('/create')}>
-            <Plus className="h-4 w-4 mr-2" />Create Your First Puzzle
+          <Button onClick={() => navigate('/create')} className="gap-2 bg-gold text-gold-foreground hover:bg-gold/90">
+            <Plus className="h-4 w-4" />Create Your First Puzzle
           </Button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {puzzles.map((p) => {
             const style = STATUS_STYLES[p.status] || STATUS_STYLES.draft;
             return (
               <div
                 key={p._id}
-                className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors"
+                className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors group"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-semibold text-foreground truncate">
+                    <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                       {p.definition?.title || p.slug}
                     </p>
-                    <Badge variant={style.variant} className="text-[10px] shrink-0">
+                    <Badge variant={style.variant} className={`text-[10px] shrink-0 ${style.className || ''}`}>
                       {style.label}
                     </Badge>
                   </div>
@@ -153,11 +155,11 @@ export default function MyPuzzlesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
                     onClick={() => navigate(`/puzzle/${p.slug}`)}
                     title="Preview"
                   >
@@ -166,7 +168,7 @@ export default function MyPuzzlesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
                     onClick={() => navigate(`/puzzle/${p.slug}/edit`)}
                     title="Edit"
                   >
@@ -175,7 +177,7 @@ export default function MyPuzzlesPage() {
                   <Button
                     variant={deletingSlug === p.slug ? 'destructive' : 'ghost'}
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className={`h-8 w-8 p-0 ${deletingSlug !== p.slug ? 'hover:bg-destructive/10 hover:text-destructive' : ''}`}
                     onClick={() => handleDelete(p.slug)}
                     title={deletingSlug === p.slug ? 'Click again to confirm' : 'Delete'}
                   >

@@ -5,12 +5,26 @@ import {
   TooltipTrigger,
 } from './shadcn/tooltip';
 
-export function XPBar() {
+export function XPBar({ compact = false }: { compact?: boolean }) {
   const profile = useUserStore((s) => s.profile);
   const levelTitle = useUserStore((s) => s.levelTitle);
   const levelProgress = useUserStore((s) => s.levelProgress);
 
   if (!profile) return null;
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <span className="text-[10px] font-bold text-primary">Lv.{profile.level}</span>
+        <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500"
+            style={{ width: `${Math.min(100, levelProgress * 100)}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Tooltip>

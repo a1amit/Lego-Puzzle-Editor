@@ -5,7 +5,7 @@ import { ResizablePanels } from '../components/layout/ResizablePanels';
 import { PuzzleRenderer, ViewModeIndicator } from '../components/renderer';
 import { InventoryPanel } from '../components/ui/InventoryPanel';
 import { ValidationPanel } from '../components/ui/ValidationPanel';
-import { PuzzleInfoPanel } from '../components/ui/PuzzleInfoPanel';
+import { PuzzleInfoPopup } from '../components/ui/PuzzleInfoPopup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/shadcn/tabs';
 import { Button } from '../components/ui/shadcn/button';
 import { useQueryClient } from '@tanstack/react-query';
@@ -18,7 +18,7 @@ import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../config/puzzleCategories';
 import { recordCompletion } from '../store/completionTracker';
 import { useUserStore } from '../store/userStore';
 
-import { Save, Upload, ArchiveRestore } from 'lucide-react';
+import { Save, Upload, ArchiveRestore, BookOpen, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { CellPickerOverlay } from '../components/editor/ruleBuilder/CellPickerOverlay';
 
 // Lazy-loaded heavy components
@@ -68,6 +68,80 @@ function EditorPanel() {
   );
 }
 
+function RendererPanel({ is2D, engine, viewMode }: { is2D: boolean; engine: ReturnType<typeof usePuzzleEngine>; viewMode: '2D' | '3D' }) {
+  return (
+    <div className="h-full bg-[radial-gradient(circle_at_30%_20%,rgba(101,143,222,0.16),rgba(8,12,20,0.15)_35%,rgba(8,12,20,0.9)_100%)] relative">
+      {is2D ? (
+        <PuzzleRenderer engine={engine} />
+      ) : (
+        <Suspense fallback={<SceneSkeleton />}>
+          <PuzzleScene />
+        </Suspense>
+      )}
+      <div className="absolute top-3 right-3 z-10">
+        <ViewModeIndicator viewMode={viewMode} />
+      </div>
+      <CellPickerOverlay />
+    </div>
+  );
+}
+
+function SidePanel({ puzzle, showInfo, setShowInfo, activeEngine, validationResults, isComplete, flipped }: {
+  puzzle: any; showInfo: boolean; setShowInfo: (v: boolean) => void;
+  activeEngine: any; validationResults: { rule: string; isValid: boolean; message?: string }[];
+  isComplete: boolean; flipped?: boolean;
+}) {
+  const togglePanelFlip = useEditorViewStore((s) => s.togglePanelFlip);
+  return (
+    <div className={`h-full min-w-[300px] bg-gradient-to-b from-card to-background ${flipped ? 'border-r' : 'border-l'} border-border shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col`}>
+      <div className="shrink-0 px-3 pt-2 pb-1 flex items-center gap-1.5">
+        <span className="text-[11px] font-semibold text-muted-foreground truncate flex-1">
+          {puzzle?.title}
+        </span>
+        <Button
+          variant={showInfo ? 'default' : 'outline'}
+          size="sm"
+          className="h-7 text-[11px] gap-1.5 shrink-0"
+          onClick={() => setShowInfo(!showInfo)}
+        >
+          <BookOpen className="w-3 h-3" />
+          Rules & Controls
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={togglePanelFlip}
+          title={flipped ? 'Move panel to right' : 'Move panel to left'}
+        >
+          {flipped ? <PanelRightOpen className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5" />}
+        </Button>
+      </div>
+      <Tabs defaultValue="inventory" className="flex-1 min-h-0 flex flex-col gap-0 px-2 pb-2">
+        <div className="shrink-0 pb-1.5">
+          <TabsList variant="line" className="w-full h-9 grid grid-cols-2 rounded-lg bg-[var(--surface-raised)] border border-border">
+            <TabsTrigger value="inventory" className="text-xs">Inventory</TabsTrigger>
+            <TabsTrigger value="validation" className="text-xs gap-1.5">
+              Validation
+              {validationResults.length > 0 && (
+                <span className={`text-[9px] font-mono px-1 py-0 rounded ${isComplete ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
+                  {validationResults.filter(r => r.isValid).length}/{validationResults.length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="inventory" className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+          <InventoryPanel className="h-full" engine={activeEngine} />
+        </TabsContent>
+        <TabsContent value="validation" className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+          <ValidationPanel className="h-full" engine={activeEngine} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 function PreviewPanel() {
   const puzzle = usePuzzleStore((s) => s.puzzle);
   const storeIsComplete = usePuzzleStore((s) => s.isComplete);
@@ -89,11 +163,15 @@ function PreviewPanel() {
     engine.loadPuzzle(puzzle);
   }
 
+  const storeValidationResults = usePuzzleStore((s) => s.validationResults);
   const activeEngine = is2D ? engine : undefined;
+  const validationResults = activeEngine ? activeEngine.validationResults : storeValidationResults;
   const isComplete = activeEngine ? activeEngine.isComplete : storeIsComplete;
   const moveCount = activeEngine ? activeEngine.moveCount : storeMoveCount;
+  const panelFlipped = useEditorViewStore((s) => s.panelFlipped);
   const [showCongrats, setShowCongrats] = useState(false);
   const [completionXP, setCompletionXP] = useState(0);
+  const [showInfo, setShowInfo] = useState(false);
   const prevCompleteRef = useRef(false);
   const solveStartRef = useRef(Date.now());
   const activePuzzleTitleRef = useRef<string | undefined>(undefined);
@@ -164,46 +242,20 @@ function PreviewPanel() {
 
   return (
     <>
-      <ResizablePanels direction="horizontal" defaultSize={70} minSize={40} maxSize={82}>
-        <div className="h-full bg-[radial-gradient(circle_at_30%_20%,rgba(101,143,222,0.16),rgba(8,12,20,0.15)_35%,rgba(8,12,20,0.9)_100%)] relative">
-          {is2D ? (
-            <PuzzleRenderer engine={engine} />
-          ) : (
-            <Suspense fallback={<SceneSkeleton />}>
-              <PuzzleScene />
-            </Suspense>
-          )}
-          <div className="absolute top-3 right-3 z-10">
-            <ViewModeIndicator viewMode={viewMode} />
-          </div>
-          <CellPickerOverlay />
-        </div>
-        <div className="h-full min-w-[320px] bg-gradient-to-b from-card to-background border-l border-border shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-          <ResizablePanels direction="vertical" defaultSize={58} minSize={32} maxSize={78}>
-            <div className="h-full p-2 pb-1">
-              <Tabs defaultValue="inventory" className="h-full gap-0">
-                <div className="px-1 pb-2">
-                  <TabsList variant="line" className="w-full h-9 grid grid-cols-2 rounded-lg bg-[var(--surface-raised)] border border-border">
-                    <TabsTrigger value="inventory" className="text-xs">Inventory</TabsTrigger>
-                    <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
-                  </TabsList>
-                </div>
-                <TabsContent value="inventory" className="min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-                  <InventoryPanel className="h-full" engine={activeEngine} />
-                </TabsContent>
-                <TabsContent value="info" className="min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-                  <PuzzleInfoPanel className="h-full" engine={activeEngine} />
-                </TabsContent>
-              </Tabs>
-            </div>
-            <div className="h-full p-2 pt-1">
-              <div className="h-full overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-                <ValidationPanel className="h-full" engine={activeEngine} />
-              </div>
-            </div>
-          </ResizablePanels>
-        </div>
+      <ResizablePanels direction="horizontal" defaultSize={panelFlipped ? 30 : 70} minSize={18} maxSize={82}>
+        {panelFlipped ? (
+          <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} flipped />
+        ) : (
+          <RendererPanel is2D={is2D} engine={engine} viewMode={viewMode} />
+        )}
+        {panelFlipped ? (
+          <RendererPanel is2D={is2D} engine={engine} viewMode={viewMode} />
+        ) : (
+          <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} />
+        )}
       </ResizablePanels>
+
+      <PuzzleInfoPopup isOpen={showInfo} onClose={() => setShowInfo(false)} engine={activeEngine} />
 
       <Suspense fallback={null}>
         {showCongrats && (
@@ -228,6 +280,16 @@ function findPuzzleBySlug(slug: string) {
     }
   }
   return null;
+}
+
+function SplitView() {
+  const panelFlipped = useEditorViewStore((s) => s.panelFlipped);
+  return (
+    <ResizablePanels direction="horizontal" defaultSize={panelFlipped ? 60 : 40} minSize={20} maxSize={70}>
+      {panelFlipped ? <PreviewPanel /> : <EditorPanel />}
+      {panelFlipped ? <EditorPanel /> : <PreviewPanel />}
+    </ResizablePanels>
+  );
 }
 
 interface PuzzleShellProps {
@@ -546,10 +608,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
       )}
       {mountedModes.has('split') && (
         <div className={`absolute inset-0 transition-opacity duration-150 ease-out ${viewMode === 'split' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
-          <ResizablePanels direction="horizontal" defaultSize={40} minSize={20} maxSize={70}>
-            <EditorPanel />
-            <PreviewPanel />
-          </ResizablePanels>
+          <SplitView />
         </div>
       )}
       {mountedModes.has('editor') && (

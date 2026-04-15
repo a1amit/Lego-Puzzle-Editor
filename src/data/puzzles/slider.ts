@@ -182,7 +182,7 @@ export const KLOTSKI_CROSSWAY: PuzzleDefinition =
  */
 export const PEN_CHALLENGE_PUZZLE: PuzzleDefinition = {
   title: "Pen Challenge",
-  description: "The pens show 1-2-3-4. Move exactly ONE pen to reverse the order to 4-3-2-1! Move the blue pen next to the pink pen.",
+  description: "The pens show 1-2-3-4. Move exactly ONE pen to reverse the order to 4-3-2-1! Think about which pen you can slide to change the grouping.",
   viewMode: "2D",
   board: {
     dimensions: { width: 13, height: 4, depth: 1 },

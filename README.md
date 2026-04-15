@@ -12,6 +12,8 @@ A community-driven puzzle platform where users create, solve, and share virtual 
 - **45+ Brick Shapes** — Tetrominoes, pentominoes, dominoes, and custom polyominoes
 - **Interactive Controls** — Click-to-select, click-to-place, right-click or R to rotate, undo/redo
 - **Real-time Validation** — Visual feedback with the extensible ValidationRegistry (strategy pattern)
+- **Floating Rules & Controls** — Draggable, resizable, minimizable popup with collapsible sections
+- **Flippable Layout** — Swap inventory/validation panel between left and right side
 
 ### Puzzle Types
 - **Coverage** — Fill the board completely with pieces
@@ -20,11 +22,13 @@ A community-driven puzzle platform where users create, solve, and share virtual 
 - **Nonogram / Picross** — Fill cells according to row/column number hints
 
 ### Community Platform
-- **User Profiles** — Sign up via Clerk (email, Google, passkeys)
-- **Puzzle Gallery** — Browse, search, and filter community puzzles by category, difficulty, and popularity
+- **User Profiles** — Sign up via Clerk (email, Google, passkeys), gamification profile with XP ring, stat cards, tier roadmap
+- **Puzzle Gallery** — Hero featured section, search, filter by category/difficulty/popularity, Lego-themed SVG thumbnails
+- **Sidebar Navigation** — Collapsible left sidebar with user profile, XP bar, and quick navigation
 - **Puzzle Creator** — Monaco editor with JSON schema intellisense, Zod validation, and live preview
 - **Publish & Share** — Publish puzzles for the community, track plays and completions
 - **Likes** — Like puzzles from other creators
+- **Interactive Background** — Animated Lego bricks you can grab and throw with physics
 
 ### Gamification
 - **XP System** — Earn XP for solving puzzles (easy: 50, medium: 100, hard: 200, expert: 400)
@@ -34,8 +38,8 @@ A community-driven puzzle platform where users create, solve, and share virtual 
 - **Creator Milestones** — Bonus XP when your puzzles reach 10 and 50 unique solvers
 
 ### AI Assistant
-- **Puzzle Helper** — Chat with an AI assistant for hints and puzzle-solving guidance
-- **Server-side Proxy** — API key stays secure, with automatic model fallback
+- **Puzzle Helper** — Chat with a Gemma 4 (31B) AI assistant for hints and puzzle-solving guidance
+- **Server-side Proxy** — Google AI API key stays secure on the server
 
 ## Quick Start
 
@@ -69,8 +73,8 @@ MONGODB_URI=mongodb+srv://...
 UPSTASH_REDIS_REST_URL=https://...
 UPSTASH_REDIS_REST_TOKEN=...
 
-# Optional — AI chat assistant
-OPENROUTER_API_KEY=sk-or-v1-...
+# Optional — AI chat assistant (Gemma 4 via Google AI Studio)
+GOOGLE_AI_API_KEY=AIza...
 
 # Optional — error tracking
 VITE_SENTRY_DSN=https://...@sentry.io/...
@@ -82,7 +86,7 @@ VITE_SENTRY_DSN=https://...@sentry.io/...
 src/
 ├── app/                    # Routing, layout, page components
 │   ├── router.tsx          # React Router with lazy-loaded routes
-│   ├── RootLayout.tsx      # Shell with header, modals, error boundary
+│   ├── RootLayout.tsx      # Shell with header, sidebar, animated background, modals
 │   ├── PuzzleShell.tsx     # Puzzle solving/editing container
 │   └── routes/             # GalleryPage, ProfilePage, LeaderboardPage, etc.
 ├── auth/                   # Clerk authentication provider (safe fallbacks)
@@ -90,13 +94,13 @@ src/
 │   ├── 3d/                 # Three.js scene, board, bricks (PuzzleScene)
 │   ├── renderer/           # 2D/3D renderer strategy (PuzzleRenderer)
 │   ├── gallery/            # Puzzle cards, grid, featured section
-│   ├── layout/             # Header, resizable panels
-│   └── ui/                 # Inventory, validation, chat, level-up, onboarding
+│   ├── layout/             # Header, sidebar, resizable panels
+│   └── ui/                 # Inventory, validation, chat, info popup, level-up, onboarding
 ├── engine/                 # View-agnostic puzzle engine (usePuzzleEngine)
 ├── hooks/                  # TanStack Query hooks (queries.ts)
 ├── lib/                    # Sentry (lazy-loaded)
-├── services/               # API client, gamification service, sound manager
-├── store/                  # Zustand stores (puzzle, user, gallery, gamification)
+├── services/               # API client, chat service, gamification, sound manager
+├── store/                  # Zustand stores (puzzle, user, gallery, gamification, editor view)
 ├── types/                  # TypeScript interfaces & Zod schemas
 └── validation/             # ValidationRegistry with built-in rules
 
@@ -125,6 +129,7 @@ scripts/                    # Migration scripts (fix-xp, fix-streaks, etc.)
 | **Auth** | Clerk (OAuth, passkeys) |
 | **Backend** | Hono (Vercel serverless, Node.js runtime) |
 | **Database** | MongoDB Atlas via Mongoose 9 |
+| **AI Chat** | Google Gemma 4 31B via Gemini API |
 | **Rate Limiting** | Upstash Redis |
 | **Testing** | Vitest, Testing Library |
 | **Monitoring** | Sentry (lazy-loaded), Vercel Analytics |

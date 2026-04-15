@@ -146,7 +146,8 @@ export function useLikeMutation() {
     mutationFn: (slug: string) => apiClient.post<{ liked: boolean }>(`/puzzles/${slug}/like`),
     onSuccess: (_data, slug) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.detail(slug) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all });
+      // Invalidate all puzzle list queries (both regular and infinite)
+      queryClient.invalidateQueries({ queryKey: ['puzzles'] });
     },
   });
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, SlidersHorizontal, Plus, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react';
+import { Search, SlidersHorizontal, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { PuzzleGrid, PuzzleGridSkeleton } from '../../components/gallery/PuzzleGrid';
 import { GalleryFilters } from '../../components/gallery/GalleryFilters';
@@ -32,8 +32,8 @@ function getLocalPuzzles(): GalleryPuzzle[] {
         viewMode: (p.is3D ? '3D' : '2D') as '2D' | '3D',
         board: { dimensions: p.puzzle.board.dimensions },
       },
-      createdAt: new Date().toISOString(),
-      publishedAt: new Date().toISOString(),
+      createdAt: '2024-01-01T00:00:00.000Z',
+      publishedAt: '2024-01-01T00:00:00.000Z',
     }))
   );
 }
@@ -51,6 +51,7 @@ export default function GalleryPage() {
   const [ownedSlugs, setOwnedSlugs] = useState<Set<string>>(new Set());
   const [solvedSlugs, setSolvedSlugs] = useState<Set<string>>(new Set());
   const [likedSlugs, setLikedSlugs] = useState<Set<string>>(new Set());
+  const [likeCountOverrides, setLikeCountOverrides] = useState<Record<string, number>>({});
   const likeMutation = useLikeMutation();
 
   // Debounced search
@@ -111,13 +112,13 @@ export default function GalleryPage() {
     })();
   }, [isSignedIn, getToken]);
 
-  // Merge local (built-in) puzzles with API puzzles, deduplicating by slug
+  // Merge local (built-in) puzzles with API puzzles, deduplicating by slug, then sort
   const allPuzzles = useMemo(() => {
     const apiSlugs = new Set(apiPuzzles.map(p => p.slug));
     const deduped = localPuzzles.filter(p => !apiSlugs.has(p.slug));
     const merged = [...deduped, ...apiPuzzles];
 
-    return merged.filter(p => {
+    const filtered = merged.filter(p => {
       if (p.isLegacy) {
         if (category && p.category !== category) return false;
         if (difficulty && p.difficulty !== difficulty) return false;
@@ -125,7 +126,26 @@ export default function GalleryPage() {
       }
       return true;
     });
-  }, [apiPuzzles, category, difficulty, search]);
+
+    // Apply client-side sorting to the full merged list
+    const DIFF_ORDER: Record<string, number> = { easy: 0, medium: 1, hard: 2, expert: 3 };
+    filtered.sort((a, b) => {
+      switch (sort) {
+        case 'newest':
+          return new Date(b.publishedAt || b.createdAt).getTime() - new Date(a.publishedAt || a.createdAt).getTime();
+        case 'popular':
+          return (b.stats.completions + b.stats.plays) - (a.stats.completions + a.stats.plays);
+        case 'likes':
+          return b.stats.likes - a.stats.likes;
+        case 'difficulty':
+          return (DIFF_ORDER[a.difficulty] ?? 2) - (DIFF_ORDER[b.difficulty] ?? 2);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [apiPuzzles, category, difficulty, search, sort]);
 
   // Pagination
   const localFilteredCount = allPuzzles.filter(p => p.isLegacy).length;
@@ -133,7 +153,13 @@ export default function GalleryPage() {
   const totalPages = Math.max(1, Math.ceil(estimatedTotal / PAGE_SIZE));
 
   const start = (currentPage - 1) * PAGE_SIZE;
-  const displayPuzzles = allPuzzles.slice(start, start + PAGE_SIZE);
+  const displayPuzzles = allPuzzles.slice(start, start + PAGE_SIZE).map(p => {
+    const override = likeCountOverrides[p.slug];
+    if (override !== undefined) {
+      return { ...p, stats: { ...p.stats, likes: override } };
+    }
+    return p;
+  });
 
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPages;
@@ -165,28 +191,35 @@ export default function GalleryPage() {
       toast.error('Sign in to like puzzles');
       return;
     }
-    // Optimistic update
+    const wasLiked = likedSlugs.has(slug);
+    // Optimistic toggle of liked state
     setLikedSlugs(prev => {
       const next = new Set(prev);
       if (next.has(slug)) next.delete(slug); else next.add(slug);
       return next;
     });
+    // Optimistic update of displayed like count
+    setLikeCountOverrides(prev => {
+      const current = prev[slug];
+      const base = current ?? (apiPuzzles.find(p => p.slug === slug)?.stats.likes ?? 0);
+      return { ...prev, [slug]: wasLiked ? Math.max(0, base - 1) : base + 1 };
+    });
     likeMutation.mutate(slug);
-  }, [isSignedIn, likeMutation]);
+  }, [isSignedIn, likeMutation, likedSlugs, apiPuzzles]);
 
   const categories = ['All', ...PUZZLE_CATEGORIES.map(c => c.category)];
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full">
       {/* Hero / Featured */}
       <FeaturedSection onPuzzleClick={handlePuzzleClick} solvedSlugs={solvedSlugs} />
 
       {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <div className="px-4 sm:px-6 pb-12">
         {/* Search + Filter bar */}
-        <div role="search" className="sticky top-0 z-20 bg-background/95 backdrop-blur-md py-4 border-b border-border mb-6">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-md">
+        <div role="search" className="sticky top-0 z-20 bg-background/90 backdrop-blur-lg py-3 border-b border-border mb-6 -mx-4 sm:-mx-6 px-4 sm:px-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
@@ -194,42 +227,32 @@ export default function GalleryPage() {
                 aria-label="Search puzzles"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full h-9 pl-9 pr-4 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full h-9 pl-9 pr-4 rounded-lg bg-secondary/80 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
               />
             </div>
 
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 h-9"
               aria-label="Toggle filters"
               onClick={() => setShowFilters(!showFilters)}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Filters
+              <span className="hidden sm:inline">Filters</span>
             </Button>
 
             <select
               value={sort}
               aria-label="Sort puzzles"
               onChange={(e) => setSort(e.target.value as SortOption)}
-              className="h-9 px-3 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="h-9 px-3 rounded-lg bg-secondary/80 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 hidden sm:block"
             >
               <option value="newest">Newest</option>
               <option value="popular">Popular</option>
               <option value="likes">Most Liked</option>
               <option value="difficulty">Difficulty</option>
             </select>
-
-            <Button
-              variant="default"
-              size="sm"
-              className="gap-2 shrink-0"
-              onClick={() => navigate('/create', { viewTransition: true })}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Create Puzzle</span>
-            </Button>
           </div>
 
           {showFilters && (

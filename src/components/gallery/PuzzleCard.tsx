@@ -10,6 +10,13 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   expert: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
+const DIFFICULTY_GLOW: Record<string, string> = {
+  easy: 'group-hover:shadow-green-500/10',
+  medium: 'group-hover:shadow-yellow-500/10',
+  hard: 'group-hover:shadow-orange-500/10',
+  expert: 'group-hover:shadow-red-500/10',
+};
+
 interface PuzzleCardProps {
   puzzle: GalleryPuzzle;
   onClick: (slug: string) => void;
@@ -28,31 +35,40 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
   return (
     <button
       onClick={() => onClick(puzzle.slug)}
-      className="group text-left w-full rounded-xl bg-card border border-border hover:border-primary/40 transition-all duration-200 overflow-hidden hover:shadow-lg hover:shadow-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/50"
+      className={`group text-left w-full rounded-xl bg-card border border-border hover:border-primary/40 transition-all duration-200 overflow-hidden hover:shadow-xl ${DIFFICULTY_GLOW[puzzle.difficulty] || 'group-hover:shadow-primary/5'} focus:outline-none focus:ring-2 focus:ring-primary/50`}
     >
       {/* Thumbnail */}
-      <div className="relative h-36 bg-gradient-to-br from-card to-background flex items-center justify-center overflow-hidden">
+      <div className="relative h-40 bg-gradient-to-br from-background via-card to-background flex items-center justify-center overflow-hidden">
         <PuzzleThumbnail
           dimensions={dimensions}
           viewMode={viewMode}
-          className="opacity-60 group-hover:opacity-80 transition-opacity"
+          className="opacity-50 group-hover:opacity-75 transition-opacity duration-300 scale-110 group-hover:scale-125"
         />
 
-        {/* View mode badge */}
-        <Badge className="absolute top-2 right-2 text-[10px] px-1.5 py-0 h-4 bg-background/80 text-foreground border-border">
-          {viewMode}
-        </Badge>
+        {/* Top badges row */}
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {puzzle.isLegacy && (
+              <Badge className="text-[10px] px-1.5 py-0 h-5 bg-gold/20 text-gold border-gold/30 font-semibold">
+                Classic
+              </Badge>
+            )}
+            <Badge className="text-[10px] px-1.5 py-0 h-5 bg-background/80 text-foreground/80 border-border backdrop-blur-sm">
+              {viewMode}
+            </Badge>
+          </div>
+          {isSolved && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-success bg-success/15 px-1.5 py-0.5 rounded-full border border-success/20">
+              <CheckCircle className="h-3 w-3" />Solved
+            </span>
+          )}
+        </div>
 
-        {/* Legacy badge */}
-        {puzzle.isLegacy && (
-          <Badge className="absolute top-2 left-2 text-[10px] px-1.5 py-0 h-4 bg-primary/20 text-primary border-primary/30">
-            Classic
-          </Badge>
-        )}
-
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Play className="h-8 w-8 text-primary/60" />
+        {/* Hover play overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 flex items-center justify-center">
+            <Play className="h-5 w-5 text-primary ml-0.5" />
+          </div>
         </div>
 
         {/* Edit button for owned puzzles */}
@@ -60,7 +76,7 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
           <div
             role="button"
             tabIndex={0}
-            className="absolute bottom-2 right-2 z-10 w-7 h-7 rounded-lg bg-background/90 border border-border hover:border-primary/50 hover:bg-primary/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            className="absolute bottom-2.5 right-2.5 z-10 w-8 h-8 rounded-lg bg-background/90 border border-border hover:border-primary/50 hover:bg-primary/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer backdrop-blur-sm"
             title="Edit puzzle"
             onClick={(e) => { e.stopPropagation(); onEdit(puzzle.slug); }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onEdit(puzzle.slug); } }}
@@ -68,20 +84,23 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
             <Pencil className="h-3.5 w-3.5 text-foreground" />
           </div>
         )}
+
+        {/* Bottom gradient */}
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-card to-transparent" />
       </div>
 
       {/* Info */}
-      <div className="p-3">
-        <div className="flex items-start justify-between gap-2 mb-1.5">
-          <h3 className="font-medium text-sm text-foreground truncate">
+      <div className="p-3.5">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h3 className="font-semibold text-sm text-foreground truncate group-hover:text-primary transition-colors">
             {title}
           </h3>
-          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 shrink-0 capitalize ${DIFFICULTY_COLORS[puzzle.difficulty] || ''}`}>
+          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 shrink-0 capitalize font-semibold ${DIFFICULTY_COLORS[puzzle.difficulty] || ''}`}>
             {puzzle.difficulty}
           </Badge>
         </div>
 
-        <p className="text-xs text-muted-foreground mb-2">
+        <p className="text-xs text-muted-foreground mb-3">
           by {puzzle.authorUsername}
         </p>
 
@@ -113,12 +132,7 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
               {puzzle.stats.likes}
             </span>
           )}
-          <span className="ml-auto flex items-center gap-2 text-[10px]">
-            {isSolved && (
-              <span className="flex items-center gap-0.5 font-semibold text-success">
-                <CheckCircle className="h-3 w-3" />Solved
-              </span>
-            )}
+          <span className="ml-auto text-[10px] text-muted-foreground/70">
             {dimensions.width}x{dimensions.height}
           </span>
         </div>
