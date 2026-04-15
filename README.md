@@ -34,8 +34,8 @@ A community-driven puzzle platform where users create, solve, and share virtual 
 - **Creator Milestones** — Bonus XP when your puzzles reach 10 and 50 unique solvers
 
 ### AI Assistant
-- **Puzzle Helper** — Chat with an AI assistant for hints and puzzle-solving guidance
-- **Server-side Proxy** — API key stays secure, with automatic model fallback
+- **Puzzle Helper** — Chat with a Gemma 4 (31B) AI assistant for hints and puzzle-solving guidance
+- **Server-side Proxy** — Google AI API key stays secure on the server
 
 ## Quick Start
 
@@ -69,8 +69,8 @@ MONGODB_URI=mongodb+srv://...
 UPSTASH_REDIS_REST_URL=https://...
 UPSTASH_REDIS_REST_TOKEN=...
 
-# Optional — AI chat assistant
-OPENROUTER_API_KEY=sk-or-v1-...
+# Optional — AI chat assistant (Gemma 4 via Google AI Studio)
+GOOGLE_AI_API_KEY=AIza...
 
 # Optional — error tracking
 VITE_SENTRY_DSN=https://...@sentry.io/...
@@ -90,8 +90,8 @@ src/
 │   ├── 3d/                 # Three.js scene, board, bricks (PuzzleScene)
 │   ├── renderer/           # 2D/3D renderer strategy (PuzzleRenderer)
 │   ├── gallery/            # Puzzle cards, grid, featured section
-│   ├── layout/             # Header, resizable panels
-│   └── ui/                 # Inventory, validation, chat, level-up, onboarding
+│   ├── layout/             # Header, sidebar, resizable panels
+│   └── ui/                 # Inventory, validation, chat, info popup, level-up, onboarding
 ├── engine/                 # View-agnostic puzzle engine (usePuzzleEngine)
 ├── hooks/                  # TanStack Query hooks (queries.ts)
 ├── lib/                    # Sentry (lazy-loaded)
@@ -125,6 +125,7 @@ scripts/                    # Migration scripts (fix-xp, fix-streaks, etc.)
 | **Auth** | Clerk (OAuth, passkeys) |
 | **Backend** | Hono (Vercel serverless, Node.js runtime) |
 | **Database** | MongoDB Atlas via Mongoose 9 |
+| **AI Chat** | Google Gemma 4 31B via Gemini API |
 | **Rate Limiting** | Upstash Redis |
 | **Testing** | Vitest, Testing Library |
 | **Monitoring** | Sentry (lazy-loaded), Vercel Analytics |

@@ -215,25 +215,30 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
             </>
           )}
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant={isChatOpen ? 'default' : 'ghost'} size="sm" className="gap-2 h-8" onClick={onChatToggle}>
-                <div className="w-5 h-5"><LegoHelperIcon className="w-full h-full" /></div>
-                <span className="text-xs font-medium hidden md:inline">Assistant</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Puzzle Assistant</TooltipContent>
-          </Tooltip>
+          {/* Assistant + Guide — only on puzzle routes */}
+          {isPuzzleRoute && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant={isChatOpen ? 'default' : 'ghost'} size="sm" className="gap-2 h-8" onClick={onChatToggle}>
+                    <div className="w-5 h-5"><LegoHelperIcon className="w-full h-full" /></div>
+                    <span className="text-xs font-medium hidden md:inline">Assistant</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Puzzle Assistant</TooltipContent>
+              </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2 h-8" onClick={onShowInstructions}>
-                <BookOpen className="h-4 w-4" />
-                <span className="text-xs hidden md:inline">Guide</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Puzzle Creator Guide</TooltipContent>
-          </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2 h-8" onClick={onShowInstructions}>
+                    <BookOpen className="h-4 w-4" />
+                    <span className="text-xs hidden md:inline">Guide</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Puzzle Creator Guide</TooltipContent>
+              </Tooltip>
+            </>
+          )}
 
           {/* Show auth + XP on puzzle routes (sidebar handles these elsewhere) */}
           {isPuzzleRoute && (
@@ -294,13 +299,17 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={() => { onChatToggle(); setMobileMenuOpen(false); }} className="gap-3 py-2">
-              <div className="w-4 h-4"><LegoHelperIcon className="w-full h-full" /></div>
-              <span>Assistant</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { onShowInstructions(); setMobileMenuOpen(false); }} className="gap-3 py-2">
-              <BookOpen className="h-4 w-4" /><span>Guide</span>
-            </DropdownMenuItem>
+            {isPuzzleRoute && (
+              <>
+                <DropdownMenuItem onClick={() => { onChatToggle(); setMobileMenuOpen(false); }} className="gap-3 py-2">
+                  <div className="w-4 h-4"><LegoHelperIcon className="w-full h-full" /></div>
+                  <span>Assistant</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { onShowInstructions(); setMobileMenuOpen(false); }} className="gap-3 py-2">
+                  <BookOpen className="h-4 w-4" /><span>Guide</span>
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuItem asChild className="gap-3 py-2">
               <a href="https://github.com/a1amit/Lego-Puzzle-Editor" target="_blank" rel="noopener noreferrer">
                 <GithubIcon className="h-4 w-4" /><span>GitHub</span>

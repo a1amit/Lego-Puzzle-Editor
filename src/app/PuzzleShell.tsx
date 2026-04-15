@@ -5,7 +5,7 @@ import { ResizablePanels } from '../components/layout/ResizablePanels';
 import { PuzzleRenderer, ViewModeIndicator } from '../components/renderer';
 import { InventoryPanel } from '../components/ui/InventoryPanel';
 import { ValidationPanel } from '../components/ui/ValidationPanel';
-import { PuzzleInfoPanel } from '../components/ui/PuzzleInfoPanel';
+import { PuzzleInfoPopup } from '../components/ui/PuzzleInfoPopup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/shadcn/tabs';
 import { Button } from '../components/ui/shadcn/button';
 import { useQueryClient } from '@tanstack/react-query';
@@ -18,7 +18,7 @@ import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../config/puzzleCategories';
 import { recordCompletion } from '../store/completionTracker';
 import { useUserStore } from '../store/userStore';
 
-import { Save, Upload, ArchiveRestore } from 'lucide-react';
+import { Save, Upload, ArchiveRestore, BookOpen } from 'lucide-react';
 import { CellPickerOverlay } from '../components/editor/ruleBuilder/CellPickerOverlay';
 
 // Lazy-loaded heavy components
@@ -89,11 +89,14 @@ function PreviewPanel() {
     engine.loadPuzzle(puzzle);
   }
 
+  const storeValidationResults = usePuzzleStore((s) => s.validationResults);
   const activeEngine = is2D ? engine : undefined;
+  const validationResults = activeEngine ? activeEngine.validationResults : storeValidationResults;
   const isComplete = activeEngine ? activeEngine.isComplete : storeIsComplete;
   const moveCount = activeEngine ? activeEngine.moveCount : storeMoveCount;
   const [showCongrats, setShowCongrats] = useState(false);
   const [completionXP, setCompletionXP] = useState(0);
+  const [showInfo, setShowInfo] = useState(false);
   const prevCompleteRef = useRef(false);
   const solveStartRef = useRef(Date.now());
   const activePuzzleTitleRef = useRef<string | undefined>(undefined);
@@ -178,32 +181,49 @@ function PreviewPanel() {
           </div>
           <CellPickerOverlay />
         </div>
-        <div className="h-full min-w-[320px] bg-gradient-to-b from-card to-background border-l border-border shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-          <ResizablePanels direction="vertical" defaultSize={58} minSize={32} maxSize={78}>
-            <div className="h-full p-2 pb-1">
-              <Tabs defaultValue="inventory" className="h-full gap-0">
-                <div className="px-1 pb-2">
-                  <TabsList variant="line" className="w-full h-9 grid grid-cols-2 rounded-lg bg-[var(--surface-raised)] border border-border">
-                    <TabsTrigger value="inventory" className="text-xs">Inventory</TabsTrigger>
-                    <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
-                  </TabsList>
-                </div>
-                <TabsContent value="inventory" className="min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-                  <InventoryPanel className="h-full" engine={activeEngine} />
-                </TabsContent>
-                <TabsContent value="info" className="min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-                  <PuzzleInfoPanel className="h-full" engine={activeEngine} />
-                </TabsContent>
-              </Tabs>
+        <div className="h-full min-w-[300px] bg-gradient-to-b from-card to-background border-l border-border shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col">
+          {/* Info popup button */}
+          <div className="shrink-0 px-3 pt-2 pb-1 flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-muted-foreground truncate">
+              {puzzle?.title}
+            </span>
+            <Button
+              variant={showInfo ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 text-[11px] gap-1.5 shrink-0"
+              onClick={() => setShowInfo(!showInfo)}
+            >
+              <BookOpen className="w-3 h-3" />
+              Rules & Controls
+            </Button>
+          </div>
+
+          {/* Full-height tabs: Inventory | Validation */}
+          <Tabs defaultValue="inventory" className="flex-1 min-h-0 flex flex-col gap-0 px-2 pb-2">
+            <div className="shrink-0 pb-1.5">
+              <TabsList variant="line" className="w-full h-9 grid grid-cols-2 rounded-lg bg-[var(--surface-raised)] border border-border">
+                <TabsTrigger value="inventory" className="text-xs">Inventory</TabsTrigger>
+                <TabsTrigger value="validation" className="text-xs gap-1.5">
+                  Validation
+                  {validationResults.length > 0 && (
+                    <span className={`text-[9px] font-mono px-1 py-0 rounded ${isComplete ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
+                      {validationResults.filter(r => r.isValid).length}/{validationResults.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
             </div>
-            <div className="h-full p-2 pt-1">
-              <div className="h-full overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-                <ValidationPanel className="h-full" engine={activeEngine} />
-              </div>
-            </div>
-          </ResizablePanels>
+            <TabsContent value="inventory" className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+              <InventoryPanel className="h-full" engine={activeEngine} />
+            </TabsContent>
+            <TabsContent value="validation" className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+              <ValidationPanel className="h-full" engine={activeEngine} />
+            </TabsContent>
+          </Tabs>
         </div>
       </ResizablePanels>
+
+      <PuzzleInfoPopup isOpen={showInfo} onClose={() => setShowInfo(false)} engine={activeEngine} />
 
       <Suspense fallback={null}>
         {showCongrats && (

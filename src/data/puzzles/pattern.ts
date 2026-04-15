@@ -51,7 +51,7 @@ export const BINARY_PUZZLE: PuzzleDefinition = {
 
 export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
   title: "Binary Safe: Deserted Island",
-  description: "You're stranded on a deserted island and need to call for help! A rescue plane that only understands binary is flying overhead \u2014 spell out your distress signal!",
+  description: "You're stranded on a deserted island and need to call for help! A rescue plane that only understands binary is flying overhead \u2014 spell out your distress signal! Place black bricks for 0 and white bricks for 1.",
   viewMode: "2D",
   board: {
     dimensions: { width: 8, height: 3, depth: 1 },
@@ -89,7 +89,7 @@ export const BINARY_PUZZLE_SOS: PuzzleDefinition = {
 
 export const BINARY_PUZZLE_BUILDING_BLOCKS: PuzzleDefinition = {
   title: "Binary Safe: Building Blocks",
-  description: "Countless pieces that snap into place, creating anything imagination allows. We break apart yet never truly break. Spell our name in binary to unlock the safe!",
+  description: "Countless pieces that snap into place, creating anything imagination allows. We break apart yet never truly break. Spell our name in binary to unlock the safe! Black bricks = 0, white bricks = 1.",
   viewMode: "2D",
   board: {
     dimensions: { width: 8, height: 4, depth: 1 },

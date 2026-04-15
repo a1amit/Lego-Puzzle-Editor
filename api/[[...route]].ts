@@ -707,32 +707,69 @@ app.get('/leaderboard', async (c) => {
   const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
   const skip = (pageNum - 1) * limitNum;
 
-  let dateFilter: Record<string, unknown> = {};
-  if (window === 'weekly') {
-    const d = new Date(); d.setDate(d.getDate() - 7);
-    dateFilter = { lastSolveDate: { $gte: d } };
-  } else if (window === 'monthly') {
-    const d = new Date(); d.setMonth(d.getMonth() - 1);
-    dateFilter = { lastSolveDate: { $gte: d } };
+  // All-time: sort by total XP on the User model
+  if (window === 'all') {
+    const [users, total] = await Promise.all([
+      User.find({})
+        .sort({ xp: -1, puzzlesCompleted: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .select('username displayName avatarUrl xp level puzzlesCompleted puzzlesCreated streakDays')
+        .lean(),
+      User.countDocuments({}),
+    ]);
+    return c.json({
+      entries: users.map((user, i) => ({ rank: skip + i + 1, ...user })),
+      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
+    });
   }
 
-  const [users, total] = await Promise.all([
-    User.find({ ...dateFilter })
-      .sort({ xp: -1, puzzlesCompleted: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .select('username displayName avatarUrl xp level puzzlesCompleted puzzlesCreated streakDays')
-      .lean(),
-    User.countDocuments({ ...dateFilter }),
+  // Weekly / Monthly: aggregate XP earned within the time window from Completions
+  const since = new Date();
+  if (window === 'weekly') since.setDate(since.getDate() - 7);
+  else since.setMonth(since.getMonth() - 1);
+
+  const { Completion } = await import('./_lib/models/Completion.js');
+
+  const agg = await Completion.aggregate([
+    { $match: { completedAt: { $gte: since } } },
+    { $group: {
+      _id: '$userId',
+      periodXp: { $sum: '$xpEarned' },
+      periodSolves: { $sum: 1 },
+    }},
+    { $sort: { periodXp: -1, periodSolves: -1 } },
+    { $skip: skip },
+    { $limit: limitNum },
+    { $lookup: {
+      from: 'users',
+      localField: '_id',
+      foreignField: '_id',
+      as: 'user',
+    }},
+    { $unwind: '$user' },
+    { $project: {
+      _id: '$user._id',
+      username: '$user.username',
+      displayName: '$user.displayName',
+      avatarUrl: '$user.avatarUrl',
+      xp: '$periodXp',
+      level: '$user.level',
+      puzzlesCompleted: '$periodSolves',
+      puzzlesCreated: '$user.puzzlesCreated',
+      streakDays: '$user.streakDays',
+    }},
   ]);
 
-  const entries = users.map((user, index) => ({
-    rank: skip + index + 1,
-    ...user,
-  }));
+  const totalAgg = await Completion.aggregate([
+    { $match: { completedAt: { $gte: since } } },
+    { $group: { _id: '$userId' } },
+    { $count: 'total' },
+  ]);
+  const total = totalAgg[0]?.total ?? 0;
 
   return c.json({
-    entries,
+    entries: agg.map((u: Record<string, unknown>, i: number) => ({ rank: skip + i + 1, ...u })),
     pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
   });
 });
@@ -750,53 +787,62 @@ app.post('/chat', async (c) => {
   }
   const { messages } = body;
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) return c.json({ error: 'Chat service not configured' }, 503);
 
-  const openRouterUrl = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
-  const primaryModel = process.env.CHAT_MODEL || 'qwen/qwen3.6-plus:free';
-  const fallbackModel = process.env.CHAT_FALLBACK_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free';
-  const lastResortModel = 'openrouter/free';
+  const model = process.env.CHAT_MODEL || 'gemma-4-31b-it';
   const maxTokens = parseInt(process.env.CHAT_MAX_TOKENS || '1000');
   const temperature = parseFloat(process.env.CHAT_TEMPERATURE || '0.7');
 
-  async function callModel(modelId: string) {
-    const res = await fetch(openRouterUrl, {
+  // Convert OpenAI-style messages to Gemini API contents format
+  const chatMessages = messages as { role: string; content: string }[];
+  const systemParts = chatMessages.filter(m => m.role === 'system').map(m => m.content);
+  const conversationMessages = chatMessages.filter(m => m.role !== 'system');
+
+  const contents = conversationMessages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173',
-        'X-Title': 'Virtual Lego Puzzle Editor',
-      },
-      body: JSON.stringify({ model: modelId, messages, max_tokens: maxTokens, temperature }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        ...(systemParts.length > 0 && {
+          systemInstruction: { parts: [{ text: systemParts.join('\n') }] },
+        }),
+        generationConfig: {
+          maxOutputTokens: maxTokens,
+          temperature,
+        },
+      }),
     });
+
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error((err as { error?: { message?: string } }).error?.message || `API error: ${res.status}`);
+      const errMsg = (err as { error?: { message?: string } }).error?.message || `API error: ${res.status}`;
+      return c.json({ success: false, error: errMsg }, 500);
     }
-    const data = await res.json();
-    return (data as { choices?: { message?: { content?: string } }[] }).choices?.[0]?.message?.content || '';
-  }
 
-  const models = [primaryModel, fallbackModel, lastResortModel].filter(
-    (m, i, arr) => arr.indexOf(m) === i,
-  );
+    const data = await res.json() as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-  for (let i = 0; i < models.length; i++) {
-    try {
-      const content = await callModel(models[i]);
-      if (content) return c.json({ success: true, message: content });
-    } catch (error) {
-      if (i === models.length - 1) {
-        return c.json({
-          success: false,
-          error: error instanceof Error ? error.message : 'Chat service error',
-        }, 500);
-      }
+    if (!content) {
+      return c.json({ success: false, error: 'Model returned empty response' }, 500);
     }
+
+    return c.json({ success: true, message: content });
+  } catch (error) {
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Chat service error',
+    }, 500);
   }
-  return c.json({ success: false, error: 'All models returned empty responses' }, 500);
 });
 
 // ---------------------------------------------------------------------------
