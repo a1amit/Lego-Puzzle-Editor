@@ -51,7 +51,7 @@ import { useClerk } from '@clerk/react';
 function LegoLogo({ className = "w-8 h-8" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 32 32" fill="none">
-      <rect x="1" y="1" width="30" height="30" rx="6" fill="oklch(0.17 0.005 285)" />
+      <rect x="1" y="1" width="30" height="30" rx="6" fill="oklch(0.17 0.055 250)" />
       <rect x="3" y="3" width="12" height="12" rx="2.5" fill="#D01012" />
       <ellipse cx="9" cy="7" rx="3" ry="1.5" fill="#D01012" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" />
       <rect x="17" y="3" width="12" height="12" rx="2.5" fill="#F5CD2F" />
@@ -157,29 +157,31 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
   const handleRedo = () => usePuzzleStore.getState().redo();
 
   return (
-    <header className="relative h-12 md:h-14 bg-background/95 backdrop-blur-md border-b border-[var(--border-subtle)] flex items-center px-4 z-40">
-      {/* Left: Logo + Nav */}
+    <header className="relative h-12 md:h-14 bg-[var(--surface-raised)]/80 backdrop-blur-md border-b border-[var(--border-subtle)] flex items-center px-4 z-40">
+      {/* Left: Logo (mobile always, desktop only on puzzle routes) + Puzzle title */}
       <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
-        <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+        <Link to="/" className={`flex items-center gap-2.5 hover:opacity-80 transition-opacity ${!isPuzzleRoute ? 'md:hidden' : ''}`}>
           <LegoLogo className="w-8 h-8" />
-          <span className="font-semibold text-lg text-foreground tracking-tight hidden sm:inline">
-            Virtual Lego
-          </span>
+          {isPuzzleRoute && (
+            <span className="font-semibold text-lg text-foreground tracking-tight hidden sm:inline">
+              Virtual Lego
+            </span>
+          )}
         </Link>
 
-        <div className="h-6 w-px bg-[var(--border-subtle)] hidden sm:block" />
+        {!isPuzzleRoute && (
+          <nav className="hidden sm:flex items-center">
+            {/* On non-puzzle pages, sidebar handles nav — header just shows page context */}
+          </nav>
+        )}
 
-        <nav className="hidden sm:flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs gap-1.5" asChild>
-            <Link to="/"><Home className="h-3.5 w-3.5" />Gallery</Link>
-          </Button>
-          <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs gap-1.5" asChild>
-            <Link to="/leaderboard"><Trophy className="h-3.5 w-3.5" />Ranks</Link>
-          </Button>
-        </nav>
-
-        {isPuzzleRoute && puzzle && (
-          <span className="text-xs text-muted-foreground truncate max-w-[120px] sm:hidden">{puzzle.title}</span>
+        {isPuzzleRoute && (
+          <>
+            <div className="h-6 w-px bg-[var(--border-subtle)] hidden sm:block" />
+            {puzzle && (
+              <span className="text-sm text-muted-foreground truncate max-w-[200px]">{puzzle.title}</span>
+            )}
+          </>
         )}
       </div>
 
@@ -190,7 +192,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
 
       {/* Right: Actions (desktop) */}
       <TooltipProvider delayDuration={300}>
-        <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
+        <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0 ml-auto">
           {isPuzzleRoute && (
             <>
               <Tooltip>
@@ -233,21 +235,23 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
             <TooltipContent>Puzzle Creator Guide</TooltipContent>
           </Tooltip>
 
-          <div className="h-5 w-px bg-[var(--border-subtle)] mx-0.5" />
-
-          <XPBar />
-
-          {/* Single auth element: avatar dropdown when signed in, Sign In button when not */}
-          <Show when="signed-in">
-            <UserMenu />
-          </Show>
-          <Show when="signed-out">
-            <SignInButton mode="modal">
-              <Button variant="default" size="sm" className="h-8 gap-1.5 text-xs">
-                <LogIn className="h-3.5 w-3.5" />Sign In
-              </Button>
-            </SignInButton>
-          </Show>
+          {/* Show auth + XP on puzzle routes (sidebar handles these elsewhere) */}
+          {isPuzzleRoute && (
+            <>
+              <div className="h-5 w-px bg-[var(--border-subtle)] mx-0.5" />
+              <XPBar />
+              <Show when="signed-in">
+                <UserMenu />
+              </Show>
+              <Show when="signed-out">
+                <SignInButton mode="modal">
+                  <Button variant="default" size="sm" className="h-8 gap-1.5 text-xs">
+                    <LogIn className="h-3.5 w-3.5" />Sign In
+                  </Button>
+                </SignInButton>
+              </Show>
+            </>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
