@@ -251,6 +251,14 @@ export function RootLayout() {
     }
   }, [isPuzzleRoute]);
 
+  // Close chat and instructions when leaving puzzle routes
+  useEffect(() => {
+    if (!isPuzzleRoute) {
+      setShowChat(false);
+      setShowInstructions(false);
+    }
+  }, [isPuzzleRoute]);
+
   // Set up API client token provider
   useEffect(() => {
     apiClient.setTokenProvider(() => getToken());

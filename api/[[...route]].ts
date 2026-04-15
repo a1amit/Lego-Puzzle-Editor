@@ -812,7 +812,7 @@ app.post('/chat', async (c) => {
       body: JSON.stringify({
         contents,
         ...(systemParts.length > 0 && {
-          systemInstruction: { parts: [{ text: systemParts.join('\n') }] },
+          systemInstruction: { parts: [{ text: 'IMPORTANT: Reply with ONLY your final answer. Do NOT include any internal reasoning, thinking process, chain-of-thought, or planning steps. No <think> tags, no "Let me think..." preambles. Just the direct response.\n\n' + systemParts.join('\n') }] },
         }),
         generationConfig: {
           maxOutputTokens: maxTokens,
@@ -828,9 +828,16 @@ app.post('/chat', async (c) => {
     }
 
     const data = await res.json() as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[];
     };
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Filter out thinking parts and strip any leaked <think>...</think> blocks
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    let content = parts
+      .filter(p => !p.thought)
+      .map(p => p.text || '')
+      .join('');
+    // Strip <think>...</think> or similar reasoning blocks that may leak through
+    content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
     if (!content) {
       return c.json({ success: false, error: 'Model returned empty response' }, 500);
