@@ -44,6 +44,8 @@ import {
   LogOut,
   FolderOpen,
   Shield,
+  PanelRightOpen,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { useClerk } from '@clerk/react';
 
@@ -71,6 +73,23 @@ interface HeaderProps {
   isChatOpen: boolean;
   onShowInstructions: () => void;
   isPuzzleRoute: boolean;
+}
+
+/** Flip panel layout button */
+function FlipLayoutButton() {
+  const panelFlipped = useEditorViewStore((s) => s.panelFlipped);
+  const togglePanelFlip = useEditorViewStore((s) => s.togglePanelFlip);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={togglePanelFlip}>
+          {panelFlipped ? <PanelLeftOpen className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Flip panel layout</TooltipContent>
+    </Tooltip>
+  );
 }
 
 /** View mode toggle group — shown on edit routes, or for owners/admins */
@@ -185,10 +204,13 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
         )}
       </div>
 
-      {/* Center: View mode toggle (only on puzzle routes, desktop only) */}
-      <div className="hidden sm:flex flex-1 items-center justify-center">
-        {isPuzzleRoute && <ViewModeToggle />}
-      </div>
+      {/* Center: View mode toggle + flip button (only on puzzle routes, desktop only) */}
+      <TooltipProvider delayDuration={300}>
+        <div className="hidden sm:flex flex-1 items-center justify-center gap-1.5">
+          {isPuzzleRoute && <ViewModeToggle />}
+          {isPuzzleRoute && <FlipLayoutButton />}
+        </div>
+      </TooltipProvider>
 
       {/* Right: Actions (desktop) */}
       <TooltipProvider delayDuration={300}>
