@@ -193,7 +193,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
       {/* Right: Actions (desktop) */}
       <TooltipProvider delayDuration={300}>
         <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0 ml-auto">
-          {isPuzzleRoute && (
+          {isPuzzleRoute && (undoStack.length > 0 || redoStack.length > 0) && (
             <>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -201,7 +201,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
                     <Undo2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Undo</TooltipContent>
+                <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -209,7 +209,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
                     <Redo2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Redo</TooltipContent>
+                <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
               </Tooltip>
               <div className="h-5 w-px bg-[var(--border-subtle)] mx-0.5" />
             </>
@@ -273,7 +273,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
 
       {/* Right: Mobile hamburger menu */}
       <div className="flex sm:hidden items-center gap-1.5 ml-auto">
-        {isPuzzleRoute && (
+        {isPuzzleRoute && (undoStack.length > 0 || redoStack.length > 0) && (
           <>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleUndo} disabled={undoStack.length === 0}>
               <Undo2 className="h-4 w-4" />
