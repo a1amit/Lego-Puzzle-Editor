@@ -46,6 +46,30 @@ app.use('*', async (_c, next) => {
   await next();
 });
 
+// ---------------------------------------------------------------------------
+// Cron keepalive — registered before auth/rate-limit so it bypasses them.
+// Vercel injects `Authorization: Bearer <CRON_SECRET>` on cron invocations
+// when CRON_SECRET is set as a project env var.
+// Pings the DB to reset MongoDB Atlas free-tier inactivity timer.
+// ---------------------------------------------------------------------------
+app.get('/cron/keepalive', async (c) => {
+  const expected = process.env.CRON_SECRET;
+  if (expected && c.req.header('Authorization') !== `Bearer ${expected}`) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const start = Date.now();
+  const userCount = await User.estimatedDocumentCount();
+  const elapsedMs = Date.now() - start;
+
+  return c.json({
+    ok: true,
+    userCount,
+    elapsedMs,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Auth middleware — skipped for public GET endpoints
 const authMiddleware = createMiddleware<Env>(async (c, next) => {
   const authUser = await verifyAuth(c.req.raw);
