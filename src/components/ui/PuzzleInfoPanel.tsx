@@ -47,6 +47,31 @@ export function PuzzleInfoPanel({ className = '', engine }: PuzzleInfoPanelProps
           <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
             {puzzle.description}
           </p>
+          {puzzle.link && (
+            <a
+              href={puzzle.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-block text-xs text-primary hover:underline break-all"
+            >
+              {puzzle.link_label ?? puzzle.link}
+            </a>
+          )}
+          {puzzle.description_image && (
+            <img
+              src={puzzle.description_image}
+              alt="Puzzle illustration"
+              className="mt-3 w-full max-h-56 object-contain rounded-lg border border-border bg-background"
+            />
+          )}
+          {puzzle.description_html && (
+            <iframe
+              title="Puzzle description"
+              srcDoc={puzzle.description_html}
+              sandbox=""
+              className="mt-3 w-full h-56 rounded-lg border border-border bg-background"
+            />
+          )}
         </section>
 
         <section className="rounded-xl border border-border bg-[var(--surface-raised)] p-3">
