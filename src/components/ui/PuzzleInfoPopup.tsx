@@ -139,6 +139,31 @@ export function PuzzleInfoPopup({ isOpen, onClose, engine }: PuzzleInfoPopupProp
                   {puzzle.description}
                 </p>
               )}
+              {puzzle.link && (
+                <a
+                  href={puzzle.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block text-sm text-primary hover:underline break-all"
+                >
+                  {puzzle.link_label ?? puzzle.link}
+                </a>
+              )}
+              {puzzle.description_image && (
+                <img
+                  src={puzzle.description_image}
+                  alt="Puzzle illustration"
+                  className="mt-3 w-full max-h-64 object-contain rounded-lg border border-border bg-background"
+                />
+              )}
+              {puzzle.description_html && (
+                <iframe
+                  title="Puzzle description"
+                  srcDoc={puzzle.description_html}
+                  sandbox=""
+                  className="mt-3 w-full h-64 rounded-lg border border-border bg-background"
+                />
+              )}
               <div className="flex items-center gap-2 mt-3">
                 <Badge variant="secondary" className="text-[10px] font-mono">{board.width}&times;{board.height} board</Badge>
                 <Badge variant="outline" className="text-[10px]">{puzzle.viewMode} mode</Badge>

@@ -252,6 +252,43 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
     return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); };
   }, []);
 
+  // ---- Upload HTML or JPEG description ----
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadChosen = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(jsonSource);
+    } catch {
+      // Invalid JSON in editor — refuse to splice into broken JSON.
+      return;
+    }
+
+    const isHtml = /\.html?$/i.test(file.name) || file.type === 'text/html';
+    const isJpeg = /\.jpe?g$/i.test(file.name) || file.type === 'image/jpeg';
+
+    if (isHtml) {
+      parsed.description_html = await file.text();
+    } else if (isJpeg) {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      parsed.description_image = `data:image/jpeg;base64,${btoa(bin)}`;
+    } else {
+      return; // unsupported
+    }
+
+    const next = JSON.stringify(parsed, null, 2);
+    setJsonSource(next);
+    setIsModified(true);
+    validateAndUpdate(next);
+  }, [jsonSource, setJsonSource, validateAndUpdate]);
+
   const hasErrors = localErrors.length > 0 || parseError;
 
   return (
@@ -273,15 +310,33 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
             </Badge>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs gap-1.5"
-          onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
-        >
-          Format
-          <kbd className="hidden md:inline text-[10px] font-mono text-muted-foreground bg-secondary px-1 rounded">Shift+Alt+F</kbd>
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <input
+            ref={uploadInputRef}
+            type="file"
+            accept=".html,.htm,text/html,.jpg,.jpeg,image/jpeg"
+            className="hidden"
+            onChange={handleUploadChosen}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            onClick={() => uploadInputRef.current?.click()}
+            title="Attach an HTML file (sandboxed) or JPEG image to the description"
+          >
+            Upload
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
+          >
+            Format
+            <kbd className="hidden md:inline text-[10px] font-mono text-muted-foreground bg-secondary px-1 rounded">Shift+Alt+F</kbd>
+          </Button>
+        </div>
       </div>
 
       {/* Monaco Editor */}
