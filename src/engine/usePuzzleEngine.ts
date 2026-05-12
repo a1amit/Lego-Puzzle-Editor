@@ -113,11 +113,14 @@ function deriveConfig(puzzle: PuzzleDefinition | null, viewModeOverride?: ViewMo
   ) ?? false;
   const rotationEnabled = !hasNoRotationRule;
 
+  const moveAsStack = puzzle?.move_as_stack ?? true;
+
   return {
     viewMode,
     movementRule,
     allowStacking,
     rotationEnabled,
+    moveAsStack,
   };
 }
 
@@ -345,6 +348,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
 
     // Build stack: bottom piece + everything above it (sorted by z asc).
     const stackedIds = findPiecesStackedOnTop(board, piece);
+
+    if (!config.moveAsStack && stackedIds.size > 0) return false;
+
     const stackPieces: PlacedPiece[] = [
       piece,
       ...board.placedPieces
@@ -444,6 +450,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     if (!piece) return;
 
     const stackedIds = findPiecesStackedOnTop(board, piece);
+
+    if (!config.moveAsStack && stackedIds.size > 0) return;
+
     const stackPieces: PlacedPiece[] = [
       piece,
       ...board.placedPieces
@@ -499,7 +508,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
 
     SoundManager.getInstance().play('rotate');
     haptics.light();
-  }, [config.rotationEnabled, board, pushSnapshot]);
+  }, [config, board, pushSnapshot]);
 
   // ============================================
   // SELECTION

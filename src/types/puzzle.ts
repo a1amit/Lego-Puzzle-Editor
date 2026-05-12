@@ -233,6 +233,13 @@ export const PuzzleDefinitionSchema = z.object({
   /** Nonogram hints for Nonogram/Picross puzzles */
   nonogram_hints: NonogramHintsSchema.optional(),
   validation_rules: z.array(ValidationRuleSchema),
+  /**
+   * If true (default when omitted), moving or rotating a brick that has bricks
+   * stacked on top carries the entire stack as a rigid unit. If false, only
+   * the topmost brick of any column can be moved/rotated — useful for
+   * Tower-of-Hanoi-style puzzles.
+   */
+  move_as_stack: z.boolean().optional(),
   /** Optional custom shape definitions */
   custom_shapes: z.record(z.string(), ShapeDefinitionSchema).optional(),
   /** Metadata */

@@ -490,6 +490,13 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
 
     // Build the stack (bottom + everything above), sorted by z ascending.
     const stackedIds = findBricksStackedOnTop(boardState, brick);
+
+    // Tower-of-Hanoi-style puzzles: only the topmost brick of a column may move.
+    if (puzzle?.move_as_stack === false && stackedIds.size > 0) {
+      setActionError(set, 'Cannot move — remove the bricks on top first');
+      return;
+    }
+
     const stackBricks: PlacedBrick[] = [
       brick,
       ...boardState.placedBricks
@@ -591,12 +598,18 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   },
 
   rotateBrick: (instanceId) => {
-    const { boardState, undoStack, inventoryState } = get();
+    const { boardState, undoStack, inventoryState, puzzle } = get();
 
     const brick = boardState.placedBricks.find(b => b.instanceId === instanceId);
     if (!brick) return;
 
     const stackedIds = findBricksStackedOnTop(boardState, brick);
+
+    if (puzzle?.move_as_stack === false && stackedIds.size > 0) {
+      setActionError(set, 'Cannot rotate — remove the bricks on top first');
+      return;
+    }
+
     const stackBricks: PlacedBrick[] = [
       brick,
       ...boardState.placedBricks

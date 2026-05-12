@@ -425,6 +425,55 @@ describe('moveBrick with SLIDING_ONLY', () => {
 });
 
 // ===========================================================================
+// 9b. moveBrick with move_as_stack: false (Hanoi-style)
+// ===========================================================================
+
+describe('moveBrick with move_as_stack: false', () => {
+  const hanoiPuzzle: PuzzleDefinition = {
+    title: 'Hanoi-ish',
+    description: 'No stack moves',
+    viewMode: '3D',
+    move_as_stack: false,
+    board: { dimensions: { width: 4, height: 4, depth: 3 }, initial_state: [] },
+    inventory: [
+      { id: 'unit-red', shape: 'unit', color: '#ff0000', quantity: 3 },
+    ],
+    validation_rules: [
+      { type: 'PLACEMENT', rule: 'NO_BRICK_OVERLAP' },
+    ],
+  };
+
+  beforeEach(() => {
+    usePuzzleStore.getState().setPuzzle(hanoiPuzzle);
+    // Stack two bricks at (0,0) — bottom z=0, top z=1.
+    usePuzzleStore.getState().placeBrick(
+      makeBrick({ id: 'unit-red', shape: 'unit', color: '#ff0000', position: { x: 0, y: 0 } }),
+    );
+    usePuzzleStore.getState().placeBrick(
+      makeBrick({ id: 'unit-red', shape: 'unit', color: '#ff0000', position: { x: 0, y: 0 } }),
+    );
+  });
+
+  it('rejects moving a brick that has anything stacked on top', () => {
+    const bottom = usePuzzleStore.getState().boardState.placedBricks.find(b => b.z === 0)!;
+    usePuzzleStore.getState().moveBrick(bottom.instanceId, { x: 2, y: 0 });
+
+    const s = usePuzzleStore.getState();
+    expect(s.boardState.placedBricks.find(b => b.instanceId === bottom.instanceId)!.position).toEqual({ x: 0, y: 0 });
+    expect(s.lastActionError).toContain('remove the bricks on top');
+    expect(s.moveCount).toBe(0);
+  });
+
+  it('allows moving the topmost brick', () => {
+    const top = usePuzzleStore.getState().boardState.placedBricks.find(b => b.z === 1)!;
+    usePuzzleStore.getState().moveBrick(top.instanceId, { x: 2, y: 0 });
+
+    const moved = usePuzzleStore.getState().boardState.placedBricks.find(b => b.instanceId === top.instanceId)!;
+    expect(moved.position).toEqual({ x: 2, y: 0 });
+  });
+});
+
+// ===========================================================================
 // 10. rotateBrick
 // ===========================================================================
 
