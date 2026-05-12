@@ -9,7 +9,7 @@
 
 import { useMemo, useCallback, useEffect, useState, useRef } from 'react';
 import type { UsePuzzleEngineReturn } from '../../engine';
-import { getValidSlideDestinations, findPiecesStackedOnTop } from '../../engine';
+import { getValidSlideDestinations, findPiecesStackedOnTop, getPieceCells } from '../../engine';
 import { SCENE_2D } from '../../config/sceneConfig';
 import { useRuleBuilderStore } from '../editor/ruleBuilder/useRuleBuilderStore';
 
@@ -94,6 +94,14 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     [board.blockedCells],
   );
 
+  // Per-cell paint colors from puzzle.board.cell_colors.
+  const cellColorMap = useMemo(() => {
+    const m = new Map<string, string>();
+    const entries = puzzle?.board.cell_colors ?? [];
+    for (const [x, y, color] of entries) m.set(`${x},${y}`, color);
+    return m;
+  }, [puzzle?.board.cell_colors]);
+
   // All interaction state and handlers
   const {
     hoveredPieceId,
@@ -117,6 +125,27 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     findPiecesStackedOnTop(board, selectedPlacedPiece).forEach(id => ids.add(id));
     return ids;
   }, [selectedPlacedPiece, board]);
+
+  // Pieces whose cells overlap any failing rule's affectedCells, when
+  // puzzle.highlight_failing_cells is on. Drawn with a red outline so the
+  // failure is visible even when a piece covers the affected cell.
+  const invalidPieceIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!puzzle?.highlight_failing_cells) return ids;
+    const invalidCellSet = new Set<string>();
+    for (const r of engine.validationResults) {
+      if (r.isValid || !r.affectedCells) continue;
+      for (const [x, y] of r.affectedCells) invalidCellSet.add(`${x},${y}`);
+    }
+    if (invalidCellSet.size === 0) return ids;
+    for (const p of board.placedPieces) {
+      const cells = getPieceCells(p);
+      if (cells.some(([x, y]) => invalidCellSet.has(`${x},${y}`))) {
+        ids.add(p.instanceId);
+      }
+    }
+    return ids;
+  }, [puzzle?.highlight_failing_cells, engine.validationResults, board.placedPieces]);
 
   // Stable cell-level callbacks via useCallback to keep GridCell memo effective.
   // We pass x/y through closures created at render time which is fine because
@@ -225,6 +254,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                   isInvalid={isInvalid}
                   isValidDestination={isValidDest}
                   isPickerSelected={isPickerSel}
+                  paintColor={cellColorMap.get(key)}
                   onClick={() => handleCellClick(x, y)}
                   onPointerEnter={() => onCellPointerEnter(x, y)}
                   onPointerLeave={onCellPointerLeave}
@@ -239,6 +269,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
             const isInSelectedStack = selectedStackIds.has(piece.instanceId);
             const isHovered = hoveredPieceId === piece.instanceId;
             const isInteractive = !selectedInventoryPiece && !selectedPlacedPiece;
+            const isPieceInvalid = invalidPieceIds.has(piece.instanceId);
 
             const pieceValidMoves = isClickedPiece && config.movementRule === 'SLIDING_ONLY'
               ? getValidSlideDestinations(board, piece)
@@ -250,6 +281,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                 piece={piece}
                 cellSize={cellSize}
                 isSelected={isInSelectedStack}
+                isInvalid={isPieceInvalid}
                 isHovered={isHovered}
                 interactive={isInteractive}
                 isSliderPuzzle={isSliderPuzzle}

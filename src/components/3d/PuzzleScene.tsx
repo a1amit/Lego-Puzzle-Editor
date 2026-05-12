@@ -342,6 +342,28 @@ function DragDropManager() {
     return ids;
   }, [selectedPlacedBrick, boardState.placedBricks]);
 
+  // Bricks whose cells overlap any failing rule's affectedCells, when
+  // puzzle.highlight_failing_cells is on. Tints the offending bricks red so
+  // the failure is visible even though the floor highlight is hidden by them.
+  const validationResults = usePuzzleStore(s => s.validationResults);
+  const invalidBrickIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!puzzle?.highlight_failing_cells) return ids;
+    const invalidCellSet = new Set<string>();
+    for (const r of validationResults) {
+      if (r.isValid || !r.affectedCells) continue;
+      for (const [x, y] of r.affectedCells) invalidCellSet.add(`${x},${y}`);
+    }
+    if (invalidCellSet.size === 0) return ids;
+    for (const b of boardState.placedBricks) {
+      const cells = getBrickCells(b);
+      if (cells.some(([x, y]) => invalidCellSet.has(`${x},${y}`))) {
+        ids.add(b.instanceId);
+      }
+    }
+    return ids;
+  }, [puzzle?.highlight_failing_cells, validationResults, boardState.placedBricks]);
+
   // Calculate z-level for ghost preview (for stacking)
   const ghostZLevel = useMemo(() => {
     if (!selectedInventoryBrick || !hoveredCell) return 0;
@@ -568,12 +590,14 @@ function DragDropManager() {
         // become non-interactive so clicks pass through to the board for movement
         const isThisBrickInSelectedStack = selectedStackIds.has(brick.instanceId);
         const isInteractive = !selectedInventoryBrick && !selectedPlacedBrick;
+        const isThisBrickInvalid = invalidBrickIds.has(brick.instanceId);
 
         return (
           <PolyominoBrick
             key={brick.instanceId}
             brick={brick}
             isSelected={isThisBrickInSelectedStack}
+            isInvalid={isThisBrickInvalid}
             interactive={isInteractive}
             boardOffset={boardOffset}
             onSelect={() => handleBrickSelect(brick.instanceId)}
