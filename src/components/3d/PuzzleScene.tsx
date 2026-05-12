@@ -316,6 +316,31 @@ function DragDropManager() {
     return puzzle?.inventory.find(b => b.id === selectedBrickId);
   }, [puzzle, selectedBrickId, selectedPlacedBrick]);
 
+  // The whole stack lifts together: selected brick + everything stacked above it.
+  // This mirrors what move/rotate apply to.
+  const selectedStackIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!selectedPlacedBrick) return ids;
+    ids.add(selectedPlacedBrick.instanceId);
+
+    const visit = (target: typeof selectedPlacedBrick) => {
+      const targetCells = getBrickCells(target);
+      const targetSet = new Set(targetCells.map(([x, y]) => `${x},${y}`));
+      const targetZ = target.z || 0;
+      for (const b of boardState.placedBricks) {
+        if (ids.has(b.instanceId)) continue;
+        if ((b.z || 0) <= targetZ) continue;
+        const cells = getBrickCells(b);
+        if (cells.some(([x, y]) => targetSet.has(`${x},${y}`))) {
+          ids.add(b.instanceId);
+          visit(b);
+        }
+      }
+    };
+    visit(selectedPlacedBrick);
+    return ids;
+  }, [selectedPlacedBrick, boardState.placedBricks]);
+
   // Calculate z-level for ghost preview (for stacking)
   const ghostZLevel = useMemo(() => {
     if (!selectedInventoryBrick || !hoveredCell) return 0;
@@ -526,14 +551,14 @@ function DragDropManager() {
         // - No placed brick is selected (normal state - can select any brick)
         // When a placed brick is selected for moving, ALL bricks (including the selected one) 
         // become non-interactive so clicks pass through to the board for movement
-        const isThisBrickSelected = selectedBrickId === brick.instanceId;
+        const isThisBrickInSelectedStack = selectedStackIds.has(brick.instanceId);
         const isInteractive = !selectedInventoryBrick && !selectedPlacedBrick;
 
         return (
           <PolyominoBrick
             key={brick.instanceId}
             brick={brick}
-            isSelected={isThisBrickSelected}
+            isSelected={isThisBrickInSelectedStack}
             interactive={isInteractive}
             boardOffset={boardOffset}
             onSelect={() => handleBrickSelect(brick.instanceId)}

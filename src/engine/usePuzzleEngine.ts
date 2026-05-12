@@ -40,6 +40,9 @@ import {
   getValidSlideDestinations,
   generateInstanceId,
   getPieceCells,
+  computeRigidStackRotation,
+  computeRigidStackTranslation,
+  type StackPieceInput,
 } from './utils';
 import { createInitialBoard, createInitialInventory } from './boardFactory';
 import { enrichValidationRules, hasNoBrickRemovalRule } from './validationHelpers';
@@ -328,15 +331,10 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     const piece = board.placedPieces.find(p => p.instanceId === instanceId);
     if (!piece) return false;
 
-    // Check if position is actually changing
     if (piece.position.x === destination.x && piece.position.y === destination.y) {
-      return true; // No change needed
+      return true;
     }
 
-    // Save snapshot for undo before mutation
-    pushSnapshot();
-
-    // For sliding puzzles, validate the move
     if (config.movementRule === 'SLIDING_ONLY') {
       const validDestinations = getValidSlideDestinations(board, piece);
       const isValidSlide = validDestinations.some(
@@ -345,84 +343,89 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       if (!isValidSlide) return false;
     }
 
-    // Get shape and calculate new cells
-    const shape = SHAPE_LIBRARY[piece.shape];
-    if (!shape) return false;
+    // Build stack: bottom piece + everything above it (sorted by z asc).
+    const stackedIds = findPiecesStackedOnTop(board, piece);
+    const stackPieces: PlacedPiece[] = [
+      piece,
+      ...board.placedPieces
+        .filter(p => stackedIds.has(p.instanceId))
+        .sort((a, b) => a.position.z - b.position.z),
+    ];
 
-    const rotatedCells = rotateShape(shape.cells, piece.rotation);
-    const targetCells: Coordinate2D[] = rotatedCells.map(([dx, dy]) => [
-      destination.x + dx,
-      destination.y + dy,
-    ]);
+    const dx = destination.x - piece.position.x;
+    const dy = destination.y - piece.position.y;
+    const stackInputs: StackPieceInput[] = stackPieces.map(p => ({
+      position: [p.position.x, p.position.y],
+      shape: p.shape,
+      rotation: p.rotation,
+    }));
+    const transformed = computeRigidStackTranslation(stackInputs, dx, dy);
+    if (!transformed) return false;
 
-    // Validate bounds
-    if (!arePieceCellsWithinBounds(targetCells, board.dimensions)) {
-      return false;
+    for (const placement of transformed) {
+      if (!arePieceCellsWithinBounds(placement.cells, board.dimensions)) {
+        return false;
+      }
+      if (containsBlockedCells(placement.cells, board.blockedCells)) {
+        return false;
+      }
     }
 
-    // Find and remove stacked pieces
-    const stackedIds = findPiecesStackedOnTop(board, piece);
-    const stackedPieces = board.placedPieces.filter(p => stackedIds.has(p.instanceId));
+    const stackIdSet = new Set(stackPieces.map(p => p.instanceId));
+    const otherPieces = board.placedPieces.filter(p => !stackIdSet.has(p.instanceId));
+    const boardWithoutStack: EngineBoard = { ...board, placedPieces: otherPieces };
 
-    // Calculate new z-level
-    let targetZ = destination.z;
-
-    // Check for overlaps with other pieces (excluding self and stacked pieces)
-    const boardWithoutMovingPiece = {
-      ...board,
-      placedPieces: board.placedPieces.filter(
-        p => !stackedIds.has(p.instanceId) && p.instanceId !== instanceId
-      ),
-    };
-
+    let zDelta: number;
     if (config.allowStacking) {
-      // With stacking allowed, calculate the appropriate z-level
-      targetZ = calculateZLevel(boardWithoutMovingPiece, targetCells, instanceId);
+      zDelta = calculateZLevel(boardWithoutStack, transformed[0].cells) - piece.position.z;
     } else {
-      // Without stacking, check if any target cells are already occupied
-      const targetCellSet = new Set(targetCells.map(([x, y]) => `${x},${y}`));
-
-      for (const otherPiece of boardWithoutMovingPiece.placedPieces) {
-        const otherCells = getPieceCells(otherPiece);
+      // No stacking allowed → bottom (and everything in stack — which should be just the
+      // bottom in this configuration) sits at z=0.
+      const targetCellSet = new Set(transformed[0].cells.map(([x, y]) => `${x},${y}`));
+      for (const other of otherPieces) {
+        const otherCells = getPieceCells(other);
         for (const [ox, oy] of otherCells) {
-          if (targetCellSet.has(`${ox},${oy}`)) {
-            // Cell already occupied and stacking not allowed - block the move
-            return false;
-          }
+          if (targetCellSet.has(`${ox},${oy}`)) return false;
         }
       }
-      targetZ = 0;
+      zDelta = -piece.position.z;
     }
 
-    // Check depth limit
+    const newZByIndex = stackPieces.map(p => p.position.z + zDelta);
     const maxAllowedZ = board.dimensions.depth - 1;
-    if (targetZ > maxAllowedZ) {
-      return false;
+    for (const z of newZByIndex) {
+      if (z < 0 || z > maxAllowedZ) return false;
     }
 
-    // Update board: remove stacked pieces and move target piece
+    const otherCellSet = new Set<string>();
+    for (const other of otherPieces) {
+      const cells = getPieceCells(other);
+      for (const [ox, oy] of cells) {
+        otherCellSet.add(`${ox},${oy},${other.position.z}`);
+      }
+    }
+    for (let i = 0; i < transformed.length; i++) {
+      const z = newZByIndex[i];
+      for (const [x, y] of transformed[i].cells) {
+        if (otherCellSet.has(`${x},${y},${z}`)) return false;
+      }
+    }
+
+    pushSnapshot();
+
     setBoard(prev => ({
       ...prev,
-      placedPieces: prev.placedPieces
-        .filter(p => !stackedIds.has(p.instanceId))
-        .map(p => p.instanceId === instanceId
-          ? { ...p, position: { ...destination, z: targetZ } }
-          : p
-        ),
+      placedPieces: prev.placedPieces.map(p => {
+        const idx = stackPieces.findIndex(sp => sp.instanceId === p.instanceId);
+        if (idx === -1) return p;
+        const t = transformed[idx];
+        return {
+          ...p,
+          position: { x: t.position[0], y: t.position[1], z: newZByIndex[idx] },
+        };
+      }),
     }));
 
-    // Return stacked pieces to inventory
-    if (stackedPieces.length > 0) {
-      setInventory(prev => {
-        const newInventory = new Map(prev);
-        for (const stackedPiece of stackedPieces) {
-          const current = newInventory.get(stackedPiece.id) ?? 0;
-          newInventory.set(stackedPiece.id, current + 1);
-        }
-        return newInventory;
-      });
-    }
-    // Increment move count for successful moves
     setMoveCount(prev => prev + 1);
     SoundManager.getInstance().play('slide');
     haptics.light();
@@ -435,25 +438,68 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   // ============================================
 
   const rotatePiece = useCallback((instanceId: string) => {
-    // Check if rotation is disabled
-    if (!config.rotationEnabled) {
-      return;
+    if (!config.rotationEnabled) return;
+
+    const piece = board.placedPieces.find(p => p.instanceId === instanceId);
+    if (!piece) return;
+
+    const stackedIds = findPiecesStackedOnTop(board, piece);
+    const stackPieces: PlacedPiece[] = [
+      piece,
+      ...board.placedPieces
+        .filter(p => stackedIds.has(p.instanceId))
+        .sort((a, b) => a.position.z - b.position.z),
+    ];
+
+    const stackInputs: StackPieceInput[] = stackPieces.map(p => ({
+      position: [p.position.x, p.position.y],
+      shape: p.shape,
+      rotation: p.rotation,
+    }));
+    const transformed = computeRigidStackRotation(stackInputs);
+    if (!transformed) return;
+
+    // Note: rotation is allowed to swing cells off the board; only blocked cells
+    // and on-board collisions with non-stack pieces reject the rotation.
+    for (const placement of transformed) {
+      if (containsBlockedCells(placement.cells, board.blockedCells)) return;
+    }
+
+    const stackIdSet = new Set(stackPieces.map(p => p.instanceId));
+    const otherCellSet = new Set<string>();
+    for (const other of board.placedPieces) {
+      if (stackIdSet.has(other.instanceId)) continue;
+      const cells = getPieceCells(other);
+      for (const [ox, oy] of cells) {
+        otherCellSet.add(`${ox},${oy},${other.position.z}`);
+      }
+    }
+    for (let i = 0; i < transformed.length; i++) {
+      const z = stackPieces[i].position.z;
+      for (const [x, y] of transformed[i].cells) {
+        if (otherCellSet.has(`${x},${y},${z}`)) return;
+      }
     }
 
     pushSnapshot();
 
     setBoard(prev => ({
       ...prev,
-      placedPieces: prev.placedPieces.map(p =>
-        p.instanceId === instanceId
-          ? { ...p, rotation: (p.rotation + 90) % 360 }
-          : p
-      ),
+      placedPieces: prev.placedPieces.map(p => {
+        const idx = stackPieces.findIndex(sp => sp.instanceId === p.instanceId);
+        if (idx === -1) return p;
+        const t = transformed[idx];
+        return {
+          ...p,
+          position: { x: t.position[0], y: t.position[1], z: p.position.z },
+          rotation: t.rotation,
+        };
+      }),
     }));
 
     SoundManager.getInstance().play('rotate');
     haptics.light();
-  }, [config.rotationEnabled, pushSnapshot]);
+  }, [config.rotationEnabled, board, pushSnapshot]);
 
   // ============================================
   // SELECTION

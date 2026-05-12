@@ -728,3 +728,86 @@ describe('generateInstanceId', () => {
     expect(id.startsWith('brick-')).toBe(true)
   })
 })
+
+// ============================================
+// computeRigidStackRotation / Translation
+// ============================================
+
+import {
+  computeRigidStackRotation,
+  computeRigidStackTranslation,
+  type StackPieceInput,
+} from '@/engine/utils'
+
+describe('computeRigidStackTranslation', () => {
+  it('translates each piece by (dx, dy) and updates world cells', () => {
+    const stack: StackPieceInput[] = [
+      { position: [2, 3], shape: 'unit', rotation: 0 },
+      { position: [3, 3], shape: 'unit', rotation: 0 },
+    ]
+    const out = computeRigidStackTranslation(stack, 1, -1)!
+    expect(out[0].position).toEqual([3, 2])
+    expect(out[0].rotation).toBe(0)
+    expect(out[0].cells).toEqual([[3, 2]])
+    expect(out[1].position).toEqual([4, 2])
+    expect(out[1].cells).toEqual([[4, 2]])
+  })
+})
+
+describe('computeRigidStackRotation', () => {
+  it('rotates a unit on top of a 1x3 horizontal so the upper stays glued to the bottom', () => {
+    // Bottom: 1x3 horizontal at (5,5) — cells (5,5),(6,5),(7,5)
+    // Top: 1x1 sitting on top of (7,5) (the right end)
+    const stack: StackPieceInput[] = [
+      { position: [5, 5], shape: 'tromino-I', rotation: 0 },
+      { position: [7, 5], shape: 'unit', rotation: 0 },
+    ]
+    const out = computeRigidStackRotation(stack)!
+
+    // Bottom rotates in place, anchor stays at (5,5), rotation 90.
+    expect(out[0].position).toEqual([5, 5])
+    expect(out[0].rotation).toBe(90)
+    expect(sortCoords(out[0].cells)).toEqual(sortCoords([[5, 5], [5, 6], [5, 7]]))
+
+    // Top brick was glued to (7,5) which after rotation moves to (5,5) — the
+    // top end of the now-vertical bottom.
+    expect(out[1].position).toEqual([5, 5])
+    expect(out[1].rotation).toBe(90)
+    expect(out[1].cells).toEqual([[5, 5]])
+  })
+
+  it('four 90° rotations return the stack to its original layout', () => {
+    const shapes = ['tromino-I', 'unit'] as const
+    let stack: StackPieceInput[] = [
+      { position: [5, 5], shape: shapes[0], rotation: 0 },
+      { position: [7, 5], shape: shapes[1], rotation: 0 },
+    ]
+    for (let i = 0; i < 4; i++) {
+      const out = computeRigidStackRotation(stack)!
+      stack = out.map((o, idx) => ({
+        position: o.position,
+        shape: shapes[idx],
+        rotation: o.rotation,
+      }))
+    }
+    expect(stack[0].position).toEqual([5, 5])
+    expect(stack[0].rotation).toBe(0)
+    expect(stack[1].position).toEqual([7, 5])
+    expect(stack[1].rotation).toBe(0)
+  })
+
+  it('preserves cell-set when bottom is a 2x2 (rotation symmetric)', () => {
+    // 2x2 (O-tetromino) at (5,5). Top brick at (6,5).
+    const stack: StackPieceInput[] = [
+      { position: [5, 5], shape: 'O-tetromino', rotation: 0 },
+      { position: [6, 5], shape: 'unit', rotation: 0 },
+    ]
+    const out = computeRigidStackRotation(stack)!
+
+    // 2x2 footprint is the same after rotation.
+    expect(sortCoords(out[0].cells)).toEqual(sortCoords([[5, 5], [6, 5], [5, 6], [6, 6]]))
+    // The top brick still sits on a cell of the bottom.
+    const bottomCellSet = new Set(out[0].cells.map(c => `${c[0]},${c[1]}`))
+    expect(bottomCellSet.has(`${out[1].cells[0][0]},${out[1].cells[0][1]}`)).toBe(true)
+  })
+})

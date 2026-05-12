@@ -9,7 +9,13 @@ import {
   SHAPE_LIBRARY
 } from '../types/puzzle';
 import { ValidationRegistry, getBrickCells, rotateShape } from '../validation/ValidationRegistry';
-import { getValidSlideDestinations, generateInstanceId } from '../engine/utils';
+import {
+  getValidSlideDestinations,
+  generateInstanceId,
+  computeRigidStackRotation,
+  computeRigidStackTranslation,
+  type StackPieceInput,
+} from '../engine/utils';
 import type { EngineBoard, PlacedPiece } from '../engine/types';
 import { createInitialBoard, createInitialInventory } from '../engine/boardFactory';
 import { enrichValidationRules, hasSlidingOnlyRule, hasNoBrickRemovalRule } from '../engine/validationHelpers';
@@ -482,59 +488,99 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       }
     }
 
-    // Save snapshot for undo
+    // Build the stack (bottom + everything above), sorted by z ascending.
+    const stackedIds = findBricksStackedOnTop(boardState, brick);
+    const stackBricks: PlacedBrick[] = [
+      brick,
+      ...boardState.placedBricks
+        .filter(b => stackedIds.has(b.instanceId))
+        .sort((a, b) => (a.z || 0) - (b.z || 0)),
+    ];
+
+    const dx = newPosition.x - brick.position.x;
+    const dy = newPosition.y - brick.position.y;
+    const stackInputs: StackPieceInput[] = stackBricks.map(b => ({
+      position: [b.position.x, b.position.y],
+      shape: b.shape,
+      rotation: b.rotation,
+    }));
+    const transformed = computeRigidStackTranslation(stackInputs, dx, dy);
+    if (!transformed) {
+      setActionError(set, 'Cannot move — unknown shape');
+      return;
+    }
+
+    const { width, height, depth } = boardState.dimensions;
+    const blockedSet = new Set(boardState.blockedCells.map(([x, y]) => `${x},${y}`));
+    for (const placement of transformed) {
+      for (const [x, y] of placement.cells) {
+        if (x < 0 || x >= width || y < 0 || y >= height) {
+          setActionError(set, 'Cannot move — would go off the board');
+          return;
+        }
+        if (blockedSet.has(`${x},${y}`)) {
+          setActionError(set, 'Cannot move — cell is blocked');
+          return;
+        }
+      }
+    }
+
+    const stackIdSet = new Set(stackBricks.map(b => b.instanceId));
+    const otherBricks = boardState.placedBricks.filter(b => !stackIdSet.has(b.instanceId));
+    const tempBoardState: BoardState = { ...boardState, placedBricks: otherBricks };
+    const newBottomZ = calculateZLevel(tempBoardState, transformed[0].cells);
+    const oldBottomZ = brick.z || 0;
+    const zDelta = newBottomZ - oldBottomZ;
+    const newZByIndex = stackBricks.map(b => (b.z || 0) + zDelta);
+
+    const maxAllowedZ = depth - 1;
+    for (const z of newZByIndex) {
+      if (z < 0 || z > maxAllowedZ) {
+        setActionError(set, 'Cannot move — depth limit would be exceeded');
+        return;
+      }
+    }
+
+    const otherCellSet = new Set<string>();
+    for (const b of otherBricks) {
+      const cells = getBrickCells(b);
+      const z = b.z || 0;
+      for (const [x, y] of cells) {
+        otherCellSet.add(`${x},${y},${z}`);
+      }
+    }
+    for (let i = 0; i < transformed.length; i++) {
+      const z = newZByIndex[i];
+      for (const [x, y] of transformed[i].cells) {
+        if (otherCellSet.has(`${x},${y},${z}`)) {
+          setActionError(set, 'Cannot move — would collide with another brick');
+          return;
+        }
+      }
+    }
+
     const snapshot: BoardSnapshot = {
       boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
       inventoryState: new Map(inventoryState),
       moveCount: get().moveCount,
     };
 
-    const stackedBrickIds = findBricksStackedOnTop(boardState, brick);
-    const newInventory = new Map(inventoryState);
-    const bricksToRemove = boardState.placedBricks.filter(
-      b => stackedBrickIds.has(b.instanceId)
-    );
-    for (const brickToRemove of bricksToRemove) {
-      const current = newInventory.get(brickToRemove.id) ?? 0;
-      newInventory.set(brickToRemove.id, current + 1);
-    }
+    const updatedBricks = boardState.placedBricks.map(b => {
+      const idx = stackBricks.findIndex(sb => sb.instanceId === b.instanceId);
+      if (idx === -1) return b;
+      const t = transformed[idx];
+      return {
+        ...b,
+        position: { x: t.position[0], y: t.position[1] },
+        z: newZByIndex[idx],
+      };
+    });
 
-    const bricksWithoutStacked = boardState.placedBricks.filter(
-      b => !stackedBrickIds.has(b.instanceId)
-    );
-
-    const shape = SHAPE_LIBRARY[brick.shape];
-    if (!shape) return;
-
-    const rotatedCells = rotateShape(shape.cells, brick.rotation || 0);
-    const cells: [number, number][] = rotatedCells.map(([dx, dy]) => [
-      newPosition.x + dx,
-      newPosition.y + dy,
-    ]);
-
-    const otherBricks = bricksWithoutStacked.filter(b => b.instanceId !== instanceId);
-    const tempBoardState: BoardState = { ...boardState, placedBricks: otherBricks };
-    const zLevel = calculateZLevel(tempBoardState, cells);
-
-    const maxAllowedZ = boardState.dimensions.depth - 1;
-    if (zLevel > maxAllowedZ) {
-      setActionError(set, 'Cannot move — depth limit would be exceeded');
-      return;
-    }
-
-    const newBoardState = {
-      ...boardState,
-      placedBricks: bricksWithoutStacked.map(b =>
-        b.instanceId === instanceId
-          ? { ...b, position: newPosition, z: zLevel }
-          : b
-      ),
-    };
+    const newBoardState = { ...boardState, placedBricks: updatedBricks };
     const newMoveCount = get().moveCount + 1;
 
     set({
       boardState: newBoardState,
-      inventoryState: newInventory,
       moveCount: newMoveCount,
       undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
       redoStack: [],
@@ -547,20 +593,78 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   rotateBrick: (instanceId) => {
     const { boardState, undoStack, inventoryState } = get();
 
+    const brick = boardState.placedBricks.find(b => b.instanceId === instanceId);
+    if (!brick) return;
+
+    const stackedIds = findBricksStackedOnTop(boardState, brick);
+    const stackBricks: PlacedBrick[] = [
+      brick,
+      ...boardState.placedBricks
+        .filter(b => stackedIds.has(b.instanceId))
+        .sort((a, b) => (a.z || 0) - (b.z || 0)),
+    ];
+
+    const stackInputs: StackPieceInput[] = stackBricks.map(b => ({
+      position: [b.position.x, b.position.y],
+      shape: b.shape,
+      rotation: b.rotation,
+    }));
+    const transformed = computeRigidStackRotation(stackInputs);
+    if (!transformed) {
+      setActionError(set, 'Cannot rotate — unknown shape');
+      return;
+    }
+
+    // Note: rotation is allowed to swing cells off the board; only on-board
+    // blocked cells and on-board collisions with non-stack bricks reject the move.
+    const blockedSet = new Set(boardState.blockedCells.map(([x, y]) => `${x},${y}`));
+    for (const placement of transformed) {
+      for (const [x, y] of placement.cells) {
+        if (blockedSet.has(`${x},${y}`)) {
+          setActionError(set, 'Cannot rotate — cell is blocked');
+          return;
+        }
+      }
+    }
+
+    const stackIdSet = new Set(stackBricks.map(b => b.instanceId));
+    const otherCellSet = new Set<string>();
+    for (const b of boardState.placedBricks) {
+      if (stackIdSet.has(b.instanceId)) continue;
+      const cells = getBrickCells(b);
+      const z = b.z || 0;
+      for (const [x, y] of cells) {
+        otherCellSet.add(`${x},${y},${z}`);
+      }
+    }
+    for (let i = 0; i < transformed.length; i++) {
+      const z = stackBricks[i].z || 0;
+      for (const [x, y] of transformed[i].cells) {
+        if (otherCellSet.has(`${x},${y},${z}`)) {
+          setActionError(set, 'Cannot rotate — would collide with another brick');
+          return;
+        }
+      }
+    }
+
     const snapshot: BoardSnapshot = {
       boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
       inventoryState: new Map(inventoryState),
       moveCount: get().moveCount,
     };
 
-    const newBoardState = {
-      ...boardState,
-      placedBricks: boardState.placedBricks.map(b =>
-        b.instanceId === instanceId
-          ? { ...b, rotation: (b.rotation + 90) % 360 }
-          : b
-      ),
-    };
+    const updatedBricks = boardState.placedBricks.map(b => {
+      const idx = stackBricks.findIndex(sb => sb.instanceId === b.instanceId);
+      if (idx === -1) return b;
+      const t = transformed[idx];
+      return {
+        ...b,
+        position: { x: t.position[0], y: t.position[1] },
+        rotation: t.rotation,
+      };
+    });
+
+    const newBoardState = { ...boardState, placedBricks: updatedBricks };
 
     set({
       boardState: newBoardState,
