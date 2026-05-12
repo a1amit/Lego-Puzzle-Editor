@@ -9,6 +9,3 @@ export { BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS, NONOGR
 
 // Templates
 export { BLANK_PUZZLE, FIT_ALL_PUZZLE } from './templates';
-
-// Tower of Hanoi
-export { TOWER_OF_HANOI_PUZZLE } from './hanoi';
