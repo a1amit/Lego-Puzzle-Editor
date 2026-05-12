@@ -367,7 +367,7 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   // ------------------------------------------
 
   placeBrick: (brick) => {
-    const { boardState, inventoryState, undoStack } = get();
+    const { boardState, inventoryState, undoStack, puzzle } = get();
 
     const remaining = inventoryState.get(brick.id) ?? 0;
     if (remaining <= 0) {
@@ -389,6 +389,24 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
     if (zLevel > maxAllowedZ) {
       setActionError(set, 'Cannot stack higher — depth limit reached');
       return;
+    }
+
+    if (puzzle?.subset_stacking && zLevel > 0) {
+      const cellSet = new Set(cells.map(([x, y]) => `${x},${y}`));
+      const supporting = boardState.placedBricks.find(b => {
+        if ((b.z || 0) !== zLevel - 1) return false;
+        return getBrickCells(b).some(([x, y]) => cellSet.has(`${x},${y}`));
+      });
+      if (!supporting) {
+        setActionError(set, 'Cannot place — nothing below to rest on');
+        return;
+      }
+      const supportSet = new Set(getBrickCells(supporting).map(([x, y]) => `${x},${y}`));
+      const fits = cells.every(([x, y]) => supportSet.has(`${x},${y}`));
+      if (!fits) {
+        setActionError(set, 'Cannot stack a larger brick on a smaller one');
+        return;
+      }
     }
 
     // Save snapshot for undo
@@ -490,6 +508,13 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
 
     // Build the stack (bottom + everything above), sorted by z ascending.
     const stackedIds = findBricksStackedOnTop(boardState, brick);
+
+    // Tower-of-Hanoi-style puzzles: only the topmost brick of a column may move.
+    if (puzzle?.move_as_stack === false && stackedIds.size > 0) {
+      setActionError(set, 'Cannot move — remove the bricks on top first');
+      return;
+    }
+
     const stackBricks: PlacedBrick[] = [
       brick,
       ...boardState.placedBricks
@@ -559,6 +584,27 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       }
     }
 
+    // Hanoi-style: bottom of moving stack must fit entirely on top of the
+    // brick directly below it (subset of footprint).
+    if (puzzle?.subset_stacking && newBottomZ > 0) {
+      const bottomCells = transformed[0].cells;
+      const bottomCellSet = new Set(bottomCells.map(([x, y]) => `${x},${y}`));
+      const supporting = otherBricks.find(b => {
+        if ((b.z || 0) !== newBottomZ - 1) return false;
+        return getBrickCells(b).some(([x, y]) => bottomCellSet.has(`${x},${y}`));
+      });
+      if (!supporting) {
+        setActionError(set, 'Cannot move — nothing below to rest on');
+        return;
+      }
+      const supportSet = new Set(getBrickCells(supporting).map(([x, y]) => `${x},${y}`));
+      const fits = bottomCells.every(([x, y]) => supportSet.has(`${x},${y}`));
+      if (!fits) {
+        setActionError(set, 'Cannot stack a larger brick on a smaller one');
+        return;
+      }
+    }
+
     const snapshot: BoardSnapshot = {
       boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
       inventoryState: new Map(inventoryState),
@@ -591,12 +637,18 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
   },
 
   rotateBrick: (instanceId) => {
-    const { boardState, undoStack, inventoryState } = get();
+    const { boardState, undoStack, inventoryState, puzzle } = get();
 
     const brick = boardState.placedBricks.find(b => b.instanceId === instanceId);
     if (!brick) return;
 
     const stackedIds = findBricksStackedOnTop(boardState, brick);
+
+    if (puzzle?.move_as_stack === false && stackedIds.size > 0) {
+      setActionError(set, 'Cannot rotate — remove the bricks on top first');
+      return;
+    }
+
     const stackBricks: PlacedBrick[] = [
       brick,
       ...boardState.placedBricks

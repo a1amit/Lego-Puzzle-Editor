@@ -233,6 +233,31 @@ export const PuzzleDefinitionSchema = z.object({
   /** Nonogram hints for Nonogram/Picross puzzles */
   nonogram_hints: NonogramHintsSchema.optional(),
   validation_rules: z.array(ValidationRuleSchema),
+  /**
+   * If true (default when omitted), moving or rotating a brick that has bricks
+   * stacked on top carries the entire stack as a rigid unit. If false, only
+   * the topmost brick of any column can be moved/rotated — useful for
+   * Tower-of-Hanoi-style puzzles.
+   */
+  move_as_stack: z.boolean().optional(),
+  /**
+   * Optional placement snap zones along the x and/or y axes. When set, a
+   * brick placed or moved into a zone is centered on that zone's center
+   * (accounting for brick footprint), and clicks outside any zone are a
+   * no-op. Used by Tower-of-Hanoi-style puzzles where bricks must land on
+   * fixed "peg" positions regardless of where the user clicks.
+   */
+  snap_zones: z.object({
+    x: z.array(z.object({ center: z.number(), width: z.number().int().positive() })).optional(),
+    y: z.array(z.object({ center: z.number(), width: z.number().int().positive() })).optional(),
+  }).optional(),
+  /**
+   * If true, a brick may only be placed/moved onto an existing brick when
+   * its footprint is a subset of the supporting brick's footprint (i.e.
+   * "smaller on bigger"). Tower-of-Hanoi-style. Bricks at z = 0 are
+   * always allowed.
+   */
+  subset_stacking: z.boolean().optional(),
   /** Optional custom shape definitions */
   custom_shapes: z.record(z.string(), ShapeDefinitionSchema).optional(),
   /** Metadata */

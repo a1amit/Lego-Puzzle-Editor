@@ -10,6 +10,7 @@ import { useHoverStore } from '../../store/hoverStore';
 import { useRuleBuilderStore } from '../editor/ruleBuilder/useRuleBuilderStore';
 import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { getBrickCells, rotateShape } from '../../validation/ValidationRegistry';
+import { applySnapZones, getFootprintExtent } from '../../engine/utils';
 import { SCENE_3D, GOAL_INDICATOR_3D, COLORS } from '../../config/sceneConfig';
 
 // Error boundary to catch Three.js / WebGL crashes gracefully
@@ -442,19 +443,33 @@ function DragDropManager() {
 
     // If we have a placed brick selected (hovering), place it at new position
     if (selectedPlacedBrick) {
+      const shape = SHAPE_LIBRARY[selectedPlacedBrick.shape];
+      const footprint = shape
+        ? getFootprintExtent(shape.cells, selectedPlacedBrick.rotation || 0)
+        : { width: 1, height: 1 };
+      const target = applySnapZones({ x, y }, footprint, puzzle?.snap_zones);
+      if (!target) return; // click outside any snap zone — ignore
+
       // Check if clicking on the same position - if so, just deselect
-      if (selectedPlacedBrick.position.x === x && selectedPlacedBrick.position.y === y) {
+      if (selectedPlacedBrick.position.x === target.x && selectedPlacedBrick.position.y === target.y) {
         selectBrick(null);
         return;
       }
 
-      moveBrick(selectedPlacedBrick.instanceId, { x, y });
+      moveBrick(selectedPlacedBrick.instanceId, target);
       selectBrick(null);
       return;
     }
 
     // If we have an inventory brick selected, place it with the preview rotation
     if (selectedInventoryBrick) {
+      const shape = SHAPE_LIBRARY[selectedInventoryBrick.shape];
+      const footprint = shape
+        ? getFootprintExtent(shape.cells, previewRotation)
+        : { width: 1, height: 1 };
+      const target = applySnapZones({ x, y }, footprint, puzzle?.snap_zones);
+      if (!target) return;
+
       // Check inventory count BEFORE placing - if more than 1 remains, keep selected for continuous placement
       const remainingCount = usePuzzleStore.getState().inventoryState.get(selectedInventoryBrick.id) ?? 0;
       const keepSelected = remainingCount > 1;
@@ -464,7 +479,7 @@ function DragDropManager() {
         instanceId: '',
         shape: selectedInventoryBrick.shape,
         color: selectedInventoryBrick.color,
-        position: { x, y },
+        position: target,
         rotation: previewRotation, // Use the preview rotation!
         z: 0, // Will be recalculated in placeBrick, but required by type
       });
@@ -474,7 +489,7 @@ function DragDropManager() {
         selectBrick(null);
       }
     }
-  }, [selectedPlacedBrick, selectedInventoryBrick, previewRotation, moveBrick, placeBrick, selectBrick]);
+  }, [selectedPlacedBrick, selectedInventoryBrick, previewRotation, puzzle?.snap_zones, moveBrick, placeBrick, selectBrick]);
 
   // Handle right-click on canvas to rotate preview
   const handleCanvasContextMenu = useCallback((event: any) => {
@@ -574,16 +589,24 @@ function DragDropManager() {
       })}
 
       {/* Ghost preview when placing from inventory - with rotation */}
-      {selectedInventoryBrick && hoveredCell && (
-        <GhostBrick
-          shape={selectedInventoryBrick.shape}
-          color={selectedInventoryBrick.color}
-          rotation={previewRotation}
-          position={{ x: hoveredCell.x - boardOffset.x, y: hoveredCell.y - boardOffset.y }}
-          z={ghostZLevel}
-          isValid={isGhostValid}
-        />
-      )}
+      {selectedInventoryBrick && hoveredCell && (() => {
+        const shape = SHAPE_LIBRARY[selectedInventoryBrick.shape];
+        const footprint = shape
+          ? getFootprintExtent(shape.cells, previewRotation)
+          : { width: 1, height: 1 };
+        const snapped = applySnapZones(hoveredCell, footprint, puzzle?.snap_zones);
+        if (!snapped) return null;
+        return (
+          <GhostBrick
+            shape={selectedInventoryBrick.shape}
+            color={selectedInventoryBrick.color}
+            rotation={previewRotation}
+            position={{ x: snapped.x - boardOffset.x, y: snapped.y - boardOffset.y }}
+            z={ghostZLevel}
+            isValid={isGhostValid}
+          />
+        );
+      })()}
 
       {/* Ghost preview when repositioning a placed brick */}
       {selectedPlacedBrick && hoveredCell && (() => {
@@ -591,10 +614,14 @@ function DragDropManager() {
         const shape = SHAPE_LIBRARY[selectedPlacedBrick.shape];
         if (!shape) return null;
 
+        const footprint = getFootprintExtent(shape.cells, selectedPlacedBrick.rotation || 0);
+        const snapped = applySnapZones(hoveredCell, footprint, puzzle?.snap_zones);
+        if (!snapped) return null;
+
         const rotatedCells = rotateShape(shape.cells, selectedPlacedBrick.rotation || 0);
         const cells: [number, number][] = rotatedCells.map(([dx, dy]) => [
-          hoveredCell.x + dx,
-          hoveredCell.y + dy,
+          snapped.x + dx,
+          snapped.y + dy,
         ]);
 
         // Exclude the current brick from z-level calculation
@@ -621,7 +648,7 @@ function DragDropManager() {
             shape={selectedPlacedBrick.shape}
             color={selectedPlacedBrick.color}
             rotation={selectedPlacedBrick.rotation}
-            position={{ x: hoveredCell.x - boardOffset.x, y: hoveredCell.y - boardOffset.y }}
+            position={{ x: snapped.x - boardOffset.x, y: snapped.y - boardOffset.y }}
             z={movedZLevel}
             isValid={isValidMove}
           />

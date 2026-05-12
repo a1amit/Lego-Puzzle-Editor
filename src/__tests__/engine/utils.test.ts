@@ -736,6 +736,8 @@ describe('generateInstanceId', () => {
 import {
   computeRigidStackRotation,
   computeRigidStackTranslation,
+  applySnapZones,
+  getFootprintExtent,
   type StackPieceInput,
 } from '@/engine/utils'
 
@@ -809,5 +811,53 @@ describe('computeRigidStackRotation', () => {
     // The top brick still sits on a cell of the bottom.
     const bottomCellSet = new Set(out[0].cells.map(c => `${c[0]},${c[1]}`))
     expect(bottomCellSet.has(`${out[1].cells[0][0]},${out[1].cells[0][1]}`)).toBe(true)
+  })
+})
+
+// ============================================
+// applySnapZones (Hanoi-style peg snapping)
+// ============================================
+
+describe('applySnapZones', () => {
+  const hanoiZones = {
+    x: [
+      { center: 2, width: 5 },
+      { center: 8, width: 5 },
+      { center: 14, width: 5 },
+    ],
+    y: [{ center: 2, width: 5 }],
+  }
+
+  it('returns the position unchanged when no zones are configured', () => {
+    expect(applySnapZones({ x: 7, y: 3 }, { width: 1, height: 1 }, undefined)).toEqual({ x: 7, y: 3 })
+  })
+
+  it('snaps a 1x1 brick to the peg center', () => {
+    expect(applySnapZones({ x: 0, y: 4 }, { width: 1, height: 1 }, hanoiZones)).toEqual({ x: 2, y: 2 })
+    expect(applySnapZones({ x: 10, y: 0 }, { width: 1, height: 1 }, hanoiZones)).toEqual({ x: 8, y: 2 })
+  })
+
+  it('snaps a 5x5 brick so the peg is the center column', () => {
+    // Anchor for a 5-wide footprint at peg center 8 is 8 - floor(4/2) = 6.
+    expect(applySnapZones({ x: 9, y: 3 }, { width: 5, height: 5 }, hanoiZones)).toEqual({ x: 6, y: 0 })
+  })
+
+  it('returns null for clicks outside any zone on a defined axis', () => {
+    // x=5 is the gap between section A [0,4] and section B [6,10].
+    expect(applySnapZones({ x: 5, y: 2 }, { width: 1, height: 1 }, hanoiZones)).toBeNull()
+  })
+})
+
+describe('getFootprintExtent', () => {
+  it('reports 1x1 for a unit cell', () => {
+    expect(getFootprintExtent([[0, 0]], 0)).toEqual({ width: 1, height: 1 })
+  })
+
+  it('reports 5x1 for a horizontal 1x5', () => {
+    expect(getFootprintExtent([[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]], 0)).toEqual({ width: 5, height: 1 })
+  })
+
+  it('swaps width/height after a 90° rotation', () => {
+    expect(getFootprintExtent([[0, 0], [1, 0], [2, 0]], 90)).toEqual({ width: 1, height: 3 })
   })
 })

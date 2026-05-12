@@ -113,11 +113,14 @@ function deriveConfig(puzzle: PuzzleDefinition | null, viewModeOverride?: ViewMo
   ) ?? false;
   const rotationEnabled = !hasNoRotationRule;
 
+  const moveAsStack = puzzle?.move_as_stack ?? true;
+
   return {
     viewMode,
     movementRule,
     allowStacking,
     rotationEnabled,
+    moveAsStack,
   };
 }
 
@@ -249,6 +252,18 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       return false;
     }
 
+    // Hanoi-style: top brick must fit within the supporting brick's footprint.
+    if (puzzle.subset_stacking && targetZ > 0) {
+      const targetSet = new Set(targetCells.map(([x, y]) => `${x},${y}`));
+      const supporting = board.placedPieces.find(p => {
+        if (p.position.z !== targetZ - 1) return false;
+        return getPieceCells(p).some(([x, y]) => targetSet.has(`${x},${y}`));
+      });
+      if (!supporting) return false;
+      const supportSet = new Set(getPieceCells(supporting).map(([x, y]) => `${x},${y}`));
+      if (!targetCells.every(([x, y]) => supportSet.has(`${x},${y}`))) return false;
+    }
+
     // Save snapshot for undo
     pushSnapshot();
 
@@ -345,6 +360,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
 
     // Build stack: bottom piece + everything above it (sorted by z asc).
     const stackedIds = findPiecesStackedOnTop(board, piece);
+
+    if (!config.moveAsStack && stackedIds.size > 0) return false;
+
     const stackPieces: PlacedPiece[] = [
       piece,
       ...board.placedPieces
@@ -411,6 +429,21 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       }
     }
 
+    if (puzzle?.subset_stacking) {
+      const newBottomZ = newZByIndex[0];
+      if (newBottomZ > 0) {
+        const bottomCells = transformed[0].cells;
+        const bottomSet = new Set(bottomCells.map(([x, y]) => `${x},${y}`));
+        const supporting = otherPieces.find(p => {
+          if (p.position.z !== newBottomZ - 1) return false;
+          return getPieceCells(p).some(([x, y]) => bottomSet.has(`${x},${y}`));
+        });
+        if (!supporting) return false;
+        const supportSet = new Set(getPieceCells(supporting).map(([x, y]) => `${x},${y}`));
+        if (!bottomCells.every(([x, y]) => supportSet.has(`${x},${y}`))) return false;
+      }
+    }
+
     pushSnapshot();
 
     setBoard(prev => ({
@@ -431,7 +464,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     haptics.light();
 
     return true;
-  }, [board, config, pushSnapshot]);
+  }, [board, config, puzzle, pushSnapshot]);
 
   // ============================================
   // PIECE ROTATION
@@ -444,6 +477,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     if (!piece) return;
 
     const stackedIds = findPiecesStackedOnTop(board, piece);
+
+    if (!config.moveAsStack && stackedIds.size > 0) return;
+
     const stackPieces: PlacedPiece[] = [
       piece,
       ...board.placedPieces
@@ -499,7 +535,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
 
     SoundManager.getInstance().play('rotate');
     haptics.light();
-  }, [config.rotationEnabled, board, pushSnapshot]);
+  }, [config, board, pushSnapshot]);
 
   // ============================================
   // SELECTION

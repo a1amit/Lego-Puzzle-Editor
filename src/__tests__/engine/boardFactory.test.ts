@@ -249,6 +249,64 @@ describe('createInitialBoard', () => {
     const ids = board.placedPieces.map(p => p.instanceId)
     expect(new Set(ids).size).toBe(ids.length)
   })
+
+  describe('auto-z stacking', () => {
+    it('stacks overlapping initial pieces in array order', () => {
+      const puzzle = minimalPuzzle({
+        board: {
+          dimensions: { width: 4, height: 4, depth: 3 },
+          initial_state: [
+            { id: 'bottom', shape: 'unit', color: '#ff0000', position: [0, 0] as [number, number], rotation: 0 },
+            { id: 'middle', shape: 'unit', color: '#00ff00', position: [0, 0] as [number, number], rotation: 0 },
+            { id: 'top',    shape: 'unit', color: '#0000ff', position: [0, 0] as [number, number], rotation: 0 },
+          ],
+          blocked_cells: [],
+        },
+      })
+
+      const board = createInitialBoard(puzzle)
+      const byId = Object.fromEntries(board.placedPieces.map(p => [p.id, p]))
+      expect(byId['bottom'].position.z).toBe(0)
+      expect(byId['middle'].position.z).toBe(1)
+      expect(byId['top'].position.z).toBe(2)
+    })
+
+    it('keeps z=0 for non-overlapping initial pieces', () => {
+      const puzzle = minimalPuzzle({
+        board: {
+          dimensions: { width: 4, height: 4, depth: 2 },
+          initial_state: [
+            { id: 'a', shape: 'unit', color: '#ff0000', position: [0, 0] as [number, number], rotation: 0 },
+            { id: 'b', shape: 'unit', color: '#00ff00', position: [2, 0] as [number, number], rotation: 0 },
+          ],
+          blocked_cells: [],
+        },
+      })
+
+      const board = createInitialBoard(puzzle)
+      expect(board.placedPieces.every(p => p.position.z === 0)).toBe(true)
+    })
+
+    it('stacks cell-based pieces with partial overlap', () => {
+      const puzzle = minimalPuzzle({
+        board: {
+          dimensions: { width: 6, height: 4, depth: 3 },
+          initial_state: [
+            // 3-wide strip at row 0
+            { id: 'wide',   color: '#ff0000', cells: [[0, 0], [1, 0], [2, 0]] as [number, number][] },
+            // 1-cell sitting on the leftmost cell of 'wide' — should stack on top.
+            { id: 'narrow', color: '#00ff00', cells: [[0, 0]] as [number, number][] },
+          ],
+          blocked_cells: [],
+        },
+      })
+
+      const board = createInitialBoard(puzzle)
+      const byId = Object.fromEntries(board.placedPieces.map(p => [p.id, p]))
+      expect(byId['wide'].position.z).toBe(0)
+      expect(byId['narrow'].position.z).toBe(1)
+    })
+  })
 })
 
 // ============================================

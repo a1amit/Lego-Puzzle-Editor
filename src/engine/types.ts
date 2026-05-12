@@ -135,6 +135,12 @@ export interface EngineConfig {
   movementRule: MovementRule;
   allowStacking: boolean;  // Derived from depth > 1
   rotationEnabled: boolean;  // Derived from NO_ROTATION rule
+  /**
+   * If true, moving/rotating a brick carries everything stacked above it as a
+   * rigid unit. If false, only the topmost brick of a column can be moved —
+   * see `PuzzleDefinition.move_as_stack`.
+   */
+  moveAsStack: boolean;
 }
 
 // ============================================
