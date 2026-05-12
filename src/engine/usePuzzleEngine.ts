@@ -375,11 +375,9 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     const otherPieces = board.placedPieces.filter(p => !stackIdSet.has(p.instanceId));
     const boardWithoutStack: EngineBoard = { ...board, placedPieces: otherPieces };
 
-    let zDelta = 0;
-    let newBottomZ = piece.position.z;
+    let zDelta: number;
     if (config.allowStacking) {
-      newBottomZ = calculateZLevel(boardWithoutStack, transformed[0].cells);
-      zDelta = newBottomZ - piece.position.z;
+      zDelta = calculateZLevel(boardWithoutStack, transformed[0].cells) - piece.position.z;
     } else {
       // No stacking allowed → bottom (and everything in stack — which should be just the
       // bottom in this configuration) sits at z=0.
@@ -390,8 +388,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
           if (targetCellSet.has(`${ox},${oy}`)) return false;
         }
       }
-      newBottomZ = 0;
-      zDelta = 0 - piece.position.z;
+      zDelta = -piece.position.z;
     }
 
     const newZByIndex = stackPieces.map(p => p.position.z + zDelta);
@@ -433,7 +430,6 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     SoundManager.getInstance().play('slide');
     haptics.light();
 
-    void newBottomZ;
     return true;
   }, [board, config, pushSnapshot]);
 
