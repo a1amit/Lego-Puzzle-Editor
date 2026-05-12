@@ -251,6 +251,13 @@ export const PuzzleDefinitionSchema = z.object({
     x: z.array(z.object({ center: z.number(), width: z.number().int().positive() })).optional(),
     y: z.array(z.object({ center: z.number(), width: z.number().int().positive() })).optional(),
   }).optional(),
+  /**
+   * If true, a brick may only be placed/moved onto an existing brick when
+   * its footprint is a subset of the supporting brick's footprint (i.e.
+   * "smaller on bigger"). Tower-of-Hanoi-style. Bricks at z = 0 are
+   * always allowed.
+   */
+  subset_stacking: z.boolean().optional(),
   /** Optional custom shape definitions */
   custom_shapes: z.record(z.string(), ShapeDefinitionSchema).optional(),
   /** Metadata */

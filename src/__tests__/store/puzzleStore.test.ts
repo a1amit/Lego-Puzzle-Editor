@@ -474,6 +474,58 @@ describe('moveBrick with move_as_stack: false', () => {
 });
 
 // ===========================================================================
+// 9c. moveBrick with subset_stacking (Hanoi disk-size rule)
+// ===========================================================================
+
+describe('moveBrick with subset_stacking', () => {
+  // Three pieces: a 1x3 strip at (0,0), a 1x1 at (3,0), and a 1x1 at (4,0).
+  // We try to move the 1x3 onto the 1x1 (bigger on smaller — should fail)
+  // and the 1x1 onto the 1x3 (smaller on bigger — should succeed).
+  const subsetPuzzle: PuzzleDefinition = {
+    title: 'Subset stacking test',
+    description: 'subset rule',
+    viewMode: '3D',
+    move_as_stack: false,
+    subset_stacking: true,
+    board: {
+      dimensions: { width: 8, height: 4, depth: 3 },
+      initial_state: [
+        { id: 'big',  shape: 'tromino-I', color: '#0000ff', position: [0, 0] as [number, number], rotation: 0 },
+        { id: 'sm1', shape: 'unit',      color: '#ff0000', position: [4, 0] as [number, number], rotation: 0 },
+      ],
+    },
+    inventory: [],
+    validation_rules: [
+      { type: 'PLACEMENT', rule: 'NO_BRICKS_OUT_OF_BOUNDS' },
+    ],
+  };
+
+  beforeEach(() => {
+    usePuzzleStore.getState().setPuzzle(subsetPuzzle);
+  });
+
+  it('rejects placing a larger brick on a smaller one', () => {
+    const big = usePuzzleStore.getState().boardState.placedBricks.find(b => b.id === 'big')!;
+    // Try to drop 'big' (3 cells wide) on top of 'sm1' (1 cell). Move to (4,0).
+    usePuzzleStore.getState().moveBrick(big.instanceId, { x: 4, y: 0 });
+
+    const s = usePuzzleStore.getState();
+    expect(s.boardState.placedBricks.find(b => b.id === 'big')!.position.x).toBe(0);
+    expect(s.lastActionError).toMatch(/larger brick on a smaller one|nothing below/);
+  });
+
+  it('allows placing a smaller brick on a larger one', () => {
+    const sm1 = usePuzzleStore.getState().boardState.placedBricks.find(b => b.id === 'sm1')!;
+    // Drop sm1 onto cell (1, 0) — fully inside 'big' (cells 0..2,0).
+    usePuzzleStore.getState().moveBrick(sm1.instanceId, { x: 1, y: 0 });
+
+    const moved = usePuzzleStore.getState().boardState.placedBricks.find(b => b.id === 'sm1')!;
+    expect(moved.position).toEqual({ x: 1, y: 0 });
+    expect(moved.z).toBe(1);
+  });
+});
+
+// ===========================================================================
 // 10. rotateBrick
 // ===========================================================================
 

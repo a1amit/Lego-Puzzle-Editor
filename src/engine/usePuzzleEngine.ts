@@ -252,6 +252,18 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       return false;
     }
 
+    // Hanoi-style: top brick must fit within the supporting brick's footprint.
+    if (puzzle.subset_stacking && targetZ > 0) {
+      const targetSet = new Set(targetCells.map(([x, y]) => `${x},${y}`));
+      const supporting = board.placedPieces.find(p => {
+        if (p.position.z !== targetZ - 1) return false;
+        return getPieceCells(p).some(([x, y]) => targetSet.has(`${x},${y}`));
+      });
+      if (!supporting) return false;
+      const supportSet = new Set(getPieceCells(supporting).map(([x, y]) => `${x},${y}`));
+      if (!targetCells.every(([x, y]) => supportSet.has(`${x},${y}`))) return false;
+    }
+
     // Save snapshot for undo
     pushSnapshot();
 
@@ -417,6 +429,21 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
       }
     }
 
+    if (puzzle?.subset_stacking) {
+      const newBottomZ = newZByIndex[0];
+      if (newBottomZ > 0) {
+        const bottomCells = transformed[0].cells;
+        const bottomSet = new Set(bottomCells.map(([x, y]) => `${x},${y}`));
+        const supporting = otherPieces.find(p => {
+          if (p.position.z !== newBottomZ - 1) return false;
+          return getPieceCells(p).some(([x, y]) => bottomSet.has(`${x},${y}`));
+        });
+        if (!supporting) return false;
+        const supportSet = new Set(getPieceCells(supporting).map(([x, y]) => `${x},${y}`));
+        if (!bottomCells.every(([x, y]) => supportSet.has(`${x},${y}`))) return false;
+      }
+    }
+
     pushSnapshot();
 
     setBoard(prev => ({
@@ -437,7 +464,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     haptics.light();
 
     return true;
-  }, [board, config, pushSnapshot]);
+  }, [board, config, puzzle, pushSnapshot]);
 
   // ============================================
   // PIECE ROTATION
