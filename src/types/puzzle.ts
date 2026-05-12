@@ -240,6 +240,17 @@ export const PuzzleDefinitionSchema = z.object({
    * Tower-of-Hanoi-style puzzles.
    */
   move_as_stack: z.boolean().optional(),
+  /**
+   * Optional placement snap zones along the x and/or y axes. When set, a
+   * brick placed or moved into a zone is centered on that zone's center
+   * (accounting for brick footprint), and clicks outside any zone are a
+   * no-op. Used by Tower-of-Hanoi-style puzzles where bricks must land on
+   * fixed "peg" positions regardless of where the user clicks.
+   */
+  snap_zones: z.object({
+    x: z.array(z.object({ center: z.number(), width: z.number().int().positive() })).optional(),
+    y: z.array(z.object({ center: z.number(), width: z.number().int().positive() })).optional(),
+  }).optional(),
   /** Optional custom shape definitions */
   custom_shapes: z.record(z.string(), ShapeDefinitionSchema).optional(),
   /** Metadata */

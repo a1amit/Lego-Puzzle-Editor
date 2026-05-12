@@ -321,6 +321,70 @@ export function computeRigidStackTranslation(
 }
 
 // ============================================
+// SNAP ZONES
+// ============================================
+
+export interface SnapZone {
+  center: number;
+  width: number;
+}
+
+export interface SnapZones {
+  x?: SnapZone[];
+  y?: SnapZone[];
+}
+
+/**
+ * Bounding-box extent (width, height) of a normalized rotated shape.
+ */
+export function getFootprintExtent(
+  shapeCells: Coordinate2D[],
+  rotation: number,
+): { width: number; height: number } {
+  if (shapeCells.length === 0) return { width: 0, height: 0 };
+  const cells = rotateShape(shapeCells, rotation);
+  const xs = cells.map(c => c[0]);
+  const ys = cells.map(c => c[1]);
+  return {
+    width: Math.max(...xs) - Math.min(...xs) + 1,
+    height: Math.max(...ys) - Math.min(...ys) + 1,
+  };
+}
+
+/**
+ * Snap a click position into the nearest snap zone center on each defined
+ * axis, returning the brick's anchor (top-left) so its footprint is
+ * centered in that zone. Returns null if the click is outside every zone
+ * on a defined axis (i.e. the click should be treated as a no-op).
+ */
+export function applySnapZones(
+  pos: { x: number; y: number },
+  footprint: { width: number; height: number },
+  zones: SnapZones | undefined,
+): { x: number; y: number } | null {
+  if (!zones) return pos;
+
+  let snappedX = pos.x;
+  let snappedY = pos.y;
+
+  if (zones.x && zones.x.length > 0) {
+    const half = (z: SnapZone) => Math.floor(z.width / 2);
+    const zone = zones.x.find(z => pos.x >= z.center - half(z) && pos.x <= z.center + half(z));
+    if (!zone) return null;
+    snappedX = zone.center - Math.floor((footprint.width - 1) / 2);
+  }
+
+  if (zones.y && zones.y.length > 0) {
+    const half = (z: SnapZone) => Math.floor(z.width / 2);
+    const zone = zones.y.find(z => pos.y >= z.center - half(z) && pos.y <= z.center + half(z));
+    if (!zone) return null;
+    snappedY = zone.center - Math.floor((footprint.height - 1) / 2);
+  }
+
+  return { x: snappedX, y: snappedY };
+}
+
+// ============================================
 // COLLISION DETECTION
 // ============================================
 
