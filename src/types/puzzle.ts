@@ -222,6 +222,19 @@ export const PuzzleDefinitionSchema = z.object({
   puzzle_id: z.string().optional(),
   title: z.string(),
   description: z.string(),
+  /** Optional external link rendered alongside the description (e.g. source
+   * page, reference, video). `link_label` is the text shown for the link;
+   * if omitted, the URL itself is shown. */
+  link: z.string().url().optional(),
+  link_label: z.string().optional(),
+  /** Optional rich HTML description rendered inside a sandboxed iframe
+   * (no scripts, no same-origin) below the plain description. Useful for
+   * authored explainers, diagrams, or styled instructions. Populated via
+   * the "Upload" button in the puzzle editor. */
+  description_html: z.string().optional(),
+  /** Optional image (data URL, e.g. JPEG) rendered below the description.
+   * Populated via the "Upload" button in the puzzle editor. */
+  description_image: z.string().optional(),
   /** View mode determines how the puzzle is rendered (3D or 2D) */
   viewMode: ViewModeSchema.default('3D'),
   board: BoardSchema,
