@@ -7,23 +7,26 @@ import type { PuzzleDefinition } from '../../types/puzzle';
 /**
  * Tower of Hanoi
  *
- * Three disks of different widths start stacked on the leftmost "peg".
- * Move them all to the rightmost peg, one at a time. A larger disk may
- * never sit on a smaller one.
+ * Three disks of widths 5, 3, 1 start centered on the leftmost peg. Move
+ * them all to the rightmost peg, one at a time. A larger disk may never
+ * sit on a smaller one.
  *
  * Layout:
- *   - All three disks are anchored at the same x of their current peg, so the
- *     smaller disk's footprint is a strict subset of the larger one's. That
- *     keeps the disk-size rule a clean subset check.
- *   - Pegs are at columns x = 0, x = 4, x = 8. The disk's `position.x` selects
- *     which peg it's on. Click on cell (peg_x, 4) to move the selected disk.
+ *   - Pegs are at x = 2 (peg A), x = 8 (peg B), x = 14 (peg C). The disk's
+ *     left edge sits at peg_x − floor(width / 2).
+ *   - To place a disk centered on a peg, click the cell at the disk's
+ *     left-edge position — i.e. the small disk lands on click (peg_x, 0),
+ *     the medium on (peg_x − 1, 0), the large on (peg_x − 2, 0).
  *
  * Engine wiring:
- *   - `move_as_stack: false` makes our move/rotate logic refuse to drag a
+ *   - `move_as_stack: false` makes the move/rotate logic refuse to drag a
  *     buried brick — only the topmost disk of a peg can be picked up.
  *   - `depth: 4` permits up to 3 stacked disks (z = 0, 1, 2) plus headroom.
+ *   - Disks are defined cell-based so each one becomes its own custom shape
+ *     of the right width without needing to register entries in
+ *     `SHAPE_LIBRARY`.
  *   - The custom_code rule combines the disk-size constraint with the win
- *     condition (all disks anchored at the rightmost peg).
+ *     condition (every disk's footprint covers the rightmost peg cell).
  */
 export const TOWER_OF_HANOI_PUZZLE: PuzzleDefinition = {
   title: "Tower of Hanoi",
@@ -31,12 +34,14 @@ export const TOWER_OF_HANOI_PUZZLE: PuzzleDefinition = {
   viewMode: "3D",
   move_as_stack: false,
   board: {
-    dimensions: { width: 11, height: 5, depth: 4 },
+    dimensions: { width: 17, height: 1, depth: 4 },
     initial_state: [
-      // All anchored at x=0 so smaller ⊂ larger.
-      { id: "disk-large", shape: "tromino-I", color: "#0055BF", position: [0, 4], rotation: 0 },
-      { id: "disk-mid",   shape: "domino",    color: "#287F46", position: [0, 4], rotation: 0 },
-      { id: "disk-small", shape: "unit",      color: "#D01012", position: [0, 4], rotation: 0 },
+      // Largest disk (width 5) centered on peg A (x=2): cells x=0..4
+      { id: "disk-large", color: "#0055BF", cells: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]] },
+      // Middle disk (width 3) centered on peg A: cells x=1..3
+      { id: "disk-mid",   color: "#287F46", cells: [[1, 0], [2, 0], [3, 0]] },
+      // Smallest disk (width 1) on peg A: cell x=2
+      { id: "disk-small", color: "#D01012", cells: [[2, 0]] },
     ],
   },
   // Inventory is empty — all three disks start on the board.
@@ -52,15 +57,14 @@ export const TOWER_OF_HANOI_PUZZLE: PuzzleDefinition = {
         condition: {
           kind: "custom_code",
           code: [
-            "const SHAPES = {",
-            "  'unit': [[0, 0]],",
-            "  'domino': [[0, 0], [1, 0]],",
-            "  'tromino-I': [[0, 0], [1, 0], [2, 0]],",
-            "};",
-            "const PEG_C_X = 8;",
+            "const WIDTHS = { 'disk-large': 5, 'disk-mid': 3, 'disk-small': 1 };",
+            "const PEG_C_X = 14;",
+            "const Y = 0;",
             "function cellsOf(b) {",
-            "  const cells = SHAPES[b.shape] || [[0, 0]];",
-            "  return cells.map(([dx, dy]) => `${b.x + dx},${b.y + dy}`);",
+            "  const w = WIDTHS[b.id] || 1;",
+            "  const out = [];",
+            "  for (let dx = 0; dx < w; dx++) out.push(`${b.x + dx},${b.y}`);",
+            "  return out;",
             "}",
             "for (const upper of board.placedBricks) {",
             "  for (const lower of board.placedBricks) {",
@@ -74,7 +78,8 @@ export const TOWER_OF_HANOI_PUZZLE: PuzzleDefinition = {
             "    }",
             "  }",
             "}",
-            "const onPegC = board.placedBricks.every(b => b.x === PEG_C_X);",
+            "const target = `${PEG_C_X},${Y}`;",
+            "const onPegC = board.placedBricks.every(b => cellsOf(b).includes(target));",
             "if (!onPegC) return { passed: false, message: 'Move all disks to the rightmost peg' };",
             "return { passed: true, message: 'Tower moved!' };",
           ].join("\n"),

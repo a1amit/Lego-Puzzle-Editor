@@ -9,6 +9,38 @@
 import type { PuzzleDefinition } from '../types/puzzle';
 import { SHAPE_LIBRARY } from '../types/puzzle';
 import type { EngineBoard, InventoryState, PlacedPiece, Coordinate2D } from './types';
+import { rotateShape } from './utils';
+
+/**
+ * Auto-compute z for an initial piece by stacking on top of any earlier
+ * initial pieces that overlap its cells. Lets `initial_state` order define
+ * the stack from bottom to top without callers spelling out z explicitly.
+ */
+function computeInitialZ(
+  shapeName: string,
+  position: { x: number; y: number },
+  rotation: number,
+  alreadyPlaced: PlacedPiece[],
+): number {
+  const shape = SHAPE_LIBRARY[shapeName];
+  if (!shape) return 0;
+  const rotated = rotateShape(shape.cells, rotation);
+  const cellSet = new Set(rotated.map(([dx, dy]) => `${position.x + dx},${position.y + dy}`));
+
+  let maxZ = -1;
+  for (const prior of alreadyPlaced) {
+    const priorShape = SHAPE_LIBRARY[prior.shape];
+    if (!priorShape) continue;
+    const priorRotated = rotateShape(priorShape.cells, prior.rotation);
+    for (const [dx, dy] of priorRotated) {
+      if (cellSet.has(`${prior.position.x + dx},${prior.position.y + dy}`)) {
+        if (prior.position.z > maxZ) maxZ = prior.position.z;
+        break;
+      }
+    }
+  }
+  return maxZ + 1;
+}
 
 // ============================================
 // LOCAL SHAPE REGISTRY
@@ -52,36 +84,43 @@ export function createInitialBoard(puzzle: PuzzleDefinition | null): EngineBoard
         const shapeName = `custom-${placement.id}`;
 
         ensureCustomShape(shapeName, normalizedCells);
+        const z = computeInitialZ(shapeName, { x: minX, y: minY }, 0, placedPieces);
 
         placedPieces.push({
           id: placement.id,
           instanceId: `${placement.id}-initial-${placedPieces.length}`,
           shape: shapeName,
           color: placement.color,
-          position: { x: minX, y: minY, z: 0 },
+          position: { x: minX, y: minY, z },
           rotation: 0,
         });
       } else if ('shape' in placement && 'color' in placement && 'position' in placement) {
         // Inline piece definition with shape name
+        const pos = { x: placement.position[0], y: placement.position[1] };
+        const rotation = placement.rotation || 0;
+        const z = computeInitialZ(placement.shape, pos, rotation, placedPieces);
         placedPieces.push({
           id: placement.id,
           instanceId: `${placement.id}-initial-${placedPieces.length}`,
           shape: placement.shape,
           color: placement.color,
-          position: { x: placement.position[0], y: placement.position[1], z: 0 },
-          rotation: placement.rotation || 0,
+          position: { x: pos.x, y: pos.y, z },
+          rotation,
         });
       } else if ('brickId' in placement) {
         // Reference to inventory piece
         const brickDef = puzzle.inventory.find(b => b.id === placement.brickId);
         if (brickDef) {
+          const pos = { x: placement.position[0], y: placement.position[1] };
+          const rotation = placement.rotation || 0;
+          const z = computeInitialZ(brickDef.shape, pos, rotation, placedPieces);
           placedPieces.push({
             id: brickDef.id,
             instanceId: `${brickDef.id}-initial-${placedPieces.length}`,
             shape: brickDef.shape,
             color: brickDef.color,
-            position: { x: placement.position[0], y: placement.position[1], z: 0 },
-            rotation: placement.rotation || 0,
+            position: { x: pos.x, y: pos.y, z },
+            rotation,
           });
         }
       }
