@@ -240,12 +240,22 @@ export function LegoBoard({
     return new Set(pickerSelectedCells.map(([x, y]) => `${x},${y}`));
   }, [pickerSelectedCells]);
 
-  // Get cells that need highlighting from validation
+  // Per-cell paint colors from puzzle.board.cell_colors.
+  const cellColorMap = useMemo(() => {
+    const m = new Map<string, string>();
+    const entries = store.puzzle?.board.cell_colors ?? [];
+    for (const [x, y, color] of entries) m.set(`${x},${y}`, color);
+    return m;
+  }, [store.puzzle?.board.cell_colors]);
+
+  // Get cells that need highlighting from validation. Opt-in via
+  // puzzle.highlight_failing_cells — when on, every failing rule's
+  // affectedCells are painted red (including CUSTOM rules).
+  const highlightFailingCells = store.puzzle?.highlight_failing_cells ?? false;
   const invalidCells = useMemo(() => {
     const cells = new Set<string>();
+    if (!highlightFailingCells) return cells;
     for (const result of validationResults) {
-      // Custom rules manage their own display — don't paint affected cells red
-      if (result.rule.startsWith('CUSTOM:')) continue;
       if (!result.isValid && result.affectedCells) {
         for (const [x, y] of result.affectedCells) {
           cells.add(`${x},${y}`);
@@ -253,7 +263,7 @@ export function LegoBoard({
       }
     }
     return cells;
-  }, [validationResults]);
+  }, [validationResults, highlightFailingCells]);
 
   // Create blocked cells set
   const blockedCells = useMemo(() => {
@@ -284,6 +294,7 @@ export function LegoBoard({
     const baseNormal: CellPosition[] = [];
     const baseBlocked: CellPosition[] = [];
     const baseGoal: CellPosition[] = [];
+    const baseColored: HighlightInstance[] = [];
     const studNormal: CellPosition[] = [];
     const studGoal: CellPosition[] = [];
     const highlights: HighlightInstance[] = [];
@@ -298,6 +309,7 @@ export function LegoBoard({
         const isInvalid = invalidCells.has(key);
         const isSlideDestination = slideDestinationCells.has(key);
         const isGoal = goalCellSet.has(key);
+        const paintColor = cellColorMap.get(key);
         const highlightColor = isInvalid
           ? COLORS.invalidCell
           : isSlideDestination
@@ -308,6 +320,8 @@ export function LegoBoard({
 
         if (isBlocked) {
           baseBlocked.push([x, y]);
+        } else if (paintColor) {
+          baseColored.push({ x, y, color: paintColor });
         } else if (isGoal) {
           baseGoal.push([x, y]);
         } else {
@@ -338,13 +352,14 @@ export function LegoBoard({
       baseNormal,
       baseBlocked,
       baseGoal,
+      baseColored,
       studNormal,
       studGoal,
       highlights,
       goalRings,
       pickerHighlights,
     };
-  }, [width, height, blockedCells, hoveredCell, invalidCells, slideDestinationCells, goalCellSet, pickerCellSet]);
+  }, [width, height, blockedCells, hoveredCell, invalidCells, slideDestinationCells, goalCellSet, cellColorMap, pickerCellSet]);
 
   useLayoutEffect(() => {
     const dynamicMeshes = [
@@ -495,6 +510,26 @@ export function LegoBoard({
           clearcoatRoughness={0.6}
         />
       </instancedMesh>
+
+      {/* Painted cells from puzzle.board.cell_colors. One mesh per cell so
+          each gets its own material color; positioned slightly above the
+          regular cell tops so the rim doesn't obscure them. */}
+      {instanceData.baseColored.map(({ x, y, color }) => (
+        <mesh
+          key={`painted-${x}-${y}`}
+          position={[x + 0.5, -BOARD_DEPTH / 2 + 0.06, y + 0.5]}
+          receiveShadow
+        >
+          <boxGeometry args={[CELL_SIZE - 0.02, BOARD_DEPTH, CELL_SIZE - 0.02]} />
+          <meshPhysicalMaterial
+            color={color}
+            roughness={BOARD_3D.roughness}
+            metalness={BOARD_3D.metalness}
+            clearcoat={0.45}
+            clearcoatRoughness={0.6}
+          />
+        </mesh>
+      ))}
 
       {/* Instanced studs */}
       <instancedMesh ref={studNormalRef} args={[undefined, undefined, maxInstances]} castShadow>

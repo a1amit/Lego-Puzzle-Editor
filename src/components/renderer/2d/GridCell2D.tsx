@@ -14,6 +14,8 @@ export interface GridCellProps {
   isInvalid: boolean;
   isValidDestination: boolean;
   isPickerSelected?: boolean;
+  /** Override fill color for this board cell (from `board.cell_colors`). */
+  paintColor?: string;
   onClick: () => void;
   onPointerEnter: () => void;
   onPointerLeave: () => void;
@@ -28,6 +30,7 @@ export const GridCell = memo(function GridCell({
   isInvalid,
   isValidDestination,
   isPickerSelected,
+  paintColor,
   onClick,
   onPointerEnter,
   onPointerLeave,
@@ -48,7 +51,7 @@ export const GridCell = memo(function GridCell({
           ? C.validDest
           : isBlocked
             ? 'url(#cell-blocked-grad)'
-            : 'url(#cell-grad)';
+            : paintColor ?? 'url(#cell-grad)';
 
   return (
     <g

@@ -29,6 +29,9 @@ export interface PieceProps {
   interactive: boolean;
   isSliderPuzzle: boolean;
   hasValidMoves: boolean;
+  /** When true, the piece's outline is drawn in red — used to flag pieces
+   * that overlap a failing validation rule's affectedCells. */
+  isInvalid?: boolean;
   onClick: () => void;
   onPointerEnter: () => void;
   onPointerLeave: () => void;
@@ -42,6 +45,7 @@ export const Piece2D = memo(function Piece2D({
   interactive,
   isSliderPuzzle,
   hasValidMoves,
+  isInvalid = false,
   onClick,
   onPointerEnter,
   onPointerLeave,
@@ -185,8 +189,8 @@ export const Piece2D = memo(function Piece2D({
             y1={edge.y1}
             x2={edge.x2}
             y2={edge.y2}
-            stroke={isSelected ? C.selectionGlow : borderColor}
-            strokeWidth={isSelected ? 3.5 : isHovered ? 3 : 2.5}
+            stroke={isInvalid ? '#ff2a2a' : (isSelected ? C.selectionGlow : borderColor)}
+            strokeWidth={isInvalid ? 4 : (isSelected ? 3.5 : isHovered ? 3 : 2.5)}
             strokeLinecap="square"
             opacity={isSelected ? 0.9 : 1}
           />

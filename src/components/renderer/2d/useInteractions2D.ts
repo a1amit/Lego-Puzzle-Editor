@@ -243,15 +243,13 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
 
   // ---- invalid cells ----
 
+  // Opt-in via puzzle.highlight_failing_cells — when on, every failing
+  // rule's affectedCells are painted red (including CUSTOM rules).
+  const highlightFailingCells = puzzle?.highlight_failing_cells ?? false;
   const invalidCells = useMemo(() => {
     const cells = new Set<string>();
+    if (!highlightFailingCells) return cells;
     for (const result of engine.validationResults) {
-      if (result.rule === 'GOAL_REACHED') continue;
-      if (result.rule === 'ALL_BOARD_SQUARES_MUST_BE_COVERED') continue;
-      if (result.rule === 'PATTERN_MATCH') continue;
-      // Custom rules manage their own display — don't paint affected cells red
-      if (result.rule.startsWith('CUSTOM:')) continue;
-
       if (!result.isValid && result.affectedCells) {
         for (const [x, y] of result.affectedCells) {
           cells.add(`${x},${y}`);
@@ -259,7 +257,7 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
       }
     }
     return cells;
-  }, [engine.validationResults]);
+  }, [engine.validationResults, highlightFailingCells]);
 
   // ---- goal area ----
 

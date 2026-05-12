@@ -133,6 +133,11 @@ export const BoardSchema = z.object({
   initial_state: z.array(InitialPlacementSchema).default([]),
   /** Optional blocked cells that cannot be used */
   blocked_cells: z.array(z.tuple([z.number(), z.number()])).optional(),
+  /** Optional per-cell board paint. Each entry is `[x, y, color]`. The board
+   * cell at (x, y) is painted in the given color (CSS color string) instead
+   * of the default surface color. Useful for marking lanes, peg sections,
+   * or color-coded zones. */
+  cell_colors: z.array(z.tuple([z.number(), z.number(), z.string()])).optional(),
 });
 
 export type Board = z.infer<typeof BoardSchema>;
@@ -235,6 +240,11 @@ export const PuzzleDefinitionSchema = z.object({
   /** Optional image (data URL, e.g. JPEG) rendered below the description.
    * Populated via the "Upload" button in the puzzle editor. */
   description_image: z.string().optional(),
+  /** When true, cells reported as `affectedCells` by failing validation
+   * rules are highlighted on the board (red overlay). Defaults to false
+   * — authors opt in for puzzles where the failure reason should be
+   * visible to the player. */
+  highlight_failing_cells: z.boolean().optional(),
   /** View mode determines how the puzzle is rendered (3D or 2D) */
   viewMode: ViewModeSchema.default('3D'),
   board: BoardSchema,

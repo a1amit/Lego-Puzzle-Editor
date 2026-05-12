@@ -11,6 +11,9 @@ interface PolyominoBrickProps {
   isSelected?: boolean;
   isGhost?: boolean;
   isValid?: boolean;
+  /** When true, the brick glows red — used to flag bricks that overlap a
+   * failing validation rule's affectedCells. */
+  isInvalid?: boolean;
   interactive?: boolean; // Whether the brick responds to clicks
   onSelect?: () => void;
   onDeselect?: () => void;
@@ -35,6 +38,7 @@ function BrickCell({
   isGhost,
   isSelected,
   isHovering,
+  isInvalid,
 }: {
   x: number;
   y: number;
@@ -42,6 +46,7 @@ function BrickCell({
   isGhost?: boolean;
   isSelected?: boolean;
   isHovering?: boolean;
+  isInvalid?: boolean;
 }) {
   const baseColor = useMemo(() => new THREE.Color(color), [color]);
   const edgeTint = useMemo(() => baseColor.clone().offsetHSL(0, 0.01, -0.08).getStyle(), [baseColor]);
@@ -66,8 +71,8 @@ function BrickCell({
           clearcoatRoughness={BRICK_3D.clearcoatRoughness}
           transparent={isGhost}
           opacity={isGhost ? 0.56 : 1}
-          emissive={isSelected || isHovering ? color : '#000000'}
-          emissiveIntensity={isSelected || isHovering ? BRICK_3D.emissiveIntensity : 0}
+          emissive={isInvalid ? '#ff2a2a' : (isSelected || isHovering ? color : '#000000')}
+          emissiveIntensity={isInvalid ? 0.55 : (isSelected || isHovering ? BRICK_3D.emissiveIntensity : 0)}
         />
       </RoundedBox>
 
@@ -117,6 +122,7 @@ export function PolyominoBrick({
   isSelected = false,
   isGhost = false,
   isValid = true,
+  isInvalid = false,
   interactive = true, // Default to interactive
   onSelect,
   onDeselect,
@@ -261,9 +267,10 @@ export function PolyominoBrick({
         isGhost={isGhost}
         isSelected={isSelected}
         isHovering={hovered && interactive}
+        isInvalid={isInvalid}
       />
     ));
-  }, [rotatedCells, brick.color, isGhost, isSelected, isValid, hovered, interactive]);
+  }, [rotatedCells, brick.color, isGhost, isSelected, isValid, isInvalid, hovered, interactive]);
 
   if (!shape) {
     console.warn(`Unknown shape: ${brick.shape}`);
