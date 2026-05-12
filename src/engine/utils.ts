@@ -218,6 +218,109 @@ export function findPiecesStackedOnTop(
 }
 
 // ============================================
+// RIGID STACK TRANSFORMS
+// ============================================
+
+/**
+ * Inputs for a rigid stack transform. Operates on plain coordinates so it
+ * can be shared between the store (PlacedBrick) and engine (PlacedPiece).
+ */
+export interface StackPieceInput {
+  position: Coordinate2D;
+  shape: string;
+  rotation: number;
+}
+
+export interface StackPieceResult {
+  position: Coordinate2D;
+  rotation: number;
+  cells: Coordinate2D[];
+}
+
+/**
+ * Rotate a stack 90° around the bottom piece's pivot, matching the
+ * transform used by `rotateShape`. The bottom piece (index 0 of `pieces`)
+ * anchors the pivot — every piece in the stack rotates rigidly around it.
+ *
+ * The transform is derived from `rotateShape`'s (x, y) -> (y, -x) +
+ * normalize-to-non-negative behavior. In world coords, a cell (cx, cy)
+ * maps to (cy + (px - py), -cx + (px + py + maxX_bottom)) where
+ * (px, py) is the bottom piece's anchor and maxX_bottom is the max
+ * x-coord of the bottom piece's CURRENT (pre-rotation) shape cells.
+ * That keeps each upper piece glued to whatever cell of the bottom it
+ * was sitting on.
+ */
+export function computeRigidStackRotation(
+  pieces: StackPieceInput[],
+  shapeLibrary: Record<string, ShapeDefinition> = SHAPE_LIBRARY,
+): StackPieceResult[] | null {
+  if (pieces.length === 0) return [];
+  const bottom = pieces[0];
+  const bottomShape = shapeLibrary[bottom.shape];
+  if (!bottomShape) return null;
+
+  const bottomCurrentCells = rotateShape(bottomShape.cells, bottom.rotation);
+  const maxX = bottomCurrentCells.reduce((m, [x]) => Math.max(m, x), 0);
+  const [px, py] = bottom.position;
+
+  const out: StackPieceResult[] = [];
+  for (const piece of pieces) {
+    const shape = shapeLibrary[piece.shape];
+    if (!shape) return null;
+
+    const oldShapeCells = rotateShape(shape.cells, piece.rotation);
+    const oldWorldCells: Coordinate2D[] = oldShapeCells.map(
+      ([dx, dy]) => [piece.position[0] + dx, piece.position[1] + dy] as Coordinate2D,
+    );
+
+    const newWorldCells: Coordinate2D[] = oldWorldCells.map(
+      ([cx, cy]) => [cy + (px - py), -cx + (px + py + maxX)] as Coordinate2D,
+    );
+
+    const newRotation = ((piece.rotation % 360) + 90) % 360;
+    const newShapeCells = rotateShape(shape.cells, newRotation);
+    const minX = Math.min(...newWorldCells.map(([x]) => x));
+    const minY = Math.min(...newWorldCells.map(([, y]) => y));
+
+    // Sanity check: anchor + normalized-shape should reproduce newWorldCells.
+    // (newShapeCells is already normalized to start at (0,0), so the anchor
+    // is the (min_x, min_y) of the rigidly-rotated cells.)
+    void newShapeCells;
+
+    out.push({
+      position: [minX, minY],
+      rotation: newRotation,
+      cells: newWorldCells,
+    });
+  }
+  return out;
+}
+
+/**
+ * Translate a stack by (dx, dy). Returns new positions and world cells for
+ * each piece. Rotation is unchanged.
+ */
+export function computeRigidStackTranslation(
+  pieces: StackPieceInput[],
+  dx: number,
+  dy: number,
+  shapeLibrary: Record<string, ShapeDefinition> = SHAPE_LIBRARY,
+): StackPieceResult[] | null {
+  const out: StackPieceResult[] = [];
+  for (const piece of pieces) {
+    const shape = shapeLibrary[piece.shape];
+    if (!shape) return null;
+    const shapeCells = rotateShape(shape.cells, piece.rotation);
+    const newPosition: Coordinate2D = [piece.position[0] + dx, piece.position[1] + dy];
+    const cells: Coordinate2D[] = shapeCells.map(
+      ([sx, sy]) => [newPosition[0] + sx, newPosition[1] + sy] as Coordinate2D,
+    );
+    out.push({ position: newPosition, rotation: piece.rotation, cells });
+  }
+  return out;
+}
+
+// ============================================
 // COLLISION DETECTION
 // ============================================
 

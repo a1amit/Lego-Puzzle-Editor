@@ -9,7 +9,7 @@
 
 import { useMemo, useCallback, useEffect, useState, useRef } from 'react';
 import type { UsePuzzleEngineReturn } from '../../engine';
-import { getValidSlideDestinations } from '../../engine';
+import { getValidSlideDestinations, findPiecesStackedOnTop } from '../../engine';
 import { SCENE_2D } from '../../config/sceneConfig';
 import { useRuleBuilderStore } from '../editor/ruleBuilder/useRuleBuilderStore';
 
@@ -108,6 +108,15 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     handlePieceClick,
     handleRotate,
   } = useInteractions2D({ engine, blockedCells });
+
+  // The whole stack lifts together: selected piece + everything stacked above it.
+  const selectedStackIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!selectedPlacedPiece) return ids;
+    ids.add(selectedPlacedPiece.instanceId);
+    findPiecesStackedOnTop(board, selectedPlacedPiece).forEach(id => ids.add(id));
+    return ids;
+  }, [selectedPlacedPiece, board]);
 
   // Stable cell-level callbacks via useCallback to keep GridCell memo effective.
   // We pass x/y through closures created at render time which is fine because
@@ -226,11 +235,12 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
 
           {/* Placed pieces */}
           {board.placedPieces.map(piece => {
-            const isSelected = selectedPieceId === piece.instanceId;
+            const isClickedPiece = selectedPieceId === piece.instanceId;
+            const isInSelectedStack = selectedStackIds.has(piece.instanceId);
             const isHovered = hoveredPieceId === piece.instanceId;
             const isInteractive = !selectedInventoryPiece && !selectedPlacedPiece;
 
-            const pieceValidMoves = isSelected && config.movementRule === 'SLIDING_ONLY'
+            const pieceValidMoves = isClickedPiece && config.movementRule === 'SLIDING_ONLY'
               ? getValidSlideDestinations(board, piece)
               : [];
 
@@ -239,7 +249,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                 key={piece.instanceId}
                 piece={piece}
                 cellSize={cellSize}
-                isSelected={isSelected}
+                isSelected={isInSelectedStack}
                 isHovered={isHovered}
                 interactive={isInteractive}
                 isSliderPuzzle={isSliderPuzzle}
