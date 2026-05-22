@@ -33,6 +33,7 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
   } = engine;
 
   const { width, height } = board.dimensions;
+  const dragNdrop = puzzle?.dragNdrop ?? false;
 
   const [hoveredPieceId, setHoveredPieceId] = useState<string | null>(null);
 
@@ -103,23 +104,9 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleRotate, selectedPlacedPiece, selectPiece, removePiece]);
 
-  // ---- cell click ----
+  // ---- place / move commit (used by click in legacy mode, pointerup in dragNdrop) ----
 
-  const handleCellClick = useCallback((x: number, y: number) => {
-    // Single-cell picker mode (path_exists start/end)
-    const singleTarget = useRuleBuilderStore.getState().singleCellPickerTarget;
-    if (singleTarget) {
-      useRuleBuilderStore.getState().pickSingleCell(x, y);
-      return;
-    }
-
-    // Multi-cell picker mode: intercept clicks for the rule builder
-    const pickerTarget = useRuleBuilderStore.getState().cellPickerTarget;
-    if (pickerTarget) {
-      useRuleBuilderStore.getState().toggleCell(x, y);
-      return;
-    }
-
+  const commitPlaceOrMove = useCallback((x: number, y: number) => {
     if (blockedCells.has(`${x},${y}`)) return;
 
     if (selectedPlacedPiece) {
@@ -184,15 +171,58 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
     }
   }, [selectedPlacedPiece, selectedInventoryPiece, previewRotation, placePiece, movePiece, selectPiece, blockedCells, config.movementRule, board, engine.inventory]);
 
+  // ---- cell click (pointer-down on cell) ----
+
+  const handleCellClick = useCallback((x: number, y: number) => {
+    // Single-cell picker mode (path_exists start/end)
+    const singleTarget = useRuleBuilderStore.getState().singleCellPickerTarget;
+    if (singleTarget) {
+      useRuleBuilderStore.getState().pickSingleCell(x, y);
+      return;
+    }
+
+    // Multi-cell picker mode: intercept clicks for the rule builder
+    const pickerTarget = useRuleBuilderStore.getState().cellPickerTarget;
+    if (pickerTarget) {
+      useRuleBuilderStore.getState().toggleCell(x, y);
+      return;
+    }
+
+    // In dragNdrop mode, pointer-down on a cell does NOT commit a move or
+    // placement — commit happens on pointer-up via handleCellPointerUp.
+    // This prevents double-firing when a tap fires both pointerdown and
+    // pointerup on the same cell.
+    if (dragNdrop) return;
+
+    commitPlaceOrMove(x, y);
+  }, [dragNdrop, commitPlaceOrMove]);
+
+  // ---- cell pointer-up (used in dragNdrop mode to commit drag) ----
+
+  const handleCellPointerUp = useCallback((x: number, y: number) => {
+    if (!dragNdrop) return;
+    // Skip rule-builder picker modes on pointer-up — those are click-based.
+    if (useRuleBuilderStore.getState().singleCellPickerTarget) return;
+    if (useRuleBuilderStore.getState().cellPickerTarget) return;
+    commitPlaceOrMove(x, y);
+  }, [dragNdrop, commitPlaceOrMove]);
+
   // ---- piece click ----
 
   const handlePieceClick = useCallback((piece: PlacedPiece) => {
+    // In dragNdrop mode, pressing a piece always selects it (no toggle).
+    // Deselect happens when the drag is released on the piece's own cells,
+    // when the Escape key is pressed, or when another piece is pressed.
+    if (dragNdrop) {
+      selectPiece(piece.instanceId);
+      return;
+    }
     if (selectedPieceId === piece.instanceId) {
       selectPiece(null);
     } else {
       selectPiece(piece.instanceId);
     }
-  }, [selectedPieceId, selectPiece]);
+  }, [selectedPieceId, selectPiece, dragNdrop]);
 
   // ---- ghost validity ----
 
@@ -275,7 +305,9 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
     invalidCells,
     goalAreaCells,
     isGhostValid,
+    dragNdrop,
     handleCellClick,
+    handleCellPointerUp,
     handlePieceClick,
     handleRotate,
   };

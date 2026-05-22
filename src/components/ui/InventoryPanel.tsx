@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { m, AnimatePresence } from 'framer-motion';
 import { usePuzzleStore } from '../../store/puzzleStore';
@@ -58,11 +58,41 @@ interface BrickItemProps {
   remaining: number;
   isSelected: boolean;
   rotation: number;
+  /** When true, selection fires on pointer-down so the user can immediately
+   * drag the picked tile onto the board. The follow-up click event is
+   * suppressed to avoid toggling the selection off. */
+  dragNdrop: boolean;
   onSelect: () => void;
 }
 
-const BrickItem = memo(function BrickItem({ id, shape, color, remaining, isSelected, rotation, onSelect }: BrickItemProps) {
+const BrickItem = memo(function BrickItem({ id, shape, color, remaining, isSelected, rotation, dragNdrop, onSelect }: BrickItemProps) {
   const isAvailable = remaining > 0;
+  // In dragNdrop mode, we select on pointerdown (so the drag picks up the
+  // tile immediately). The browser will still synthesize a click after
+  // pointerup; this ref lets us swallow that synthetic click so it doesn't
+  // toggle the selection back off.
+  const handledViaPointerDownRef = useRef(false);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!dragNdrop || !isAvailable) return;
+    // Touch implicitly captures pointer events to the element where the
+    // pointerdown happened. Release that so subsequent pointermove /
+    // pointerup events reach the board (HTML inventory → SVG/Canvas board).
+    if (e.target instanceof Element) {
+      try { e.target.releasePointerCapture(e.pointerId); } catch { /* not capturing — ignore */ }
+    }
+    handledViaPointerDownRef.current = true;
+    onSelect();
+  };
+
+  const handleClick = () => {
+    if (!isAvailable) return;
+    if (handledViaPointerDownRef.current) {
+      handledViaPointerDownRef.current = false;
+      return;
+    }
+    onSelect();
+  };
 
   return (
     <m.button
@@ -78,7 +108,8 @@ const BrickItem = memo(function BrickItem({ id, shape, color, remaining, isSelec
         }
         ${!isAvailable ? 'opacity-40 cursor-not-allowed saturate-0' : 'cursor-pointer active:scale-[0.97]'}
       `}
-      onClick={() => isAvailable && onSelect()}
+      onPointerDown={handlePointerDown}
+      onClick={handleClick}
       disabled={!isAvailable}
     >
       <div className="p-2 rounded-lg bg-background/70">
@@ -147,6 +178,8 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
     if (!selectedBrickId) return false;
     return puzzle?.inventory.some(b => b.id === selectedBrickId) ?? false;
   }, [selectedBrickId, puzzle]);
+
+  const dragNdrop = puzzle?.dragNdrop ?? false;
 
   if (!puzzle) {
     return (
@@ -232,7 +265,17 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
                 remaining={inventoryState.get(brick.id) ?? 0}
                 isSelected={selectedBrickId === brick.id}
                 rotation={selectedBrickId === brick.id ? previewRotation : 0}
-                onSelect={() => selectBrick(selectedBrickId === brick.id ? null : brick.id)}
+                dragNdrop={dragNdrop}
+                onSelect={() => {
+                  // In dragNdrop mode, pressing inventory always selects (no
+                  // toggle) so a continuous press-drag-release gesture from
+                  // inventory to a board cell completes a placement.
+                  if (dragNdrop) {
+                    selectBrick(brick.id);
+                  } else {
+                    selectBrick(selectedBrickId === brick.id ? null : brick.id);
+                  }
+                }}
               />
             ))}
           </div>

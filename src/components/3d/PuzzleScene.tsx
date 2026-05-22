@@ -447,6 +447,35 @@ function DragDropManager() {
     }
   }, [setHoveredCell]);
 
+  // Place a selected inventory brick at the given cell. Shared by cell-click
+  // (legacy flow) and cell-pointer-up (dragNdrop flow).
+  const placeInventoryAt = useCallback((x: number, y: number) => {
+    if (!selectedInventoryBrick) return;
+    const shape = SHAPE_LIBRARY[selectedInventoryBrick.shape];
+    const footprint = shape
+      ? getFootprintExtent(shape.cells, previewRotation)
+      : { width: 1, height: 1 };
+    const target = applySnapZones({ x, y }, footprint, puzzle?.snap_zones);
+    if (!target) return;
+
+    const remainingCount = usePuzzleStore.getState().inventoryState.get(selectedInventoryBrick.id) ?? 0;
+    const keepSelected = remainingCount > 1;
+
+    placeBrick({
+      id: selectedInventoryBrick.id,
+      instanceId: '',
+      shape: selectedInventoryBrick.shape,
+      color: selectedInventoryBrick.color,
+      position: target,
+      rotation: previewRotation,
+      z: 0,
+    });
+
+    if (!keepSelected) {
+      selectBrick(null);
+    }
+  }, [selectedInventoryBrick, previewRotation, puzzle?.snap_zones, placeBrick, selectBrick]);
+
   // Handle board cell click
   const handleCellClick = useCallback((x: number, y: number) => {
     // Single-cell picker mode (path_exists start/end)
@@ -483,35 +512,31 @@ function DragDropManager() {
       return;
     }
 
-    // If we have an inventory brick selected, place it with the preview rotation
-    if (selectedInventoryBrick) {
-      const shape = SHAPE_LIBRARY[selectedInventoryBrick.shape];
-      const footprint = shape
-        ? getFootprintExtent(shape.cells, previewRotation)
-        : { width: 1, height: 1 };
-      const target = applySnapZones({ x, y }, footprint, puzzle?.snap_zones);
-      if (!target) return;
-
-      // Check inventory count BEFORE placing - if more than 1 remains, keep selected for continuous placement
-      const remainingCount = usePuzzleStore.getState().inventoryState.get(selectedInventoryBrick.id) ?? 0;
-      const keepSelected = remainingCount > 1;
-
-      placeBrick({
-        id: selectedInventoryBrick.id,
-        instanceId: '',
-        shape: selectedInventoryBrick.shape,
-        color: selectedInventoryBrick.color,
-        position: target,
-        rotation: previewRotation, // Use the preview rotation!
-        z: 0, // Will be recalculated in placeBrick, but required by type
-      });
-
-      // Only deselect if this was the last brick of this type
-      if (!keepSelected) {
-        selectBrick(null);
-      }
+    // If we have an inventory brick selected, place it with the preview rotation.
+    // In dragNdrop mode, placement is deferred to pointer-up so the press-drag-
+    // release gesture (e.g. from the inventory panel onto the board) commits
+    // exactly once.
+    if (selectedInventoryBrick && !puzzle?.dragNdrop) {
+      placeInventoryAt(x, y);
     }
-  }, [selectedPlacedBrick, selectedInventoryBrick, previewRotation, puzzle?.snap_zones, moveBrick, placeBrick, selectBrick]);
+  }, [selectedPlacedBrick, selectedInventoryBrick, puzzle?.snap_zones, puzzle?.dragNdrop, moveBrick, selectBrick, placeInventoryAt]);
+
+  // Pointer-up at the scene-group level. In dragNdrop mode, this commits an
+  // inventory placement when the pointer is released over a board cell. Fires
+  // for inventory drags that started on the HTML inventory panel and ended
+  // over a 3D cell, as well as for taps that begin and end on a cell.
+  const handleScenePointerUp = useCallback((event: { stopPropagation?: () => void }) => {
+    if (!puzzle?.dragNdrop) return;
+    if (!selectedInventoryBrick) return;
+    // R3F dispatches pointerup to every intersected mesh in the raycast — the
+    // parent group's handler would otherwise fire once per intersected
+    // mesh (cell + any brick the ray also hits). Stop propagation so a
+    // single release places exactly one brick.
+    event.stopPropagation?.();
+    const current = useHoverStore.getState().hoveredCell;
+    if (!current) return;
+    placeInventoryAt(current.x, current.y);
+  }, [puzzle?.dragNdrop, selectedInventoryBrick, placeInventoryAt]);
 
   // Handle right-click on canvas to rotate preview
   const handleCanvasContextMenu = useCallback((event: any) => {
@@ -566,7 +591,7 @@ function DragDropManager() {
   const goalCells = (puzzle?.goal?.hideGoalVisualization ? undefined : puzzle?.goal?.cells) as [number, number][] | undefined;
 
   return (
-    <group onContextMenu={handleCanvasContextMenu as any}>
+    <group onContextMenu={handleCanvasContextMenu as any} onPointerUp={handleScenePointerUp as any}>
       {/* The board */}
       <LegoBoard
         width={width}

@@ -281,6 +281,14 @@ export const PuzzleDefinitionSchema = z.object({
    * always allowed.
    */
   subset_stacking: z.boolean().optional(),
+  /**
+   * If true, pieces move via drag-and-drop in the 2D renderer: press a
+   * piece (or inventory tile), drag, release on the target cell to commit.
+   * Pieces stay interactive even while another is selected, so pressing
+   * another piece switches selection. When omitted/false, the legacy
+   * click-to-pick-up then click-to-place flow is used.
+   */
+  dragNdrop: z.boolean().optional(),
   /** Optional custom shape definitions */
   custom_shapes: z.record(z.string(), ShapeDefinitionSchema).optional(),
   /** Metadata */
