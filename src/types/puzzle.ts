@@ -223,6 +223,68 @@ export const NonogramHintsSchema = z.object({
 
 export type NonogramHints = z.infer<typeof NonogramHintsSchema>;
 
+// ============================================
+// MOVES (generic action primitive)
+// ============================================
+
+/**
+ * A trigger is the UI affordance that fires a move. Currently only `button`
+ * is implemented — other kinds (drag, keypress, click-cell) can be added
+ * later without touching the engine's apply-move logic.
+ */
+export const MoveTriggerSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('button'),
+    /** Text shown on the button. */
+    label: z.string(),
+    /** Optional accent color (CSS string). The button uses this as a small
+     * dot/border tint — handy for color-coding face turns on a Rubik's cube
+     * or color-coding gear directions. */
+    color: z.string().optional(),
+  }),
+]);
+
+export type MoveTrigger = z.infer<typeof MoveTriggerSchema>;
+
+/**
+ * `permute` — atomic position permutation. Each `cycle` is a list of board
+ * `[x, y]` positions; the brick at cycle[i] moves to cycle[(i+1) % len]. A
+ * single move can contain multiple disjoint cycles (e.g. a Rubik's face turn
+ * cycles 4 corners + 4 edges + 12 adjacent stickers in one move).
+ *
+ * Empty positions in a cycle are skipped — useful for moves that operate on
+ * sparse boards where not every cell holds a piece.
+ *
+ * `sequence` — apply a list of sub-transforms in order. Lets authors compose
+ * complex moves from simpler primitives (e.g. F-turn = reorient + top-row +
+ * unreorient) without writing one fat permutation table.
+ */
+export const MoveTransformSchema: z.ZodType<MoveTransform> = z.lazy(() =>
+  z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('permute'),
+      cycles: z.array(z.array(z.tuple([z.number(), z.number()]))),
+    }),
+    z.object({
+      kind: z.literal('sequence'),
+      steps: z.array(MoveTransformSchema),
+    }),
+  ]),
+);
+
+export type MoveTransform =
+  | { kind: 'permute'; cycles: [number, number][][] }
+  | { kind: 'sequence'; steps: MoveTransform[] };
+
+export const MoveSchema = z.object({
+  /** Stable identifier — used for keying, undo/redo grouping, and analytics. */
+  id: z.string(),
+  trigger: MoveTriggerSchema,
+  transform: MoveTransformSchema,
+});
+
+export type Move = z.infer<typeof MoveSchema>;
+
 export const PuzzleDefinitionSchema = z.object({
   puzzle_id: z.string().optional(),
   title: z.string(),
@@ -283,6 +345,21 @@ export const PuzzleDefinitionSchema = z.object({
   subset_stacking: z.boolean().optional(),
   /** Optional custom shape definitions */
   custom_shapes: z.record(z.string(), ShapeDefinitionSchema).optional(),
+  /**
+   * Optional named moves. Renders one button per move; clicking applies the
+   * move's transform to the board state atomically. Use this for puzzles
+   * where the player chooses among a fixed set of operations (Rubik's-style
+   * face turns, gear toggles, lights-out cell flips, etc.) instead of (or
+   * in addition to) free piece movement.
+   */
+  moves: z.array(MoveSchema).optional(),
+  /**
+   * If true, placed pieces cannot be moved, removed, or rotated by direct
+   * user interaction — only `moves[]` can change the board. Use for
+   * Rubik's-style puzzles where the player must operate via the configured
+   * moves, not by dragging individual stickers.
+   */
+  lock_pieces: z.boolean().optional(),
   /** Metadata */
   metadata: z.object({
     author: z.string().optional(),

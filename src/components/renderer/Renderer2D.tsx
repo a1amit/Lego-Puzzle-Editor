@@ -268,7 +268,10 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
             const isClickedPiece = selectedPieceId === piece.instanceId;
             const isInSelectedStack = selectedStackIds.has(piece.instanceId);
             const isHovered = hoveredPieceId === piece.instanceId;
-            const isInteractive = !selectedInventoryPiece && !selectedPlacedPiece;
+            // lock_pieces disables direct user interaction with pieces — the
+            // board can only be changed via puzzle.moves[] in that mode.
+            const piecesLocked = puzzle?.lock_pieces ?? false;
+            const isInteractive = !piecesLocked && !selectedInventoryPiece && !selectedPlacedPiece;
             const isPieceInvalid = invalidPieceIds.has(piece.instanceId);
 
             const pieceValidMoves = isClickedPiece && config.movementRule === 'SLIDING_ONLY'

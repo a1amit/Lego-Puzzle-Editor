@@ -589,7 +589,10 @@ function DragDropManager() {
         // When a placed brick is selected for moving, ALL bricks (including the selected one) 
         // become non-interactive so clicks pass through to the board for movement
         const isThisBrickInSelectedStack = selectedStackIds.has(brick.instanceId);
-        const isInteractive = !selectedInventoryBrick && !selectedPlacedBrick;
+        // lock_pieces disables direct user interaction with pieces — the
+        // board can only be changed via puzzle.moves[] in that mode.
+        const piecesLocked = puzzle?.lock_pieces ?? false;
+        const isInteractive = !piecesLocked && !selectedInventoryBrick && !selectedPlacedBrick;
         const isThisBrickInvalid = invalidBrickIds.has(brick.instanceId);
 
         return (
