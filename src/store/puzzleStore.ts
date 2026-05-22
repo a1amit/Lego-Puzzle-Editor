@@ -6,7 +6,8 @@ import {
   ValidationResult,
   DEFAULT_PUZZLE,
   PuzzleDefinitionSchema,
-  SHAPE_LIBRARY
+  SHAPE_LIBRARY,
+  MoveTransform,
 } from '../types/puzzle';
 import { ValidationRegistry, getBrickCells, rotateShape } from '../validation/ValidationRegistry';
 import {
@@ -90,6 +91,9 @@ interface PuzzleStore {
   // Sliding helpers
   getValidSlideDestinationsFor: (instanceId: string) => [number, number][];
   isSlidingPuzzle: () => boolean;
+
+  // Generic moves (puzzle.moves[])
+  applyMove: (moveId: string) => void;
 }
 
 // ============================================
@@ -179,6 +183,47 @@ function engineBoardToBoardState(engine: EngineBoard): BoardState {
     })),
     blockedCells: engine.blockedCells,
   };
+}
+
+/**
+ * Apply a MoveTransform to a list of bricks and return a new list. Pure —
+ * does not mutate inputs. Supports nested `sequence` transforms.
+ *
+ * `permute`: for each cycle, the brick at cycle[i] moves to cycle[(i+1) %
+ * len]. Cells in a cycle that hold no brick are skipped (the next brick in
+ * the cycle simply skips that empty slot). Bricks not referenced by any
+ * cycle stay where they are.
+ */
+function applyTransform(
+  bricks: PlacedBrick[],
+  transform: MoveTransform,
+): PlacedBrick[] {
+  if (transform.kind === 'sequence') {
+    let result = bricks;
+    for (const step of transform.steps) result = applyTransform(result, step);
+    return result;
+  }
+  // permute
+  // Index bricks by their *starting* position so each cycle reads source
+  // positions consistently even if multiple cycles overlap.
+  const byPos = new Map<string, PlacedBrick>();
+  for (const b of bricks) byPos.set(`${b.position.x},${b.position.y}`, b);
+
+  const moved = new Map<string, { x: number; y: number }>();
+  for (const cycle of transform.cycles) {
+    if (cycle.length < 2) continue;
+    for (let i = 0; i < cycle.length; i++) {
+      const fromKey = `${cycle[i][0]},${cycle[i][1]}`;
+      const to = cycle[(i + 1) % cycle.length];
+      if (byPos.has(fromKey)) moved.set(fromKey, { x: to[0], y: to[1] });
+    }
+  }
+
+  return bricks.map(b => {
+    const key = `${b.position.x},${b.position.y}`;
+    const dest = moved.get(key);
+    return dest ? { ...b, position: { x: dest.x, y: dest.y } } : b;
+  });
 }
 
 function setActionError(set: (partial: Partial<PuzzleStore>) => void, message: string) {
@@ -772,6 +817,50 @@ export const usePuzzleStore = create<PuzzleStore>((set, get) => ({
       shakeBoard: false,
       completionProgress: 'normal',
     });
+  },
+
+  // ------------------------------------------
+  // GENERIC MOVES (puzzle.moves[])
+  // ------------------------------------------
+
+  applyMove: (moveId) => {
+    const { puzzle, boardState, inventoryState, undoStack } = get();
+    if (!puzzle?.moves) return;
+    const move = puzzle.moves.find(m => m.id === moveId);
+    if (!move) return;
+
+    const snapshot: BoardSnapshot = {
+      boardState: { ...boardState, placedBricks: [...boardState.placedBricks] },
+      inventoryState: new Map(inventoryState),
+      moveCount: get().moveCount,
+    };
+
+    const nextBricks = applyTransform(boardState.placedBricks, move.transform);
+    // No-op if the transform didn't actually change any position.
+    let changed = nextBricks.length !== boardState.placedBricks.length;
+    if (!changed) {
+      for (let i = 0; i < nextBricks.length; i++) {
+        const a = nextBricks[i];
+        const b = boardState.placedBricks[i];
+        if (a.position.x !== b.position.x || a.position.y !== b.position.y) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (!changed) return;
+
+    const newBoardState = { ...boardState, placedBricks: nextBricks };
+    const newMoveCount = get().moveCount + 1;
+    set({
+      boardState: newBoardState,
+      moveCount: newMoveCount,
+      undoStack: [...undoStack.slice(-(MAX_UNDO_HISTORY - 1)), snapshot],
+      redoStack: [],
+      ...computeValidation(puzzle, newBoardState, newMoveCount),
+    });
+    SoundManager.getInstance().play('slide');
+    haptics.light();
   },
 
   // ------------------------------------------
