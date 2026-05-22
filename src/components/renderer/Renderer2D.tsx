@@ -358,14 +358,16 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
             const isClickedPiece = selectedPieceId === piece.instanceId;
             const isInSelectedStack = selectedStackIds.has(piece.instanceId);
             const isHovered = hoveredPieceId === piece.instanceId;
-            // In dragNdrop mode, pieces stay interactive even when another
-            // piece OR an inventory tile is selected — pressing a piece
-            // switches selection to it. Only the selected piece's own stack
-            // passes pointer events through so cells underneath can track
-            // hover during the drag.
-            const isInteractive = dragNdrop
+            // lock_pieces disables direct user interaction with pieces — the
+            // board can only be changed via puzzle.moves[] in that mode.
+            // In dragNdrop mode, only the selected stack passes pointer
+            // events through so cells underneath can track hover during the
+            // drag; other pieces stay interactive so pressing a different
+            // one switches selection.
+            const piecesLocked = puzzle?.lock_pieces ?? false;
+            const isInteractive = !piecesLocked && (dragNdrop
               ? !isInSelectedStack
-              : !selectedInventoryPiece && !selectedPlacedPiece;
+              : !selectedInventoryPiece && !selectedPlacedPiece);
             const isPieceInvalid = invalidPieceIds.has(piece.instanceId);
 
             const pieceValidMoves = isClickedPiece && config.movementRule === 'SLIDING_ONLY'

@@ -87,6 +87,9 @@ interface UsePuzzleEngineReturn extends EngineState, EngineActions {
   canUndo: boolean;
   /** Whether redo is available */
   canRedo: boolean;
+  /** Apply a `puzzle.moves[]` move by id. No-op if the move id is unknown
+   * or the transform leaves all positions unchanged. */
+  applyMove: (moveId: string) => void;
 }
 
 // ============================================
@@ -538,6 +541,71 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
   }, [config, board, pushSnapshot]);
 
   // ============================================
+  // GENERIC MOVES (puzzle.moves[])
+  // ============================================
+
+  const applyMove = useCallback((moveId: string) => {
+    const move = puzzle?.moves?.find(m => m.id === moveId);
+    if (!move) return;
+
+    // Pure transform application — matches puzzleStore.applyTransform but
+    // operates on EngineBoard / PlacedPiece (engine's domain) instead of
+    // BoardState / PlacedBrick (store's domain).
+    type Tx = { kind: 'permute'; cycles: [number, number][][] } | { kind: 'sequence'; steps: Tx[] };
+    const applyTx = (pieces: PlacedPiece[], tx: Tx): PlacedPiece[] => {
+      if (tx.kind === 'sequence') {
+        let r = pieces;
+        for (const step of tx.steps) r = applyTx(r, step);
+        return r;
+      }
+      const moved = new Map<string, { x: number; y: number }>();
+      const occupied = new Set(pieces.map(p => `${p.position.x},${p.position.y}`));
+      for (const cycle of tx.cycles) {
+        if (cycle.length < 2) continue;
+        for (let i = 0; i < cycle.length; i++) {
+          const fromKey = `${cycle[i][0]},${cycle[i][1]}`;
+          const to = cycle[(i + 1) % cycle.length];
+          if (occupied.has(fromKey)) moved.set(fromKey, { x: to[0], y: to[1] });
+        }
+      }
+      return pieces.map(p => {
+        const key = `${p.position.x},${p.position.y}`;
+        const dest = moved.get(key);
+        return dest ? { ...p, position: { x: dest.x, y: dest.y, z: p.position.z } } : p;
+      });
+    };
+
+    const nextPieces = applyTx(board.placedPieces, move.transform as Tx);
+    // No-op early-out if nothing actually moved.
+    let changed = false;
+    for (let i = 0; i < nextPieces.length; i++) {
+      const a = nextPieces[i];
+      const b = board.placedPieces[i];
+      if (a.position.x !== b.position.x || a.position.y !== b.position.y) {
+        changed = true;
+        break;
+      }
+    }
+    if (!changed) return;
+
+    // Push undo snapshot.
+    const snapshot: EngineSnapshot = {
+      board: { ...board, placedPieces: [...board.placedPieces] },
+      inventory: new Map(inventory),
+      moveCount,
+    };
+    undoStackRef.current = [...undoStackRef.current.slice(-(MAX_UNDO_HISTORY - 1)), snapshot];
+    redoStackRef.current = [];
+    setUndoLen(undoStackRef.current.length);
+    setRedoLen(0);
+
+    setBoard({ ...board, placedPieces: nextPieces });
+    setMoveCount(moveCount + 1);
+    SoundManager.getInstance().play('slide');
+    haptics.light();
+  }, [puzzle, board, inventory, moveCount]);
+
+  // ============================================
   // SELECTION
   // ============================================
 
@@ -688,6 +756,7 @@ export function usePuzzleEngine(options: UsePuzzleEngineOptions): UsePuzzleEngin
     validateBoard,
     resetBoard,
     loadPuzzle,
+    applyMove,
 
     // Undo / Redo
     undo,

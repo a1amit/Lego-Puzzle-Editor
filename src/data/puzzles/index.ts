@@ -9,3 +9,6 @@ export { BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS, NONOGR
 
 // Templates
 export { BLANK_PUZZLE, FIT_ALL_PUZZLE } from './templates';
+
+// Generic-moves engine demos
+export { FOUR_TILE_ROTATION_PUZZLE } from './moves';

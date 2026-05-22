@@ -6,6 +6,7 @@ import { PuzzleRenderer, ViewModeIndicator } from '../components/renderer';
 import { InventoryPanel } from '../components/ui/InventoryPanel';
 import { ValidationPanel } from '../components/ui/ValidationPanel';
 import { HtmlSandboxModal } from '../components/ui/HtmlSandboxModal';
+import { MovesPanel } from '../components/ui/MovesPanel';
 import { PuzzleInfoPopup } from '../components/ui/PuzzleInfoPopup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/shadcn/tabs';
 import { Button } from '../components/ui/shadcn/button';
@@ -162,27 +163,44 @@ function SidePanel({ puzzle, showInfo, setShowInfo, activeEngine, validationResu
           html={puzzle.clue_html}
         />
       )}
-      <Tabs defaultValue="inventory" className="flex-1 min-h-0 flex flex-col gap-0 px-2 pb-2">
-        <div className="shrink-0 pb-1.5">
-          <TabsList variant="line" className="w-full h-9 grid grid-cols-2 rounded-lg bg-[var(--surface-raised)] border border-border">
-            <TabsTrigger value="inventory" className="text-xs">Inventory</TabsTrigger>
-            <TabsTrigger value="validation" className="text-xs gap-1.5">
-              Validation
-              {validationResults.length > 0 && (
-                <span className={`text-[9px] font-mono px-1 py-0 rounded ${isComplete ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
-                  {validationResults.filter(r => r.isValid).length}/{validationResults.length}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="inventory" className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-          <InventoryPanel className="h-full" engine={activeEngine} />
-        </TabsContent>
-        <TabsContent value="validation" className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
-          <ValidationPanel className="h-full" engine={activeEngine} />
-        </TabsContent>
-      </Tabs>
+      {(() => {
+        const hasMoves = (puzzle?.moves?.length ?? 0) > 0;
+        const defaultTab = hasMoves ? 'moves' : 'inventory';
+        return (
+          <Tabs defaultValue={defaultTab} className="flex-1 min-h-0 flex flex-col gap-0 px-2 pb-2">
+            <div className="shrink-0 pb-1.5">
+              <TabsList
+                variant="line"
+                className={`w-full h-9 grid ${hasMoves ? 'grid-cols-3' : 'grid-cols-2'} rounded-lg bg-[var(--surface-raised)] border border-border`}
+              >
+                {hasMoves && (
+                  <TabsTrigger value="moves" className="text-xs">Moves</TabsTrigger>
+                )}
+                <TabsTrigger value="inventory" className="text-xs">Inventory</TabsTrigger>
+                <TabsTrigger value="validation" className="text-xs gap-1.5">
+                  Validation
+                  {validationResults.length > 0 && (
+                    <span className={`text-[9px] font-mono px-1 py-0 rounded ${isComplete ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
+                      {validationResults.filter(r => r.isValid).length}/{validationResults.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            {hasMoves && (
+              <TabsContent value="moves" className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+                <MovesPanel className="h-full" engine={activeEngine} />
+              </TabsContent>
+            )}
+            <TabsContent value="inventory" className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+              <InventoryPanel className="h-full" engine={activeEngine} />
+            </TabsContent>
+            <TabsContent value="validation" className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+              <ValidationPanel className="h-full" engine={activeEngine} />
+            </TabsContent>
+          </Tabs>
+        );
+      })()}
     </div>
   );
 }

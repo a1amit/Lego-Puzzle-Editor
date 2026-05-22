@@ -728,14 +728,16 @@ function DragDropManager({ setOrbitEnabled }: { setOrbitEnabled: (enabled: boole
         // When a placed brick is selected for moving, ALL bricks (including the selected one) 
         // become non-interactive so clicks pass through to the board for movement
         const isThisBrickInSelectedStack = selectedStackIds.has(brick.instanceId);
-        // In dragNdrop mode, pressing any unselected placed brick should be
-        // able to start a new drag — so non-selected bricks stay interactive
-        // even when another brick is currently selected. The selected stack
-        // itself stays non-interactive so pointer events fall through to the
-        // cells beneath during the drag.
-        const isInteractive = dragNdrop
+        // lock_pieces disables direct user interaction with pieces — the
+        // board can only be changed via puzzle.moves[] in that mode.
+        // In dragNdrop mode, the selected stack stays non-interactive so
+        // pointer events fall through to the cells beneath during the drag,
+        // but other placed bricks stay interactive so the user can press a
+        // different one to switch selection mid-flow.
+        const piecesLocked = puzzle?.lock_pieces ?? false;
+        const isInteractive = !piecesLocked && (dragNdrop
           ? !selectedInventoryBrick && !isThisBrickInSelectedStack
-          : !selectedInventoryBrick && !selectedPlacedBrick;
+          : !selectedInventoryBrick && !selectedPlacedBrick);
         const isThisBrickInvalid = invalidBrickIds.has(brick.instanceId);
 
         return (
