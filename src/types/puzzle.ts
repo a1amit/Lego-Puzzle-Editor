@@ -378,6 +378,18 @@ export const PuzzleDefinitionSchema = z.object({
    * moves, not by dragging individual stickers.
    */
   lock_pieces: z.boolean().optional(),
+  /**
+   * Optional custom renderer override. When set, the renderer dispatch
+   * uses the named view instead of the standard 2D/3D pair derived from
+   * `viewMode`. The engine state (positions, permutations) is unchanged;
+   * the renderer just paints the same state in a domain-specific way.
+   *
+   *   - `'rubiks_2x2'`: 3D unit-cube view with 8 cubies + sticker tiles
+   *     painted on cubie faces, driven by an unfolded-cross → (cubie, face)
+   *     mapping. Pair with `viewMode: '2D'` so the engine treats the
+   *     puzzle as 2D for movement purposes.
+   */
+  render_as: z.enum(['rubiks_2x2']).optional(),
   /** Metadata */
   metadata: z.object({
     author: z.string().optional(),

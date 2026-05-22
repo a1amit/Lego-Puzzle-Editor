@@ -33,6 +33,9 @@ const RuleBuilderPanel = React.lazy(() =>
 const PuzzleScene = React.lazy(() =>
   import('../components/3d/PuzzleScene').then(m => ({ default: m.PuzzleScene }))
 );
+const RubiksCubeScene = React.lazy(() =>
+  import('../components/3d/RubiksCubeScene').then(m => ({ default: m.RubiksCubeScene }))
+);
 const CongratulationsPopup = React.lazy(() =>
   import('../components/ui/CongratulationsPopup').then(m => ({ default: m.CongratulationsPopup }))
 );
@@ -71,15 +74,32 @@ function EditorPanel() {
 }
 
 function RendererPanel({ is2D, engine, viewMode }: { is2D: boolean; engine: ReturnType<typeof usePuzzleEngine>; viewMode: '2D' | '3D' }) {
+  // `render_as` lets a puzzle opt into a domain-specific 3D view (e.g. the
+  // Rubik's cube renderer reads sticker positions from the engine's
+  // unfolded 2D state and paints them on cubie faces). When set, the
+  // renderer dispatch ignores viewMode.
+  const renderAs = engine.puzzle?.render_as;
+
+  let renderer: React.ReactNode;
+  if (renderAs === 'rubiks_2x2') {
+    renderer = (
+      <Suspense fallback={<SceneSkeleton />}>
+        <RubiksCubeScene engine={engine} />
+      </Suspense>
+    );
+  } else if (is2D) {
+    renderer = <PuzzleRenderer engine={engine} />;
+  } else {
+    renderer = (
+      <Suspense fallback={<SceneSkeleton />}>
+        <PuzzleScene />
+      </Suspense>
+    );
+  }
+
   return (
     <div className="h-full bg-[radial-gradient(circle_at_30%_20%,rgba(101,143,222,0.16),rgba(8,12,20,0.15)_35%,rgba(8,12,20,0.9)_100%)] relative">
-      {is2D ? (
-        <PuzzleRenderer engine={engine} />
-      ) : (
-        <Suspense fallback={<SceneSkeleton />}>
-          <PuzzleScene />
-        </Suspense>
-      )}
+      {renderer}
       <div className="absolute top-3 right-3 z-10">
         <ViewModeIndicator viewMode={viewMode} />
       </div>

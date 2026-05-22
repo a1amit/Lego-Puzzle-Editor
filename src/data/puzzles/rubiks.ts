@@ -44,8 +44,9 @@ const ORANGE = '#FF5800';
 export const POCKET_CUBE_PUZZLE: PuzzleDefinition = {
   title: 'Pocket Cube',
   description:
-    "2×2 Rubik's cube unfolded. Each button rotates one face 90° clockwise — click three times for an inverse turn. Solve by aligning each face to a single color.",
+    "2×2 Rubik's cube. Each button rotates one face 90° clockwise — click three times for an inverse turn. Solve by aligning each face to a single color. Drag to orbit the camera.",
   viewMode: '2D',
+  render_as: 'rubiks_2x2',
   lock_pieces: true,
   board: {
     dimensions: { width: 8, height: 6, depth: 1 },
