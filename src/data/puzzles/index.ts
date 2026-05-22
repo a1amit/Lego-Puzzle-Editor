@@ -12,3 +12,4 @@ export { BLANK_PUZZLE, FIT_ALL_PUZZLE } from './templates';
 
 // Generic-moves engine demos
 export { FOUR_TILE_ROTATION_PUZZLE } from './moves';
+export { POCKET_CUBE_PUZZLE } from './rubiks';
