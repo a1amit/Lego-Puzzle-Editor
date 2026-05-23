@@ -237,6 +237,16 @@ export const PuzzleDefinitionSchema = z.object({
    * authored explainers, diagrams, or styled instructions. Populated via
    * the "Upload" button in the puzzle editor. */
   description_html: z.string().optional(),
+  /** Optional HTML tutorial / game-play explainer. When set, a
+   * "Tutorial" button appears in the puzzle controls; clicking it opens
+   * the HTML in a fixed-size centered modal. Rendered inside the same
+   * `sandbox=""` iframe as `description_html` — no scripts, no
+   * navigation, no top-level access. Frame dimensions are hardcoded so
+   * adversarial CSS can't resize the modal. */
+  tutorial_html: z.string().optional(),
+  /** Optional HTML clue / hint shown via a "Hint" button during play.
+   * Same sandboxing and fixed-size modal rules as `tutorial_html`. */
+  clue_html: z.string().optional(),
   /** Optional image (data URL, e.g. JPEG) rendered below the description.
    * Populated via the "Upload" button in the puzzle editor. */
   description_image: z.string().optional(),

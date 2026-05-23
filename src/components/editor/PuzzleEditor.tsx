@@ -22,6 +22,14 @@ loader.config({ monaco });
 import { PuzzleDefinitionSchema } from '../../types/puzzle';
 import { Button } from '../ui/shadcn/button';
 import { Badge } from '../ui/shadcn/badge';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '../ui/shadcn/dropdown-menu';
 
 // JSON Schema for Monaco intellisense
 const puzzleJsonSchema = {
@@ -252,8 +260,24 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
     return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); };
   }, []);
 
-  // ---- Upload HTML or JPEG description ----
+  // ---- Upload HTML or JPEG ----
+  // The slot to write into is selected via the Upload dropdown before the
+  // file picker opens; the ref carries that choice through to the change
+  // handler since the native <input type=file> doesn't carry extra data.
+  type UploadTarget = 'description_html' | 'tutorial_html' | 'clue_html' | 'description_image';
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetRef = useRef<UploadTarget>('description_html');
+
+  const openUploadFor = useCallback((target: UploadTarget) => {
+    uploadTargetRef.current = target;
+    // Restrict the file picker to the appropriate type for the chosen slot.
+    if (uploadInputRef.current) {
+      uploadInputRef.current.accept = target === 'description_image'
+        ? '.jpg,.jpeg,image/jpeg'
+        : '.html,.htm,text/html';
+      uploadInputRef.current.click();
+    }
+  }, []);
 
   const handleUploadChosen = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -268,19 +292,19 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
       return;
     }
 
-    const isHtml = /\.html?$/i.test(file.name) || file.type === 'text/html';
-    const isJpeg = /\.jpe?g$/i.test(file.name) || file.type === 'image/jpeg';
-
-    if (isHtml) {
-      parsed.description_html = await file.text();
-    } else if (isJpeg) {
+    const target = uploadTargetRef.current;
+    if (target === 'description_image') {
+      const isJpeg = /\.jpe?g$/i.test(file.name) || file.type === 'image/jpeg';
+      if (!isJpeg) return;
       const buf = await file.arrayBuffer();
       const bytes = new Uint8Array(buf);
       let bin = '';
       for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
       parsed.description_image = `data:image/jpeg;base64,${btoa(bin)}`;
     } else {
-      return; // unsupported
+      const isHtml = /\.html?$/i.test(file.name) || file.type === 'text/html';
+      if (!isHtml) return;
+      parsed[target] = await file.text();
     }
 
     const next = JSON.stringify(parsed, null, 2);
@@ -314,19 +338,39 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
           <input
             ref={uploadInputRef}
             type="file"
-            accept=".html,.htm,text/html,.jpg,.jpeg,image/jpeg"
+            accept=".html,.htm,text/html"
             className="hidden"
             onChange={handleUploadChosen}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs gap-1.5"
-            onClick={() => uploadInputRef.current?.click()}
-            title="Attach an HTML file (sandboxed) or JPEG image to the description"
-          >
-            Upload
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                title="Attach HTML (sandboxed) to a description / tutorial / hint slot, or a JPEG to the description image"
+              >
+                Upload
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="text-xs">HTML (sandboxed)</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => openUploadFor('description_html')}>
+                Description
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openUploadFor('tutorial_html')}>
+                Tutorial
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openUploadFor('clue_html')}>
+                Hint
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs">Image</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => openUploadFor('description_image')}>
+                Description image (JPEG)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="ghost"
             size="sm"

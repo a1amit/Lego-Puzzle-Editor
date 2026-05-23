@@ -5,6 +5,7 @@ import { ResizablePanels } from '../components/layout/ResizablePanels';
 import { PuzzleRenderer, ViewModeIndicator } from '../components/renderer';
 import { InventoryPanel } from '../components/ui/InventoryPanel';
 import { ValidationPanel } from '../components/ui/ValidationPanel';
+import { HtmlSandboxModal } from '../components/ui/HtmlSandboxModal';
 import { PuzzleInfoPopup } from '../components/ui/PuzzleInfoPopup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/shadcn/tabs';
 import { Button } from '../components/ui/shadcn/button';
@@ -18,7 +19,7 @@ import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../config/puzzleCategories';
 import { recordCompletion } from '../store/completionTracker';
 import { useUserStore } from '../store/userStore';
 
-import { Save, Upload, ArchiveRestore, BookOpen, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import { Save, Upload, ArchiveRestore, BookOpen, PanelLeftOpen, PanelRightOpen, GraduationCap, Lightbulb } from 'lucide-react';
 import { CellPickerOverlay } from '../components/editor/ruleBuilder/CellPickerOverlay';
 
 // Lazy-loaded heavy components
@@ -92,12 +93,40 @@ function SidePanel({ puzzle, showInfo, setShowInfo, activeEngine, validationResu
   isComplete: boolean; flipped?: boolean;
 }) {
   const togglePanelFlip = useEditorViewStore((s) => s.togglePanelFlip);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const hasTutorial = typeof puzzle?.tutorial_html === 'string' && puzzle.tutorial_html.length > 0;
+  const hasHint = typeof puzzle?.clue_html === 'string' && puzzle.clue_html.length > 0;
   return (
     <div className={`h-full min-w-[300px] bg-gradient-to-b from-card to-background ${flipped ? 'border-r' : 'border-l'} border-border shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col`}>
       <div className="shrink-0 px-3 pt-2 pb-1 flex items-center gap-1.5">
         <span className="text-[11px] font-semibold text-muted-foreground truncate flex-1">
           {puzzle?.title}
         </span>
+        {hasTutorial && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-[11px] gap-1.5 shrink-0"
+            onClick={() => setShowTutorial(true)}
+            title="Open the puzzle tutorial"
+          >
+            <GraduationCap className="w-3 h-3" />
+            Tutorial
+          </Button>
+        )}
+        {hasHint && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-[11px] gap-1.5 shrink-0"
+            onClick={() => setShowHint(true)}
+            title="Show a hint for this puzzle"
+          >
+            <Lightbulb className="w-3 h-3" />
+            Hint
+          </Button>
+        )}
         <Button
           variant={showInfo ? 'default' : 'outline'}
           size="sm"
@@ -117,6 +146,22 @@ function SidePanel({ puzzle, showInfo, setShowInfo, activeEngine, validationResu
           {flipped ? <PanelRightOpen className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5" />}
         </Button>
       </div>
+      {hasTutorial && (
+        <HtmlSandboxModal
+          open={showTutorial}
+          onOpenChange={setShowTutorial}
+          title="Tutorial"
+          html={puzzle.tutorial_html}
+        />
+      )}
+      {hasHint && (
+        <HtmlSandboxModal
+          open={showHint}
+          onOpenChange={setShowHint}
+          title="Hint"
+          html={puzzle.clue_html}
+        />
+      )}
       <Tabs defaultValue="inventory" className="flex-1 min-h-0 flex flex-col gap-0 px-2 pb-2">
         <div className="shrink-0 pb-1.5">
           <TabsList variant="line" className="w-full h-9 grid grid-cols-2 rounded-lg bg-[var(--surface-raised)] border border-border">
