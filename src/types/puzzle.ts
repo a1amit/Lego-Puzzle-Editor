@@ -450,3 +450,4 @@ export { DEFAULT_PUZZLE, COLORFUL_COVERAGE_PUZZLE, GRID_PUZZLE } from '../data/p
 export { SLIDER_PUZZLE, KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE } from '../data/puzzles/slider';
 export { BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS, NONOGRAM_PUZZLE, NONOGRAM_PUZZLE_2 } from '../data/puzzles/pattern';
 export { BLANK_PUZZLE, FIT_ALL_PUZZLE } from '../data/puzzles/templates';
+export { POCKET_CUBE_PUZZLE } from '../data/puzzles/rubiks';
