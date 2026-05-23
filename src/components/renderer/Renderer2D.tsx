@@ -123,6 +123,12 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   // moved past a small threshold since pointer-down. This distinguishes a
   // real drag from a stationary tap (where pointerup should not commit).
   const dragStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  // True only when the most recent press selected a placed piece via Piece2D.
+  // The tap-vs-drag threshold is then applied so the selecting press doesn't
+  // also fire a no-op move. For follow-up presses (e.g. pressing a cell while
+  // an inventory tile or piece is already selected), this stays false and a
+  // plain click commits.
+  const pressSelectedRef = useRef(false);
   const DRAG_THRESHOLD_PX = 5;
 
   // Continuous drag visual: while a selected placed piece is being dragged
@@ -270,17 +276,20 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
           } : undefined}
           onPointerUp={dragNdrop ? (e) => {
             const start = dragStartRef.current;
+            const wasPressSelect = pressSelectedRef.current;
             dragStartRef.current = null;
+            pressSelectedRef.current = false;
             // Clear drag translation before committing so the piece snaps to
             // its new cell on the next render instead of sliding from the
             // original cell to the new one.
             setDragOffset(null);
-            // If pointer-down was inside the SVG group, require minimum
-            // movement to distinguish drag from tap. If pointer-down was
-            // outside (e.g. an inventory drag started on the HTML panel
-            // and ended on a board cell), `start` is null and we commit
-            // unconditionally — the gesture already crossed surfaces.
-            if (start && start.pointerId === e.pointerId) {
+            // The tap-vs-drag threshold only applies when this press is the
+            // one that selected a piece — otherwise a follow-up click on a
+            // cell (e.g. after clicking an inventory tile) would be rejected
+            // as "just a tap" and never commit the placement. If pointer-down
+            // was outside the SVG entirely (inventory HTML → SVG drop),
+            // `start` is null and we commit unconditionally as before.
+            if (start && wasPressSelect && start.pointerId === e.pointerId) {
               const dx = e.clientX - start.x;
               const dy = e.clientY - start.y;
               const moved = Math.sqrt(dx * dx + dy * dy) >= DRAG_THRESHOLD_PX;
@@ -376,7 +385,14 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                 hasValidMoves={pieceValidMoves.length > 0}
                 dragOffset={isInSelectedStack ? dragOffset : null}
                 disableSlideAnim={dragNdrop}
-                onClick={() => handlePieceClick(piece)}
+                onClick={() => {
+                  // Piece2D wires its onPointerDown to this callback. Mark
+                  // the gesture as "press-selected" so the scene-group's
+                  // pointer-up applies the tap-vs-drag threshold (no spurious
+                  // move from the selecting press).
+                  if (dragNdrop) pressSelectedRef.current = true;
+                  handlePieceClick(piece);
+                }}
                 onPointerEnter={() => setHoveredPieceId(piece.instanceId)}
                 onPointerLeave={() => setHoveredPieceId(null)}
               />

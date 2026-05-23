@@ -179,7 +179,8 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
     return puzzle?.inventory.some(b => b.id === selectedBrickId) ?? false;
   }, [selectedBrickId, puzzle]);
 
-  const dragNdrop = puzzle?.dragNdrop ?? false;
+  // Default-on: see useInteractions2D for the same fallback.
+  const dragNdrop = puzzle?.dragNdrop ?? true;
 
   if (!puzzle) {
     return (

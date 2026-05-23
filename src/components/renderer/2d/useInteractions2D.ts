@@ -33,7 +33,10 @@ export function useInteractions2D({ engine, blockedCells }: UseInteractions2DOpt
   } = engine;
 
   const { width, height } = board.dimensions;
-  const dragNdrop = puzzle?.dragNdrop ?? false;
+  // Default-on: puzzles without an explicit dragNdrop setting use the
+  // press-drag-release flow. Opt out by setting `dragNdrop: false` in the
+  // puzzle definition.
+  const dragNdrop = puzzle?.dragNdrop ?? true;
 
   const [hoveredPieceId, setHoveredPieceId] = useState<string | null>(null);
 
