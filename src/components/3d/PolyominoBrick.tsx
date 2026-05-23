@@ -15,6 +15,9 @@ interface PolyominoBrickProps {
    * failing validation rule's affectedCells. */
   isInvalid?: boolean;
   interactive?: boolean; // Whether the brick responds to clicks
+  /** When true, selection happens on pointerdown (so a press-drag-release
+   * gesture can move the brick) and click no longer toggles selection. */
+  dragNdrop?: boolean;
   onSelect?: () => void;
   onDeselect?: () => void;
   onRotate?: () => void;
@@ -124,6 +127,7 @@ export function PolyominoBrick({
   isValid = true,
   isInvalid = false,
   interactive = true, // Default to interactive
+  dragNdrop = false,
   onSelect,
   onDeselect,
   onRotate,
@@ -277,9 +281,12 @@ export function PolyominoBrick({
     return null;
   }
 
-  // Handle click - toggle selection (only if interactive)
+  // Handle click - toggle selection (only if interactive).
+  // In dragNdrop mode, selection is driven by pointerdown so that a
+  // press-drag-release on the brick can move it; click is a no-op here.
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     if (!interactive) return; // Let click pass through to board
+    if (dragNdrop) return;
 
     event.stopPropagation();
 
@@ -289,6 +296,15 @@ export function PolyominoBrick({
     } else {
       onSelect?.();
     }
+  };
+
+  // In dragNdrop mode, pressing a brick selects it immediately so the
+  // subsequent drag (and release on a target cell) commits a move. We do
+  // NOT stop propagation — the scene-group's onPointerDown handler also
+  // needs the event to record the drag start position.
+  const handlePointerDown = (_event: ThreeEvent<PointerEvent>) => {
+    if (!interactive || !dragNdrop) return;
+    onSelect?.();
   };
 
   // Handle right-click to rotate (only if interactive AND brick is selected)
@@ -336,6 +352,7 @@ export function PolyominoBrick({
       ref={groupRef}
       position={[posX, 0, posZ]}
       onClick={handleClick}
+      onPointerDown={handlePointerDown}
       onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
       onPointerEnter={handlePointerEnter}

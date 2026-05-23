@@ -32,6 +32,14 @@ export interface PieceProps {
   /** When true, the piece's outline is drawn in red — used to flag pieces
    * that overlap a failing validation rule's affectedCells. */
   isInvalid?: boolean;
+  /** Live translation applied while the piece is being drag-translated in
+   * dragNdrop mode (SVG user units). Overrides the slide-to-position
+   * animation while set. */
+  dragOffset?: { dx: number; dy: number } | null;
+  /** Skip the post-move slide animation — used in dragNdrop puzzles where
+   * the piece visually follows the cursor during the drag, so a slide
+   * from the original cell on release would look like a jump-back. */
+  disableSlideAnim?: boolean;
   onClick: () => void;
   onPointerEnter: () => void;
   onPointerLeave: () => void;
@@ -46,6 +54,8 @@ export const Piece2D = memo(function Piece2D({
   isSliderPuzzle,
   hasValidMoves,
   isInvalid = false,
+  dragOffset = null,
+  disableSlideAnim = false,
   onClick,
   onPointerEnter,
   onPointerLeave,
@@ -73,21 +83,23 @@ export const Piece2D = memo(function Piece2D({
     }
 
     if (prevPos && (prevPos.x !== curPos.x || prevPos.y !== curPos.y)) {
-      // Position changed - animate slide
-      const dx = (prevPos.x - curPos.x) * cellSize;
-      const dy = (prevPos.y - curPos.y) * cellSize;
-      // Start at old position offset, then transition to 0
-      setSlideTransform(`translate(${dx}px, ${dy}px)`);
-      // Force a reflow then clear to trigger the CSS transition
-      requestAnimationFrame(() => {
+      if (!disableSlideAnim) {
+        // Position changed - animate slide
+        const dx = (prevPos.x - curPos.x) * cellSize;
+        const dy = (prevPos.y - curPos.y) * cellSize;
+        // Start at old position offset, then transition to 0
+        setSlideTransform(`translate(${dx}px, ${dy}px)`);
+        // Force a reflow then clear to trigger the CSS transition
         requestAnimationFrame(() => {
-          setSlideTransform(null);
+          requestAnimationFrame(() => {
+            setSlideTransform(null);
+          });
         });
-      });
+      }
     }
 
     prevPosRef.current = { x: curPos.x, y: curPos.y };
-  }, [piece.position.x, piece.position.y, cellSize]);
+  }, [piece.position.x, piece.position.y, cellSize, disableSlideAnim]);
 
   const yOff = isSelected ? -SELECTION_Y_OFFSET : 0;
   const gradId = `url(#piece-grad-${piece.color.replace('#', '')})`;
@@ -116,12 +128,24 @@ export const Piece2D = memo(function Piece2D({
 
   const shouldPassThrough = !interactive;
 
-  // Build CSS class and style for animations
-  const animClass = isJustPlaced ? 'piece-place' : slideTransform ? '' : 'piece-slide';
+  // Build CSS class and style for animations. dragOffset (continuous drag
+  // follow) overrides any slide animation — the piece visually trails the
+  // cursor, without transition, until release.
+  const animClass = dragOffset
+    ? ''
+    : isJustPlaced
+      ? 'piece-place'
+      : slideTransform
+        ? ''
+        : 'piece-slide';
   const animStyle: React.CSSProperties = {
     cursor: interactive ? 'pointer' : 'default',
     touchAction: 'none',
-    ...(slideTransform ? { transform: slideTransform, transition: 'transform 200ms ease-out' } : {}),
+    ...(dragOffset
+      ? { transform: `translate(${dragOffset.dx}px, ${dragOffset.dy}px)`, transition: 'none' }
+      : slideTransform
+        ? { transform: slideTransform, transition: 'transform 200ms ease-out' }
+        : {}),
   };
 
   return (

@@ -286,7 +286,7 @@ function FloatingPreviewBrick({
 }
 
 // Drag and drop manager component
-function DragDropManager() {
+function DragDropManager({ setOrbitEnabled }: { setOrbitEnabled: (enabled: boolean) => void }) {
   const {
     puzzle,
     boardState,
@@ -306,6 +306,10 @@ function DragDropManager() {
 
   const { width, height } = boardState.dimensions;
   const boardOffset = { x: width / 2, y: height / 2 };
+
+  // Default-on: puzzles without an explicit dragNdrop setting use the
+  // press-drag-release flow. Opt out by setting `dragNdrop: false`.
+  const dragNdrop = puzzle?.dragNdrop ?? true;
 
   // Find if selectedBrickId is a placed brick (instanceId) or inventory brick (id)
   const selectedPlacedBrick = useMemo(() => {
@@ -447,6 +451,35 @@ function DragDropManager() {
     }
   }, [setHoveredCell]);
 
+  // Place a selected inventory brick at the given cell. Shared by cell-click
+  // (legacy flow) and cell-pointer-up (dragNdrop flow).
+  const placeInventoryAt = useCallback((x: number, y: number) => {
+    if (!selectedInventoryBrick) return;
+    const shape = SHAPE_LIBRARY[selectedInventoryBrick.shape];
+    const footprint = shape
+      ? getFootprintExtent(shape.cells, previewRotation)
+      : { width: 1, height: 1 };
+    const target = applySnapZones({ x, y }, footprint, puzzle?.snap_zones);
+    if (!target) return;
+
+    const remainingCount = usePuzzleStore.getState().inventoryState.get(selectedInventoryBrick.id) ?? 0;
+    const keepSelected = remainingCount > 1;
+
+    placeBrick({
+      id: selectedInventoryBrick.id,
+      instanceId: '',
+      shape: selectedInventoryBrick.shape,
+      color: selectedInventoryBrick.color,
+      position: target,
+      rotation: previewRotation,
+      z: 0,
+    });
+
+    if (!keepSelected) {
+      selectBrick(null);
+    }
+  }, [selectedInventoryBrick, previewRotation, puzzle?.snap_zones, placeBrick, selectBrick]);
+
   // Handle board cell click
   const handleCellClick = useCallback((x: number, y: number) => {
     // Single-cell picker mode (path_exists start/end)
@@ -463,8 +496,10 @@ function DragDropManager() {
       return;
     }
 
-    // If we have a placed brick selected (hovering), place it at new position
-    if (selectedPlacedBrick) {
+    // If we have a placed brick selected (hovering), place it at new position.
+    // In dragNdrop mode, placed-brick moves commit on pointer-up via
+    // handleScenePointerUp, not on cell click — so this branch is skipped.
+    if (selectedPlacedBrick && !dragNdrop) {
       const shape = SHAPE_LIBRARY[selectedPlacedBrick.shape];
       const footprint = shape
         ? getFootprintExtent(shape.cells, selectedPlacedBrick.rotation || 0)
@@ -483,35 +518,135 @@ function DragDropManager() {
       return;
     }
 
-    // If we have an inventory brick selected, place it with the preview rotation
+    // If we have an inventory brick selected, place it with the preview rotation.
+    // In dragNdrop mode, placement is deferred to pointer-up so the press-drag-
+    // release gesture (e.g. from the inventory panel onto the board) commits
+    // exactly once.
+    if (selectedInventoryBrick && !dragNdrop) {
+      placeInventoryAt(x, y);
+    }
+  }, [selectedPlacedBrick, selectedInventoryBrick, puzzle?.snap_zones, dragNdrop, moveBrick, selectBrick, placeInventoryAt]);
+
+  // Drag-tracking: distinguishes a real drag from a stationary tap, mirroring
+  // the 2D renderer. A tap on a placed brick should just keep the selection;
+  // only a press-drag-release commits a move.
+  const dragStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  // True only when the most recent press is the one that selected the brick —
+  // i.e. PolyominoBrick.onSelect fired during this gesture. Follow-up presses
+  // (after a failed drag that left the brick selected) leave this false, so
+  // a plain click on a cell can commit the move instead of being rejected by
+  // the tap-vs-drag threshold.
+  const pressSelectedRef = useRef(false);
+  const DRAG_THRESHOLD_PX = 5;
+
+  // OrbitControls is toggled off during a placed-brick drag so pressing a
+  // brick doesn't also rotate the camera. The enabled flag is owned by
+  // PuzzleSceneInner (it lives outside DragDropManager so the prop change
+  // can reach OrbitControls' JSX), and is set via the prop passed in.
+
+  // Re-enable OrbitControls on any global pointer release, even if the
+  // gesture ended off-canvas. Safe to call when controls weren't disabled.
+  useEffect(() => {
+    if (!dragNdrop) return;
+    const reenable = () => setOrbitEnabled(true);
+    window.addEventListener('pointerup', reenable);
+    window.addEventListener('pointercancel', reenable);
+    return () => {
+      window.removeEventListener('pointerup', reenable);
+      window.removeEventListener('pointercancel', reenable);
+    };
+  }, [dragNdrop, setOrbitEnabled]);
+
+  // Scene-group onPointerDown: record where the gesture began. Both placed
+  // bricks (via onPointerDown without stopPropagation) and empty cells bubble
+  // their pointerdown up to this handler. PolyominoBrick's pointerdown runs
+  // first (R3F dispatches inside-out and brick.handlePointerDown updates the
+  // store synchronously), so by the time we read here, selectedBrickId
+  // reflects whether the press landed on a placed brick.
+  const handleScenePointerDown = useCallback((event: any) => {
+    if (!dragNdrop) return;
+    const ne = event.nativeEvent ?? event;
+    if (typeof ne?.clientX !== 'number') return;
+    dragStartRef.current = {
+      x: ne.clientX,
+      y: ne.clientY,
+      pointerId: ne.pointerId,
+    };
+
+    // If this press selected a placed brick, freeze OrbitControls for the
+    // duration of the drag — otherwise the same press starts a camera
+    // rotation in parallel with the piece drag.
+    const state = usePuzzleStore.getState();
+    const sel = state.selectedBrickId;
+    if (sel && state.boardState.placedBricks.some(b => b.instanceId === sel)) {
+      setOrbitEnabled(false);
+    }
+  }, [dragNdrop, setOrbitEnabled]);
+
+  // Pointer-up at the scene-group level. In dragNdrop mode, this commits:
+  //   - an inventory placement when an inventory tile is selected, or
+  //   - a placed-brick move when a placed brick is selected (and the pointer
+  //     actually moved past the drag threshold — a stationary tap is ignored).
+  const handleScenePointerUp = useCallback((event: any) => {
+    if (!dragNdrop) return;
+
+    const start = dragStartRef.current;
+    dragStartRef.current = null;
+
+    // R3F dispatches pointerup to every intersected mesh in the raycast — the
+    // parent group's handler would otherwise fire once per intersected mesh
+    // (cell + any brick the ray also hits). Stop propagation so a single
+    // release commits exactly one action.
     if (selectedInventoryBrick) {
-      const shape = SHAPE_LIBRARY[selectedInventoryBrick.shape];
+      event.stopPropagation?.();
+      const current = useHoverStore.getState().hoveredCell;
+      if (!current) return;
+      placeInventoryAt(current.x, current.y);
+      return;
+    }
+
+    if (selectedPlacedBrick) {
+      event.stopPropagation?.();
+
+      // Only the very first press (the one that selected the brick) needs to
+      // distinguish a stationary tap from a real drag — without that guard,
+      // pressing a brick at its anchor and releasing would immediately fire a
+      // no-op move. For any follow-up gesture (the brick is already selected
+      // from a previous attempt), a release over a cell commits regardless of
+      // distance, so a plain click on a target cell still works.
+      const wasInitialPress = pressSelectedRef.current;
+      pressSelectedRef.current = false;
+
+      if (wasInitialPress && start) {
+        const ne = event.nativeEvent ?? event;
+        if (typeof ne?.clientX === 'number') {
+          const dx = ne.clientX - start.x;
+          const dy = ne.clientY - start.y;
+          const moved = Math.sqrt(dx * dx + dy * dy) >= DRAG_THRESHOLD_PX;
+          if (!moved) return;
+        }
+      }
+
+      const current = useHoverStore.getState().hoveredCell;
+      if (!current) return; // released off-board
+
+      const shape = SHAPE_LIBRARY[selectedPlacedBrick.shape];
       const footprint = shape
-        ? getFootprintExtent(shape.cells, previewRotation)
+        ? getFootprintExtent(shape.cells, selectedPlacedBrick.rotation || 0)
         : { width: 1, height: 1 };
-      const target = applySnapZones({ x, y }, footprint, puzzle?.snap_zones);
+      const target = applySnapZones({ x: current.x, y: current.y }, footprint, puzzle?.snap_zones);
       if (!target) return;
 
-      // Check inventory count BEFORE placing - if more than 1 remains, keep selected for continuous placement
-      const remainingCount = usePuzzleStore.getState().inventoryState.get(selectedInventoryBrick.id) ?? 0;
-      const keepSelected = remainingCount > 1;
-
-      placeBrick({
-        id: selectedInventoryBrick.id,
-        instanceId: '',
-        shape: selectedInventoryBrick.shape,
-        color: selectedInventoryBrick.color,
-        position: target,
-        rotation: previewRotation, // Use the preview rotation!
-        z: 0, // Will be recalculated in placeBrick, but required by type
-      });
-
-      // Only deselect if this was the last brick of this type
-      if (!keepSelected) {
+      // Released on the brick's own anchor — treat as cancel/deselect.
+      if (selectedPlacedBrick.position.x === target.x && selectedPlacedBrick.position.y === target.y) {
         selectBrick(null);
+        return;
       }
+
+      moveBrick(selectedPlacedBrick.instanceId, target);
+      selectBrick(null);
     }
-  }, [selectedPlacedBrick, selectedInventoryBrick, previewRotation, puzzle?.snap_zones, moveBrick, placeBrick, selectBrick]);
+  }, [dragNdrop, puzzle?.snap_zones, selectedInventoryBrick, selectedPlacedBrick, placeInventoryAt, moveBrick, selectBrick]);
 
   // Handle right-click on canvas to rotate preview
   const handleCanvasContextMenu = useCallback((event: any) => {
@@ -566,7 +701,11 @@ function DragDropManager() {
   const goalCells = (puzzle?.goal?.hideGoalVisualization ? undefined : puzzle?.goal?.cells) as [number, number][] | undefined;
 
   return (
-    <group onContextMenu={handleCanvasContextMenu as any}>
+    <group
+      onContextMenu={handleCanvasContextMenu as any}
+      onPointerDown={handleScenePointerDown as any}
+      onPointerUp={handleScenePointerUp as any}
+    >
       {/* The board */}
       <LegoBoard
         width={width}
@@ -589,7 +728,14 @@ function DragDropManager() {
         // When a placed brick is selected for moving, ALL bricks (including the selected one) 
         // become non-interactive so clicks pass through to the board for movement
         const isThisBrickInSelectedStack = selectedStackIds.has(brick.instanceId);
-        const isInteractive = !selectedInventoryBrick && !selectedPlacedBrick;
+        // In dragNdrop mode, pressing any unselected placed brick should be
+        // able to start a new drag — so non-selected bricks stay interactive
+        // even when another brick is currently selected. The selected stack
+        // itself stays non-interactive so pointer events fall through to the
+        // cells beneath during the drag.
+        const isInteractive = dragNdrop
+          ? !selectedInventoryBrick && !isThisBrickInSelectedStack
+          : !selectedInventoryBrick && !selectedPlacedBrick;
         const isThisBrickInvalid = invalidBrickIds.has(brick.instanceId);
 
         return (
@@ -599,8 +745,15 @@ function DragDropManager() {
             isSelected={isThisBrickInSelectedStack}
             isInvalid={isThisBrickInvalid}
             interactive={isInteractive}
+            dragNdrop={dragNdrop}
             boardOffset={boardOffset}
-            onSelect={() => handleBrickSelect(brick.instanceId)}
+            onSelect={() => {
+              // Mark that the current gesture's press is what selected this
+              // brick — handleScenePointerUp uses this to apply the tap-vs-
+              // drag threshold only on the initial press.
+              if (dragNdrop) pressSelectedRef.current = true;
+              handleBrickSelect(brick.instanceId);
+            }}
             onDeselect={handleBrickDeselect}
             onRotate={() => handleBrickRotate(brick.instanceId)}
             onRemove={() => handleBrickRemove(brick.instanceId)}
@@ -759,26 +912,45 @@ function FloatingPreviewWrapper() {
   const { selectedBrickId, boardState, puzzle, previewRotation } = usePuzzleStore();
   const hoveredCell = useHoverStore(s => s.hoveredCell);
 
-  // Check if we have an inventory brick selected (not a placed brick)
-  const hasInventorySelection = selectedBrickId &&
-    !boardState.placedBricks.find(b => b.instanceId === selectedBrickId);
+  // The preview is shown only when the cursor has left the board — over the
+  // board, the GhostBrick at hoveredCell handles the snap visualization.
+  const placedBrick = useMemo(() => {
+    if (!selectedBrickId) return null;
+    return boardState.placedBricks.find(b => b.instanceId === selectedBrickId) ?? null;
+  }, [boardState.placedBricks, selectedBrickId]);
 
-  // Get the selected inventory brick info
-  const selectedInventoryBrick = useMemo(() => {
-    if (!hasInventorySelection) return null;
+  const inventoryBrick = useMemo(() => {
+    if (!selectedBrickId || placedBrick) return null;
     return puzzle?.inventory.find(b => b.id === selectedBrickId) ?? null;
-  }, [puzzle, selectedBrickId, hasInventorySelection]);
+  }, [puzzle, selectedBrickId, placedBrick]);
 
-  // Only show when we have an inventory brick selected AND not hovering over the board
-  if (!selectedInventoryBrick || hoveredCell) return null;
+  if (hoveredCell) return null;
 
-  return (
-    <FloatingPreviewBrick
-      shape={selectedInventoryBrick.shape}
-      color={selectedInventoryBrick.color}
-      rotation={previewRotation}
-    />
-  );
+  // Inventory selection → preview the tile being placed.
+  if (inventoryBrick) {
+    return (
+      <FloatingPreviewBrick
+        shape={inventoryBrick.shape}
+        color={inventoryBrick.color}
+        rotation={previewRotation}
+      />
+    );
+  }
+
+  // dragNdrop placed-brick drag → preview the brick being moved so it
+  // visually follows the cursor when dragged off the board, instead of
+  // leaving the user with no visual feedback during the drag.
+  if (placedBrick && (puzzle?.dragNdrop ?? true)) {
+    return (
+      <FloatingPreviewBrick
+        shape={placedBrick.shape}
+        color={placedBrick.color}
+        rotation={placedBrick.rotation || 0}
+      />
+    );
+  }
+
+  return null;
 }
 
 function PuzzleSceneInner() {
@@ -791,6 +963,11 @@ function PuzzleSceneInner() {
     removeBrick,
   } = usePuzzleStore();
   const [sceneReady, setSceneReady] = useState(false);
+  // Orbit controls are toggled off while a placed brick is being dragged in
+  // dragNdrop mode so the press doesn't also start a camera rotation.
+  // DragDropManager calls setOrbitEnabled(false) on press and (true) on any
+  // global pointer release.
+  const [orbitEnabled, setOrbitEnabled] = useState(true);
 
   // Check if we have an inventory brick selected (not a placed brick)
   const hasInventorySelection = selectedBrickId &&
@@ -889,6 +1066,7 @@ function PuzzleSceneInner() {
 
         <OrbitControls
           makeDefault
+          enabled={orbitEnabled}
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
@@ -904,7 +1082,7 @@ function PuzzleSceneInner() {
         <SceneLighting />
 
         <Suspense fallback={null}>
-          <DragDropManager />
+          <DragDropManager setOrbitEnabled={setOrbitEnabled} />
           <FloatingPreviewWrapper />
           <BackgroundGrid />
           {!isLargeBoard && (

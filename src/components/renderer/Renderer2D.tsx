@@ -112,10 +112,56 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     invalidCells,
     goalAreaCells,
     isGhostValid,
+    dragNdrop,
     handleCellClick,
+    handleCellPointerUp,
     handlePieceClick,
     handleRotate,
   } = useInteractions2D({ engine, blockedCells });
+
+  // Drag-and-drop tracking: only commit on pointer-up if the pointer actually
+  // moved past a small threshold since pointer-down. This distinguishes a
+  // real drag from a stationary tap (where pointerup should not commit).
+  const dragStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  // True only when the most recent press selected a placed piece via Piece2D.
+  // The tap-vs-drag threshold is then applied so the selecting press doesn't
+  // also fire a no-op move. For follow-up presses (e.g. pressing a cell while
+  // an inventory tile or piece is already selected), this stays false and a
+  // plain click commits.
+  const pressSelectedRef = useRef(false);
+  const DRAG_THRESHOLD_PX = 5;
+
+  // Continuous drag visual: while a selected placed piece is being dragged
+  // in dragNdrop mode, the piece's <g> is translated by the live pointer
+  // delta (in SVG user units) so it follows the cursor smoothly. Cleared
+  // on pointer-up, before commit, so the piece snaps directly to its new
+  // cell without a slide-from-original animation.
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null);
+
+  const getSvgScale = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return 1;
+    const rect = svg.getBoundingClientRect();
+    const vbW = svg.viewBox.baseVal.width;
+    return vbW > 0 && rect.width > 0 ? rect.width / vbW : 1;
+  }, []);
+
+  // Clear drag visual on any pointer release anywhere — even outside the
+  // SVG — so the piece doesn't get stuck mid-translate if the user
+  // releases off-board.
+  useEffect(() => {
+    if (!dragNdrop) return;
+    const cancel = () => {
+      setDragOffset(null);
+    };
+    window.addEventListener('pointerup', cancel);
+    window.addEventListener('pointercancel', cancel);
+    return () => {
+      window.removeEventListener('pointerup', cancel);
+      window.removeEventListener('pointercancel', cancel);
+    };
+  }, [dragNdrop]);
 
   // The whole stack lifts together: selected piece + everything stacked above it.
   const selectedStackIds = useMemo(() => {
@@ -176,6 +222,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   return (
     <div ref={containerRef} className={`w-full h-full flex items-center justify-center ${className}`} style={{ background: C.background }}>
       <svg
+        ref={svgRef}
         width="100%"
         height="100%"
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
@@ -208,7 +255,50 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
         )}
 
         {/* Main board area */}
-        <g transform={`translate(${PADDING + hintsLeftWidth}, ${PADDING + hintsTopHeight})`}>
+        <g
+          transform={`translate(${PADDING + hintsLeftWidth}, ${PADDING + hintsTopHeight})`}
+          onPointerDown={dragNdrop ? (e) => {
+            dragStartRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+          } : undefined}
+          onPointerMove={dragNdrop ? (e) => {
+            const start = dragStartRef.current;
+            if (!start || start.pointerId !== e.pointerId) return;
+            // dragOffset is applied to whichever placed piece is the
+            // current selection (via isInSelectedStack on the piece). If no
+            // piece is selected yet (e.g. the selection from pointer-down
+            // hasn't propagated), the offset just isn't used yet — it
+            // takes effect as soon as the selected piece renders.
+            const scale = getSvgScale();
+            setDragOffset({
+              dx: (e.clientX - start.x) / scale,
+              dy: (e.clientY - start.y) / scale,
+            });
+          } : undefined}
+          onPointerUp={dragNdrop ? (e) => {
+            const start = dragStartRef.current;
+            const wasPressSelect = pressSelectedRef.current;
+            dragStartRef.current = null;
+            pressSelectedRef.current = false;
+            // Clear drag translation before committing so the piece snaps to
+            // its new cell on the next render instead of sliding from the
+            // original cell to the new one.
+            setDragOffset(null);
+            // The tap-vs-drag threshold only applies when this press is the
+            // one that selected a piece — otherwise a follow-up click on a
+            // cell (e.g. after clicking an inventory tile) would be rejected
+            // as "just a tap" and never commit the placement. If pointer-down
+            // was outside the SVG entirely (inventory HTML → SVG drop),
+            // `start` is null and we commit unconditionally as before.
+            if (start && wasPressSelect && start.pointerId === e.pointerId) {
+              const dx = e.clientX - start.x;
+              const dy = e.clientY - start.y;
+              const moved = Math.sqrt(dx * dx + dy * dy) >= DRAG_THRESHOLD_PX;
+              if (!moved) return; // simple tap — selection only, no commit
+            }
+            if (!hoveredCell) return; // released off-board
+            handleCellPointerUp(hoveredCell.x, hoveredCell.y);
+          } : undefined}
+        >
           {/* Board background with gradient and shadow */}
           <rect
             x={-6}
@@ -268,7 +358,14 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
             const isClickedPiece = selectedPieceId === piece.instanceId;
             const isInSelectedStack = selectedStackIds.has(piece.instanceId);
             const isHovered = hoveredPieceId === piece.instanceId;
-            const isInteractive = !selectedInventoryPiece && !selectedPlacedPiece;
+            // In dragNdrop mode, pieces stay interactive even when another
+            // piece OR an inventory tile is selected — pressing a piece
+            // switches selection to it. Only the selected piece's own stack
+            // passes pointer events through so cells underneath can track
+            // hover during the drag.
+            const isInteractive = dragNdrop
+              ? !isInSelectedStack
+              : !selectedInventoryPiece && !selectedPlacedPiece;
             const isPieceInvalid = invalidPieceIds.has(piece.instanceId);
 
             const pieceValidMoves = isClickedPiece && config.movementRule === 'SLIDING_ONLY'
@@ -286,7 +383,16 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
                 interactive={isInteractive}
                 isSliderPuzzle={isSliderPuzzle}
                 hasValidMoves={pieceValidMoves.length > 0}
-                onClick={() => handlePieceClick(piece)}
+                dragOffset={isInSelectedStack ? dragOffset : null}
+                disableSlideAnim={dragNdrop}
+                onClick={() => {
+                  // Piece2D wires its onPointerDown to this callback. Mark
+                  // the gesture as "press-selected" so the scene-group's
+                  // pointer-up applies the tap-vs-drag threshold (no spurious
+                  // move from the selecting press).
+                  if (dragNdrop) pressSelectedRef.current = true;
+                  handlePieceClick(piece);
+                }}
                 onPointerEnter={() => setHoveredPieceId(piece.instanceId)}
                 onPointerLeave={() => setHoveredPieceId(null)}
               />
