@@ -286,7 +286,7 @@ function FloatingPreviewBrick({
 }
 
 // Drag and drop manager component
-function DragDropManager() {
+function DragDropManager({ setOrbitEnabled }: { setOrbitEnabled: (enabled: boolean) => void }) {
   const {
     puzzle,
     boardState,
@@ -539,12 +539,10 @@ function DragDropManager() {
   const pressSelectedRef = useRef(false);
   const DRAG_THRESHOLD_PX = 5;
 
-  // OrbitControls handle (via makeDefault) — toggled off during a placed-brick
-  // drag so pressing a brick doesn't also rotate the camera.
-  const controls = useThree(s => s.controls) as { enabled?: boolean } | null;
-  const setOrbitEnabled = useCallback((enabled: boolean) => {
-    if (controls && 'enabled' in controls) controls.enabled = enabled;
-  }, [controls]);
+  // OrbitControls is toggled off during a placed-brick drag so pressing a
+  // brick doesn't also rotate the camera. The enabled flag is owned by
+  // PuzzleSceneInner (it lives outside DragDropManager so the prop change
+  // can reach OrbitControls' JSX), and is set via the prop passed in.
 
   // Re-enable OrbitControls on any global pointer release, even if the
   // gesture ended off-canvas. Safe to call when controls weren't disabled.
@@ -965,6 +963,11 @@ function PuzzleSceneInner() {
     removeBrick,
   } = usePuzzleStore();
   const [sceneReady, setSceneReady] = useState(false);
+  // Orbit controls are toggled off while a placed brick is being dragged in
+  // dragNdrop mode so the press doesn't also start a camera rotation.
+  // DragDropManager calls setOrbitEnabled(false) on press and (true) on any
+  // global pointer release.
+  const [orbitEnabled, setOrbitEnabled] = useState(true);
 
   // Check if we have an inventory brick selected (not a placed brick)
   const hasInventorySelection = selectedBrickId &&
@@ -1063,6 +1066,7 @@ function PuzzleSceneInner() {
 
         <OrbitControls
           makeDefault
+          enabled={orbitEnabled}
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
@@ -1078,7 +1082,7 @@ function PuzzleSceneInner() {
         <SceneLighting />
 
         <Suspense fallback={null}>
-          <DragDropManager />
+          <DragDropManager setOrbitEnabled={setOrbitEnabled} />
           <FloatingPreviewWrapper />
           <BackgroundGrid />
           {!isLargeBoard && (
