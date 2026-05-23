@@ -299,11 +299,22 @@ export function PolyominoBrick({
   };
 
   // In dragNdrop mode, pressing a brick selects it immediately so the
-  // subsequent drag (and release on a target cell) commits a move. We do
-  // NOT stop propagation — the scene-group's onPointerDown handler also
-  // needs the event to record the drag start position.
-  const handlePointerDown = (_event: ThreeEvent<PointerEvent>) => {
+  // subsequent drag (and release on a target cell) commits a move.
+  //
+  // R3F dispatches pointerdown to every intersected mesh (closest first),
+  // so a stacked column hits the top brick then the bottom brick — without
+  // dedup, the last (bottom) brick's onSelect would overwrite the first
+  // and the user would always grab the wrong piece. We tag the native
+  // event on the first brick that claims it, so the bottom brick bails.
+  // We deliberately don't call event.stopPropagation() — the scene-group's
+  // onPointerDown still needs to fire to record drag-start and disable
+  // OrbitControls in the same React event tick (otherwise the camera
+  // grabs the gesture).
+  const handlePointerDown = (event: ThreeEvent<PointerEvent>) => {
     if (!interactive || !dragNdrop) return;
+    const ne = event.nativeEvent as PointerEvent & { __brickClaimed?: boolean };
+    if (ne.__brickClaimed) return;
+    ne.__brickClaimed = true;
     onSelect?.();
   };
 
