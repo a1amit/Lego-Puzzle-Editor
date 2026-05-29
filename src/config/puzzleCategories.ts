@@ -1,7 +1,8 @@
 import { DEFAULT_PUZZLE, FIT_ALL_PUZZLE, BLANK_PUZZLE, SLIDER_PUZZLE, GRID_PUZZLE, BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS, COLORFUL_COVERAGE_PUZZLE } from '../types/puzzle';
 import { KLOTSKI_RED_DONKEY, KLOTSKI_CROSSWAY, PEN_CHALLENGE_PUZZLE, NONOGRAM_PUZZLE, NONOGRAM_PUZZLE_2 } from '../types/puzzle';
+import { RUBIKS_CUBE_PUZZLE } from '../data/puzzles';
 import type { LucideIcon } from 'lucide-react';
-import { Grid3x3, LayoutGrid, Move, Binary, Lightbulb, Brain } from 'lucide-react';
+import { Grid3x3, LayoutGrid, Move, Binary, Lightbulb, Brain, Box } from 'lucide-react';
 
 export interface PuzzleItem {
   id: string;
@@ -71,6 +72,14 @@ export const PUZZLE_CATEGORIES: PuzzleCategory[] = [
     puzzles: [
       { id: 'nonogram', label: 'Nonogram: Flag', puzzle: NONOGRAM_PUZZLE, is3D: false },
       { id: 'nonogram-2', label: 'Nonogram: Diamond', puzzle: NONOGRAM_PUZZLE_2, is3D: false },
+    ],
+  },
+  {
+    category: 'Mechanical (Plugin)',
+    color: '#7C3AED',
+    icon: Box,
+    puzzles: [
+      { id: 'rubiks-cube', label: "Rubik's Cube", puzzle: RUBIKS_CUBE_PUZZLE, is3D: true },
     ],
   },
 ];

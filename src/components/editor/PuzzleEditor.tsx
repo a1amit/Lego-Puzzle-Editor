@@ -1,24 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor';
-import Editor, { OnMount, OnChange, loader } from '@monaco-editor/react';
+import Editor, { OnMount, OnChange } from '@monaco-editor/react';
+import './monacoSetup'; // side effect: configures MonacoEnvironment + loader
 import { usePuzzleStore } from '../../store/puzzleStore';
-
-// Use locally bundled Monaco (not CDN) — required by CSP and saves ~8.7MB of unused workers
-self.MonacoEnvironment = {
-  getWorker(_: string, label: string) {
-    if (label === 'json') {
-      return new Worker(
-        new URL('monaco-editor/esm/vs/language/json/json.worker.js', import.meta.url),
-        { type: 'module' },
-      );
-    }
-    return new Worker(
-      new URL('monaco-editor/esm/vs/editor/editor.worker.js', import.meta.url),
-      { type: 'module' },
-    );
-  },
-};
-loader.config({ monaco });
 import { PuzzleDefinitionSchema } from '../../types/puzzle';
 import { Button } from '../ui/shadcn/button';
 import { Badge } from '../ui/shadcn/badge';

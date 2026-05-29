@@ -14,6 +14,8 @@ import { usePuzzleStore } from '../store/puzzleStore';
 import { useEditorViewStore, type EditorViewMode } from '../store/editorViewStore';
 import { useAppAuth } from '../auth/AuthProvider';
 import { usePuzzleEngine } from '../engine';
+import type { PuzzleDefinition } from '../types/puzzle';
+import type { PluginFrameState } from '../runtime/plugin/PluginHostFrame';
 import { SoundManager } from '../services/SoundManager';
 import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../config/puzzleCategories';
 import { recordCompletion } from '../store/completionTracker';
@@ -29,11 +31,17 @@ const PuzzleEditor = React.lazy(() =>
 const RuleBuilderPanel = React.lazy(() =>
   import('../components/editor/ruleBuilder').then(m => ({ default: m.RuleBuilderPanel }))
 );
+const PluginCodeEditor = React.lazy(() =>
+  import('../components/editor/PluginCodeEditor').then(m => ({ default: m.PluginCodeEditor }))
+);
 const PuzzleScene = React.lazy(() =>
   import('../components/3d/PuzzleScene').then(m => ({ default: m.PuzzleScene }))
 );
 const CongratulationsPopup = React.lazy(() =>
   import('../components/ui/CongratulationsPopup').then(m => ({ default: m.CongratulationsPopup }))
+);
+const PluginRenderer = React.lazy(() =>
+  import('../runtime/plugin/PluginRenderer').then(m => ({ default: m.PluginRenderer }))
 );
 
 function EditorSkeleton() {
@@ -54,6 +62,7 @@ function EditorPanel() {
       <TabsList className="flex-shrink-0 mx-2 mt-2">
         <TabsTrigger value="json" className="text-xs">JSON Editor</TabsTrigger>
         <TabsTrigger value="rules" className="text-xs">Custom Rules</TabsTrigger>
+        <TabsTrigger value="code" className="text-xs">Plugin (Code)</TabsTrigger>
       </TabsList>
       <TabsContent value="json" className="flex-1 min-h-0">
         <Suspense fallback={<EditorSkeleton />}>
@@ -65,14 +74,49 @@ function EditorPanel() {
           <RuleBuilderPanel className="h-full" />
         </Suspense>
       </TabsContent>
+      <TabsContent value="code" className="flex-1 min-h-0">
+        <Suspense fallback={<EditorSkeleton />}>
+          <PluginCodeEditor className="h-full" />
+        </Suspense>
+      </TabsContent>
     </Tabs>
   );
 }
 
-function RendererPanel({ is2D, engine, viewMode }: { is2D: boolean; engine: ReturnType<typeof usePuzzleEngine>; viewMode: '2D' | '3D' }) {
+function RendererPanel({
+  is2D,
+  isPlugin,
+  engine,
+  viewMode,
+  puzzle,
+  pluginResetSignal,
+  onPluginState,
+  onPluginComplete,
+  onPluginError,
+}: {
+  is2D: boolean;
+  isPlugin: boolean;
+  engine: ReturnType<typeof usePuzzleEngine>;
+  viewMode: '2D' | '3D';
+  puzzle: PuzzleDefinition | null;
+  pluginResetSignal: number;
+  onPluginState: (s: PluginFrameState) => void;
+  onPluginComplete: () => void;
+  onPluginError?: (msg: string) => void;
+}) {
   return (
     <div className="h-full bg-[radial-gradient(circle_at_30%_20%,rgba(101,143,222,0.16),rgba(8,12,20,0.15)_35%,rgba(8,12,20,0.9)_100%)] relative">
-      {is2D ? (
+      {isPlugin && puzzle ? (
+        <Suspense fallback={<SceneSkeleton />}>
+          <PluginRenderer
+            puzzle={puzzle}
+            resetSignal={pluginResetSignal}
+            onState={onPluginState}
+            onComplete={onPluginComplete}
+            onError={onPluginError}
+          />
+        </Suspense>
+      ) : is2D ? (
         <PuzzleRenderer engine={engine} />
       ) : (
         <Suspense fallback={<SceneSkeleton />}>
@@ -80,7 +124,13 @@ function RendererPanel({ is2D, engine, viewMode }: { is2D: boolean; engine: Retu
         </Suspense>
       )}
       <div className="absolute top-3 right-3 z-10">
-        <ViewModeIndicator viewMode={viewMode} />
+        {isPlugin ? (
+          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-primary/20 text-primary border border-primary/30">
+            Plugin
+          </span>
+        ) : (
+          <ViewModeIndicator viewMode={viewMode} />
+        )}
       </div>
       <CellPickerOverlay />
     </div>
@@ -197,6 +247,13 @@ function PreviewPanel() {
 
   const viewMode = puzzle?.viewMode ?? '3D';
   const is2D = viewMode === '2D';
+  const isPlugin = puzzle?.engine === 'plugin';
+
+  // Plugin puzzles self-report progress/completion from their sandbox; the
+  // host just relays move count and the solved edge into the existing pipeline.
+  const [pluginComplete, setPluginComplete] = useState(false);
+  const [pluginMoveCount, setPluginMoveCount] = useState(0);
+  const [pluginResetSignal, setPluginResetSignal] = useState(0);
 
   const engine = usePuzzleEngine({ puzzle: null });
 
@@ -211,8 +268,8 @@ function PreviewPanel() {
   const storeValidationResults = usePuzzleStore((s) => s.validationResults);
   const activeEngine = is2D ? engine : undefined;
   const validationResults = activeEngine ? activeEngine.validationResults : storeValidationResults;
-  const isComplete = activeEngine ? activeEngine.isComplete : storeIsComplete;
-  const moveCount = activeEngine ? activeEngine.moveCount : storeMoveCount;
+  const isComplete = isPlugin ? pluginComplete : (activeEngine ? activeEngine.isComplete : storeIsComplete);
+  const moveCount = isPlugin ? pluginMoveCount : (activeEngine ? activeEngine.moveCount : storeMoveCount);
   const panelFlipped = useEditorViewStore((s) => s.panelFlipped);
   const [showCongrats, setShowCongrats] = useState(false);
   const [completionXP, setCompletionXP] = useState(0);
@@ -226,6 +283,9 @@ function PreviewPanel() {
     solveStartRef.current = Date.now();
     setShowCongrats(false);
     setCompletionXP(0);
+    setPluginComplete(false);
+    setPluginMoveCount(0);
+    setPluginResetSignal((n) => n + 1);
     if (is2D) {
       engine.resetBoard();
     } else {
@@ -278,11 +338,20 @@ function PreviewPanel() {
     setShowCongrats(false);
     setCompletionXP(0);
     solveStartRef.current = Date.now();
+    setPluginComplete(false);
+    setPluginMoveCount(0);
+    setPluginResetSignal((n) => n + 1);
     if (is2D) {
       engine.resetBoard();
     } else {
       resetPuzzle();
     }
+  };
+
+  // Relay sandbox state into the shell's completion pipeline.
+  const handlePluginState = (s: PluginFrameState) => {
+    setPluginMoveCount(s.moveCount);
+    if (s.solved) setPluginComplete(true);
   };
 
   return (
@@ -291,10 +360,10 @@ function PreviewPanel() {
         {panelFlipped ? (
           <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} flipped />
         ) : (
-          <RendererPanel is2D={is2D} engine={engine} viewMode={viewMode} />
+          <RendererPanel is2D={is2D} isPlugin={isPlugin} engine={engine} viewMode={viewMode} puzzle={puzzle} pluginResetSignal={pluginResetSignal} onPluginState={handlePluginState} onPluginComplete={() => setPluginComplete(true)} />
         )}
         {panelFlipped ? (
-          <RendererPanel is2D={is2D} engine={engine} viewMode={viewMode} />
+          <RendererPanel is2D={is2D} isPlugin={isPlugin} engine={engine} viewMode={viewMode} puzzle={puzzle} pluginResetSignal={pluginResetSignal} onPluginState={handlePluginState} onPluginComplete={() => setPluginComplete(true)} />
         ) : (
           <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} />
         )}
