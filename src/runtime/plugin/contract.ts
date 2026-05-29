@@ -101,7 +101,7 @@ export const PLUGIN_PROTOCOL_VERSION = 1;
 /** Messages the sandboxed frame posts UP to the host. */
 export type PluginToHostMessage =
   | { source: 'lpe-plugin'; type: 'BOOT' }
-  | { source: 'lpe-plugin'; type: 'READY'; meta: PuzzlePluginMeta; solved: boolean; progress: number; moveCount: number }
+  | { source: 'lpe-plugin'; type: 'READY'; meta: PuzzlePluginMeta; solved: boolean; progress: number; moveCount: number; message?: string }
   | { source: 'lpe-plugin'; type: 'STATE'; solved: boolean; progress: number; moveCount: number; message?: string }
   | { source: 'lpe-plugin'; type: 'ERROR'; message: string };
 

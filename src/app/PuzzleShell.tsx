@@ -16,6 +16,7 @@ import { useAppAuth } from '../auth/AuthProvider';
 import { usePuzzleEngine } from '../engine';
 import type { PuzzleDefinition } from '../types/puzzle';
 import type { PluginFrameState } from '../runtime/plugin/PluginHostFrame';
+import type { PuzzlePluginMeta } from '../runtime/plugin/contract';
 import { SoundManager } from '../services/SoundManager';
 import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../config/puzzleCategories';
 import { recordCompletion } from '../store/completionTracker';
@@ -92,6 +93,7 @@ function RendererPanel({
   pluginResetSignal,
   onPluginState,
   onPluginComplete,
+  onPluginMeta,
   onPluginError,
 }: {
   is2D: boolean;
@@ -102,6 +104,7 @@ function RendererPanel({
   pluginResetSignal: number;
   onPluginState: (s: PluginFrameState) => void;
   onPluginComplete: () => void;
+  onPluginMeta: (meta: PuzzlePluginMeta) => void;
   onPluginError?: (msg: string) => void;
 }) {
   return (
@@ -113,6 +116,7 @@ function RendererPanel({
             resetSignal={pluginResetSignal}
             onState={onPluginState}
             onComplete={onPluginComplete}
+            onMeta={onPluginMeta}
             onError={onPluginError}
           />
         </Suspense>
@@ -352,6 +356,37 @@ function PreviewPanel() {
   const handlePluginState = (s: PluginFrameState) => {
     setPluginMoveCount(s.moveCount);
     if (s.solved) setPluginComplete(true);
+    // Mirror the plugin's own win check into the store so the Validation panel
+    // and AI chat reflect real status (progress / Solved!) instead of the
+    // empty-rules default.
+    const pct = Math.round((s.progress || 0) * 100);
+    usePuzzleStore.setState({
+      isComplete: s.solved,
+      validationResults: [{
+        isValid: s.solved,
+        rule: 'Win condition',
+        message: s.solved ? (s.message || 'Solved!') : (s.message || `${pct}% complete`),
+        affectedCells: [],
+      }],
+    });
+  };
+
+  // The plugin's own meta (from the code) is the source of truth for a plugin
+  // puzzle's title/instructions — sync meta.title -> definition.title and
+  // meta.instructions -> definition.description so the header, gallery, JSON
+  // editor, and saved puzzle all match what the code declares. We update
+  // jsonSource too, otherwise the JSON Editor tab keeps showing stale values.
+  const handlePluginMeta = (meta: PuzzlePluginMeta) => {
+    const p = usePuzzleStore.getState().puzzle;
+    if (!p || p.engine !== 'plugin') return;
+    const patch: Partial<PuzzleDefinition> = {};
+    if (meta.title && meta.title.trim() && meta.title !== p.title) patch.title = meta.title;
+    if (meta.instructions && meta.instructions.trim() && meta.instructions !== p.description) {
+      patch.description = meta.instructions;
+    }
+    if (!Object.keys(patch).length) return;
+    const next = { ...p, ...patch };
+    usePuzzleStore.setState({ puzzle: next, jsonSource: JSON.stringify(next, null, 2) });
   };
 
   return (
@@ -360,10 +395,10 @@ function PreviewPanel() {
         {panelFlipped ? (
           <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} flipped />
         ) : (
-          <RendererPanel is2D={is2D} isPlugin={isPlugin} engine={engine} viewMode={viewMode} puzzle={puzzle} pluginResetSignal={pluginResetSignal} onPluginState={handlePluginState} onPluginComplete={() => setPluginComplete(true)} />
+          <RendererPanel is2D={is2D} isPlugin={isPlugin} engine={engine} viewMode={viewMode} puzzle={puzzle} pluginResetSignal={pluginResetSignal} onPluginState={handlePluginState} onPluginComplete={() => setPluginComplete(true)} onPluginMeta={handlePluginMeta} />
         )}
         {panelFlipped ? (
-          <RendererPanel is2D={is2D} isPlugin={isPlugin} engine={engine} viewMode={viewMode} puzzle={puzzle} pluginResetSignal={pluginResetSignal} onPluginState={handlePluginState} onPluginComplete={() => setPluginComplete(true)} />
+          <RendererPanel is2D={is2D} isPlugin={isPlugin} engine={engine} viewMode={viewMode} puzzle={puzzle} pluginResetSignal={pluginResetSignal} onPluginState={handlePluginState} onPluginComplete={() => setPluginComplete(true)} onPluginMeta={handlePluginMeta} />
         ) : (
           <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} />
         )}

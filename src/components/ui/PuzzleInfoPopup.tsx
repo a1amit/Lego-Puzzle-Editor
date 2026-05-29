@@ -40,8 +40,11 @@ export function PuzzleInfoPopup({ isOpen, onClose, engine }: PuzzleInfoPopupProp
   const store = usePuzzleStore(useShallow(s => ({ puzzle: s.puzzle })));
   const puzzle = engine?.puzzle ?? store.puzzle;
 
-  const [pos, setPos] = useState({ x: 60, y: 60 });
   const [size, setSize] = useState({ w: 420, h: 520 });
+  const [pos, setPos] = useState(() => ({
+    x: Math.max(0, Math.round((window.innerWidth - 420) / 2)),
+    y: Math.max(0, Math.round((window.innerHeight - 520) / 2)),
+  }));
   const [minimized, setMinimized] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
@@ -55,6 +58,15 @@ export function PuzzleInfoPopup({ isOpen, onClose, engine }: PuzzleInfoPopupProp
     window.addEventListener('resize', h);
     return () => window.removeEventListener('resize', h);
   }, []);
+
+  // Center the popup each time it opens.
+  useEffect(() => {
+    if (!isOpen) return;
+    setPos({
+      x: Math.max(0, Math.round((window.innerWidth - size.w) / 2)),
+      y: Math.max(0, Math.round((window.innerHeight - size.h) / 2)),
+    });
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onDragStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();

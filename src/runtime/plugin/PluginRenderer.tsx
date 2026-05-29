@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import { PluginHostFrame, type PluginFrameState, type LibSpec } from './PluginHostFrame';
+import type { PuzzlePluginMeta } from './contract';
 import type { PuzzleDefinition } from '../../types/puzzle';
 
 /**
@@ -25,11 +26,13 @@ interface PluginRendererProps {
   onState?: (state: PluginFrameState) => void;
   /** Fired once on the rising edge of solved (re-armed on reset). */
   onComplete?: () => void;
+  /** Fired with the plugin's declared meta (title/instructions) on load. */
+  onMeta?: (meta: PuzzlePluginMeta) => void;
   /** Module load/run error. */
   onError?: (message: string) => void;
 }
 
-export function PluginRenderer({ puzzle, resetSignal = 0, onState, onComplete, onError }: PluginRendererProps) {
+export function PluginRenderer({ puzzle, resetSignal = 0, onState, onComplete, onMeta, onError }: PluginRendererProps) {
   const plugin = puzzle.plugin;
   const needsThree = plugin?.renderKind === 'webgl';
 
@@ -116,6 +119,7 @@ export function PluginRenderer({ puzzle, resetSignal = 0, onState, onComplete, o
           resetSignal={resetSignal}
           onReady={(meta, st) => {
             setInstructions(meta.instructions);
+            onMeta?.(meta);
             handleState(st);
           }}
           onState={handleState}

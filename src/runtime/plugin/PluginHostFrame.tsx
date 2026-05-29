@@ -112,7 +112,7 @@ export function PluginHostFrame({
           sendInit();
           break;
         case 'READY':
-          cbRef.current.onReady?.(msg.meta, { solved: msg.solved, progress: msg.progress, moveCount: msg.moveCount });
+          cbRef.current.onReady?.(msg.meta, { solved: msg.solved, progress: msg.progress, moveCount: msg.moveCount, message: msg.message });
           break;
         case 'STATE':
           cbRef.current.onState?.({ solved: msg.solved, progress: msg.progress, moveCount: msg.moveCount, message: msg.message });

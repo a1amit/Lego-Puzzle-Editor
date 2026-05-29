@@ -86,9 +86,18 @@ const TEMPLATES: Template[] = [
   { label: "Rubik's Cube (WebGL)", renderKind: 'webgl', source: RUBIKS_CUBE_PLUGIN_SOURCE },
 ];
 
-function buildPluginPuzzle(module: string, renderKind: PluginRenderKind, title: string): PuzzleDefinition {
+/** Best-effort read of meta.title from the module source for the initial
+ *  definition title. The running plugin's reported meta is authoritative and
+ *  re-syncs it on load (see PuzzleShell handlePluginMeta), so this just avoids
+ *  a placeholder flash in the common case. */
+function parseMetaTitle(module: string): string {
+  const m = module.match(/title\s*:\s*"([^"]*)"/) || module.match(/title\s*:\s*'([^']*)'/);
+  return (m && m[1].trim()) || 'Plugin Puzzle';
+}
+
+function buildPluginPuzzle(module: string, renderKind: PluginRenderKind): PuzzleDefinition {
   return {
-    title: title || 'Code Puzzle',
+    title: parseMetaTitle(module),
     description: 'Author-coded plugin puzzle.',
     engine: 'plugin',
     plugin: { module, renderKind, seed: 1, apiVersion: 1 },
@@ -112,11 +121,10 @@ export function PluginCodeEditor({ className = '' }: PluginCodeEditorProps) {
   // Seed the editor from the current puzzle if it's already a plugin, else the
   // DOM starter template.
   const initial = currentPuzzle?.engine === 'plugin' && currentPuzzle.plugin
-    ? { code: currentPuzzle.plugin.module, renderKind: currentPuzzle.plugin.renderKind, title: currentPuzzle.title }
-    : { code: STARTER_DOM, renderKind: 'dom' as PluginRenderKind, title: 'Code Puzzle' };
+    ? { code: currentPuzzle.plugin.module, renderKind: currentPuzzle.plugin.renderKind }
+    : { code: STARTER_DOM, renderKind: 'dom' as PluginRenderKind };
 
   const [renderKind, setRenderKind] = useState<PluginRenderKind>(initial.renderKind);
-  const [title, setTitle] = useState(initial.title);
   const codeRef = useRef(initial.code);
 
   const handleMount: OnMount = (editor, monacoInstance) => {
@@ -133,7 +141,7 @@ export function PluginCodeEditor({ className = '' }: PluginCodeEditorProps) {
   const run = () => {
     const code = editorRef.current?.getValue() ?? codeRef.current;
     codeRef.current = code;
-    setPuzzle(buildPluginPuzzle(code, renderKind, title));
+    setPuzzle(buildPluginPuzzle(code, renderKind));
   };
 
   const loadTemplate = (t: Template) => {
@@ -147,13 +155,6 @@ export function PluginCodeEditor({ className = '' }: PluginCodeEditorProps) {
       <div className="flex items-center justify-between gap-2 px-3 py-2 bg-card border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-mono text-primary whitespace-nowrap">plugin.js</span>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Puzzle title"
-            aria-label="Puzzle title"
-            className="h-7 px-2 rounded bg-secondary/70 border border-border text-xs text-foreground min-w-0 w-32"
-          />
         </div>
         <div className="flex items-center gap-1.5">
           <select
@@ -188,7 +189,8 @@ export function PluginCodeEditor({ className = '' }: PluginCodeEditorProps) {
 
       <div className="px-3 py-1.5 text-[11px] text-muted-foreground bg-card/50 border-b border-border">
         Export a default <span className="font-mono text-foreground/80">PuzzlePlugin</span>{' '}
-        (initialState, applyMove, isSolved, render.mount). For WebGL,{' '}
+        (meta, initialState, applyMove, isSolved, render.mount). The puzzle title comes from{' '}
+        <span className="font-mono text-foreground/80">meta.title</span> in your code; for WebGL,{' '}
         <span className="font-mono text-foreground/80">self.THREE</span> is available. Click Run to preview →
       </div>
 
