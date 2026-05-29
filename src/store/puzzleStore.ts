@@ -199,6 +199,14 @@ function computeValidation(
   moveCount: number,
 ): { validationResults: ValidationResult[]; isComplete: boolean; completionProgress: 'normal' | 'building' | 'almost' } {
   if (!puzzle) return { validationResults: [], isComplete: false, completionProgress: 'normal' };
+  // Plugin puzzles own their win check inside the sandbox (isSolved). The
+  // declarative validation system doesn't apply, and an empty rule list would
+  // otherwise read as vacuously "complete" (isAllValid([]) === true), so the
+  // Validation panel would flash "PUZZLE COMPLETE!" on load. Completion is
+  // driven by the plugin bridge instead (see PuzzleShell handlePluginState).
+  if (puzzle.engine === 'plugin') {
+    return { validationResults: [], isComplete: false, completionProgress: 'normal' };
+  }
   const rulesWithParams = enrichValidationRules(puzzle, moveCount);
   const results = ValidationRegistry.validate(boardState, rulesWithParams);
   const isComplete = ValidationRegistry.isAllValid(results);

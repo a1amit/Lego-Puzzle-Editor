@@ -30,6 +30,7 @@ import {
   Copy,
   Check,
   Sparkles,
+  Code2,
 } from 'lucide-react';
 
 interface InstructionsModalProps {
@@ -970,6 +971,98 @@ function ExamplesTab() {
   );
 }
 
+function PluginTab() {
+  return (
+    <div className="space-y-4">
+      <p className="text-muted-foreground">
+        <strong>Plugin (code) puzzles</strong> let you build <em>any</em> puzzle in JavaScript — for
+        ideas the grid model can't express, like a Rubik's cube, a hex board, or a graph puzzle. You
+        write a small module that owns the state, the moves, the win check, and the rendering; the app
+        runs it in a secure sandbox and confirms the win when your <code className="font-mono text-primary">isSolved()</code> passes.
+      </p>
+
+      <div className="bg-primary/10 border border-primary/40 rounded-lg p-3 text-sm text-muted-foreground">
+        <strong className="text-foreground">When to use it:</strong> stick with the normal grid editor + Custom Rules for
+        brick-on-grid puzzles. Reach for a plugin only when you need custom geometry, custom moves, or your own rendering.
+      </div>
+
+      <SectionTitle icon={<Rocket className="w-4 h-4" />}>Create one in 5 steps</SectionTitle>
+      <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground ml-1">
+        <li>Open the editor (<strong>Create</strong> a new puzzle, or <strong>Edit</strong> one you own) and click the <strong>Plugin (Code)</strong> tab.</li>
+        <li>Click <strong>Templates</strong> to start from a working example (<em>Toggle Grid</em> or <em>Rubik's Cube</em>), or write your own.</li>
+        <li>Pick a <strong>render kind</strong>: <Badge variant="secondary" className="text-[10px]">DOM</Badge> <Badge variant="secondary" className="text-[10px]">Canvas 2D</Badge> <Badge variant="secondary" className="text-[10px]">WebGL</Badge>.</li>
+        <li>Give it a <strong>title</strong>, then click <strong>Run</strong> to preview it live in the panel.</li>
+        <li><strong>Save Draft</strong>, then <strong>Publish</strong> when you're happy with it.</li>
+      </ol>
+
+      <SectionTitle icon={<Code2 className="w-4 h-4" />}>The contract</SectionTitle>
+      <p className="text-sm text-muted-foreground">
+        Your code must <code className="font-mono text-primary">export default</code> an object with these functions. The
+        logic functions must be <strong>pure</strong> (no side effects, return new values) so the app can snapshot state and
+        check the win reliably:
+      </p>
+      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-2">
+        <li><code className="font-mono text-primary">meta</code> — <code className="font-mono text-foreground/80">{'{ title, instructions }'}</code></li>
+        <li><code className="font-mono text-primary">initialState(ctx)</code> — build the starting state (use <code className="font-mono text-foreground/80">ctx.seed</code> / <code className="font-mono text-foreground/80">ctx.params</code>)</li>
+        <li><code className="font-mono text-primary">applyMove(state, move)</code> — return a <strong>new</strong> state</li>
+        <li><code className="font-mono text-primary">isSolved(state)</code> — <code className="font-mono text-foreground/80">{'{ solved, progress, message }'}</code></li>
+        <li><code className="font-mono text-primary">render.mount(root, api)</code> — draw into <code className="font-mono text-foreground/80">root</code>, call <code className="font-mono text-foreground/80">api.emitMove(move)</code> on input, and return <code className="font-mono text-foreground/80">{'{ update(state) }'}</code></li>
+      </ul>
+
+      <SubTitle>Minimal example</SubTitle>
+      <CopyableCode>{`export default {
+  meta: { title: 'My Puzzle', instructions: 'Turn it green.' },
+  initialState(ctx) { return { on: false }; },
+  applyMove(state, move) { return { on: !state.on }; },
+  isSolved(state) {
+    return { solved: state.on, progress: state.on ? 1 : 0,
+             message: state.on ? 'Done!' : 'Not yet' };
+  },
+  render: {
+    mount(root, api) {
+      var btn = root.ownerDocument.createElement('button');
+      btn.textContent = 'Toggle';
+      btn.onclick = function () { api.emitMove({}); };
+      root.appendChild(btn);
+      return { update(s) { root.style.background = s.on ? '#22c55e' : ''; } };
+    }
+  }
+};`}</CopyableCode>
+
+      <SectionTitle icon={<Sparkles className="w-4 h-4" />}>Rendering &amp; 3D</SectionTitle>
+      <div className="space-y-1.5 text-sm text-muted-foreground">
+        <p><strong>DOM</strong> / <strong>Canvas 2D</strong>: in <code className="font-mono text-primary">render.mount</code>, create elements or a <code className="font-mono text-foreground/80">&lt;canvas&gt;</code> inside <code className="font-mono text-foreground/80">root</code>, then redraw them from <code className="font-mono text-foreground/80">update(state)</code>.</p>
+        <p><strong>WebGL (3D)</strong>: pick render kind <Badge variant="secondary" className="text-[10px]">WebGL</Badge> and build your own Three.js scene — no install or imports. Three is provided as a global; read it at the top of <code className="font-mono text-primary">render.mount</code> and use it normally:</p>
+      </div>
+      <CopyableCode>{`render: {
+  mount(root, api) {
+    var THREE = self.THREE;
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(3, 3, 5); camera.lookAt(0, 0, 0);
+    var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(root.clientWidth, root.clientHeight);
+    root.appendChild(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+    // ...add your meshes here...
+    return {
+      update(state) { /* move/recolor meshes from state */ renderer.render(scene, camera); }
+    };
+  }
+}`}</CopyableCode>
+      <p className="text-sm text-muted-foreground">Handle player input however you like (buttons, pointer events, raycasting) and call <code className="font-mono text-primary">api.emitMove(move)</code> — the host applies it through your <code className="font-mono text-primary">applyMove</code> and calls <code className="font-mono text-foreground/80">update</code> with the new state.</p>
+
+      <SectionTitle icon={<ShieldCheck className="w-4 h-4" />}>Win, progress &amp; safety</SectionTitle>
+      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-2">
+        <li>Your <code className="font-mono text-primary">isSolved()</code> drives the win popup and the <strong>Validation</strong> panel (which shows your <code className="font-mono text-foreground/80">message</code>).</li>
+        <li><code className="font-mono text-foreground/80">progress</code> (0–1) shows as a live percentage while the player works.</li>
+        <li>Your code runs in an <strong>isolated sandbox</strong> — it cannot touch the page, your account, or the network.</li>
+        <li>Completion is self-reported by your code (like custom rules), so treat plugin scores as advisory.</li>
+      </ul>
+    </div>
+  );
+}
+
 export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -989,10 +1082,8 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
-          <div className="flex-shrink-0 mx-6 mt-2 relative">
-            <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-[var(--dialog-bg,var(--background))] to-transparent z-10" />
-            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-[var(--dialog-bg,var(--background))] to-transparent z-10" />
-          <TabsList className="!h-auto overflow-x-auto flex-nowrap justify-start bg-transparent gap-1 p-0 border-b border-border pb-2 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="flex-shrink-0 mx-6 mt-2">
+          <TabsList className="!h-auto flex-wrap justify-start bg-transparent gap-1 p-0 border-b border-border pb-2">
             <TabsTrigger value="overview" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Layers className="w-3.5 h-3.5" />
               Overview
@@ -1017,6 +1108,10 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
               <Sparkles className="w-3.5 h-3.5" />
               Custom Rules
             </TabsTrigger>
+            <TabsTrigger value="plugin" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Code2 className="w-3.5 h-3.5" />
+              Plugin (Code)
+            </TabsTrigger>
             <TabsTrigger value="examples" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Lightbulb className="w-3.5 h-3.5" />
               Examples
@@ -1031,6 +1126,7 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
             <TabsContent value="slider" className="mt-0"><SliderTab /></TabsContent>
             <TabsContent value="nonogram" className="mt-0"><NonogramTab /></TabsContent>
             <TabsContent value="customrules" className="mt-0"><CustomRulesTab /></TabsContent>
+            <TabsContent value="plugin" className="mt-0"><PluginTab /></TabsContent>
             <TabsContent value="examples" className="mt-0"><ExamplesTab /></TabsContent>
           </div>
         </Tabs>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!--
+  Plugin sandbox host document.
+
+  This file is loaded into a `sandbox="allow-scripts"` iframe (NO
+  allow-same-origin → opaque/null origin). Because it is served over HTTP it
+  carries its OWN policy below instead of inheriting the app's CSP, so it can
+  run the host-authored bootstrap inline and import the author module from a
+  blob — while `connect-src 'none'` + the null origin still block any network,
+  cookie, or host-DOM access. The author's module source is delivered after
+  load via postMessage (INIT); nothing author-controlled is ever inlined here.
+
+  NOTE (production): served as a static asset; the sandbox attribute + this CSP
+  are the security boundary. A future tier can move the pure logic into a Web
+  Worker for an authoritative, watchdog-killable win check.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none';">
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  #root { width: 100%; height: 100%; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function () {
+  function post(m) { parent.postMessage(m, '*'); }
+  function clamp01(n) { return typeof n === 'number' && isFinite(n) ? Math.max(0, Math.min(1, n)) : 0; }
+
+  var started = false;
+
+  function blobUrl(src) {
+    return URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+  }
+  async function importBlob(src) {
+    var u = blobUrl(src);
+    try { return await import(u); } finally { URL.revokeObjectURL(u); }
+  }
+
+  // Assemble a (possibly multi-file) ES module lib: blob each file in
+  // dependency order, rewriting cross-references to blob URLs, then import the
+  // entry. Handles e.g. three.module.js -> ./three.core.js.
+  async function buildLib(def) {
+    var keys = Object.keys(def.files);
+    var urls = {};
+    var remaining = keys.slice();
+    var guard = 0;
+    while (remaining.length && guard++ < 100) {
+      for (var i = remaining.length - 1; i >= 0; i--) {
+        var key = remaining[i];
+        var src = def.files[key];
+        var unresolved = keys.filter(function (k) { return k !== key && src.indexOf(k) !== -1 && !urls[k]; });
+        if (unresolved.length === 0) {
+          var out = src;
+          for (var dep in urls) { out = out.split(dep).join(urls[dep]); }
+          urls[key] = blobUrl(out);
+          remaining.splice(i, 1);
+        }
+      }
+    }
+    return import(urls[def.entry]);
+  }
+
+  async function init(d) {
+    if (started) return;
+    started = true;
+    try {
+      // Load author-requested libraries (e.g. THREE) as globals BEFORE the
+      // module, so `render.mount` can reference them. Each is imported as a
+      // blob module (same mechanism the author module uses).
+      if (d.libs) {
+        for (var name in d.libs) {
+          var lib = await buildLib(d.libs[name]);
+          // three.module.js exposes named exports (no default) -> use namespace.
+          self[name] = (lib && lib.default && Object.keys(lib).length === 1) ? lib.default : lib;
+        }
+      }
+
+      var mod = await importBlob(d.module);
+      var plugin = mod.default || mod.plugin;
+      if (!plugin || typeof plugin.applyMove !== 'function' || typeof plugin.render !== 'object') {
+        throw new Error('Module does not export a valid PuzzlePlugin (default export)');
+      }
+
+      var cfg = { seed: d.seed || 0, params: d.params };
+      var state, moveCount = 0;
+      function buildInitial() { return plugin.initialState({ seed: cfg.seed, params: cfg.params }); }
+      function verdict() {
+        var v = plugin.isSolved(state) || {};
+        return { solved: !!v.solved, progress: clamp01(v.progress), message: v.message };
+      }
+
+      var root = document.getElementById('root');
+      var controller;
+      var api = {
+        getState: function () { return state; },
+        emitMove: function (move) {
+          try {
+            var next = plugin.applyMove(state, move);
+            if (next === undefined) return;
+            state = next; moveCount++;
+            controller.update(state);
+            var v = verdict();
+            post({ source: 'lpe-plugin', type: 'STATE', solved: v.solved, progress: v.progress, moveCount: moveCount, message: v.message });
+          } catch (e) {
+            post({ source: 'lpe-plugin', type: 'STATE', solved: false, progress: verdict().progress, moveCount: moveCount, message: String((e && e.message) || e) });
+          }
+        },
+        helpers: { rng: Math.random }
+      };
+
+      state = buildInitial();
+      controller = plugin.render.mount(root, api);
+      controller.update(state);
+
+      var meta = plugin.meta || { title: 'Plugin Puzzle' };
+      var v0 = verdict();
+      post({ source: 'lpe-plugin', type: 'READY', meta: meta, solved: v0.solved, progress: v0.progress, moveCount: moveCount, message: v0.message });
+
+      window.addEventListener('message', function (e2) {
+        var dd = e2.data;
+        if (!dd || dd.source !== 'lpe-host') return;
+        if (dd.type === 'RESET') {
+          state = buildInitial(); moveCount = 0;
+          controller.update(state);
+          var vv = verdict();
+          post({ source: 'lpe-plugin', type: 'STATE', solved: vv.solved, progress: vv.progress, moveCount: moveCount, message: vv.message });
+        }
+      });
+    } catch (e) {
+      post({ source: 'lpe-plugin', type: 'ERROR', message: String((e && e.stack) || (e && e.message) || e) });
+    }
+  }
+
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (!d || d.source !== 'lpe-host') return;
+    if (d.type === 'INIT') init(d);
+  });
+
+  // Tell the host we're ready to receive the module.
+  post({ source: 'lpe-plugin', type: 'BOOT' });
+})();
+</script>
+</body>
+</html>

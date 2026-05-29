@@ -9,3 +9,6 @@ export { BINARY_PUZZLE, BINARY_PUZZLE_SOS, BINARY_PUZZLE_BUILDING_BLOCKS, NONOGR
 
 // Templates
 export { BLANK_PUZZLE, FIT_ALL_PUZZLE } from './templates';
+
+// Plugin puzzles (author-coded, run in a sandbox)
+export { RUBIKS_CUBE_PUZZLE } from './rubiks';

@@ -22,6 +22,53 @@ export const MovementRuleSchema = z.enum(['FREE_PLACEMENT', 'SLIDING_ONLY', 'ADJ
 export type MovementRule = z.infer<typeof MovementRuleSchema>;
 
 // ============================================
+// ENGINE TIER (grid vs. author-coded plugin)
+// ============================================
+
+/**
+ * Which engine drives the puzzle.
+ * - `grid` (default / omitted): the built-in declarative grid engine. Board,
+ *   pieces, moves, and win conditions all come from this file's schema and the
+ *   ValidationRegistry. Every existing puzzle is implicitly `grid`.
+ * - `plugin`: the puzzle is driven by an author-supplied module (see
+ *   `PluginSpecSchema`). The author owns state, moves, rendering, and the win
+ *   check; the host only provides chrome (gallery, undo, XP, persistence) and
+ *   runs the module inside a sandbox. This is the escape hatch for puzzles the
+ *   grid model cannot express (Rubik's cube, hex boards, graph puzzles, ...).
+ *
+ * Left optional so existing puzzle literals (which never set it) keep type-
+ * checking; `undefined` is treated as `grid` everywhere.
+ */
+export const EngineKindSchema = z.enum(['grid', 'plugin']);
+export type EngineKind = z.infer<typeof EngineKindSchema>;
+
+/** How an author plugin paints itself. Informational for the POC (DOM only);
+ *  later tiers use it to pick the render bridge (canvas / WebGL). */
+export const PluginRenderKindSchema = z.enum(['dom', 'canvas2d', 'webgl']);
+export type PluginRenderKind = z.infer<typeof PluginRenderKindSchema>;
+
+/**
+ * A `plugin` puzzle's payload. `module` is the source of an ES module that
+ * implements the `PuzzlePlugin` contract (see src/runtime/plugin/contract.ts).
+ * It runs inside a sandboxed, null-origin iframe — it cannot touch the host
+ * DOM, cookies, or network. The host trusts only the module's `isSolved`
+ * verdict (identical trust posture to today's `custom_code`).
+ */
+export const PluginSpecSchema = z.object({
+  /** ES module source implementing `PuzzlePlugin` (default export). */
+  module: z.string(),
+  /** Rendering technique the module uses inside its sandbox. */
+  renderKind: PluginRenderKindSchema.default('dom'),
+  /** Arbitrary author params handed to `initialState`. */
+  params: z.record(z.string(), z.unknown()).optional(),
+  /** Seed for reproducible initial state (scrambles, etc.). */
+  seed: z.number().int().optional(),
+  /** Contract version the module was written against. */
+  apiVersion: z.literal(1).default(1),
+});
+export type PluginSpec = z.infer<typeof PluginSpecSchema>;
+
+// ============================================
 // SHAPE DEFINITIONS
 // ============================================
 
@@ -257,6 +304,14 @@ export const PuzzleDefinitionSchema = z.object({
   highlight_failing_cells: z.boolean().optional(),
   /** View mode determines how the puzzle is rendered (3D or 2D) */
   viewMode: ViewModeSchema.default('3D'),
+  /**
+   * Which engine drives this puzzle. Omitted/`grid` = the built-in grid engine
+   * (all existing puzzles). `plugin` = author-coded module in `plugin`.
+   * Kept optional so existing puzzle literals don't need to declare it.
+   */
+  engine: EngineKindSchema.optional(),
+  /** Author plugin payload. Required when `engine === 'plugin'`. */
+  plugin: PluginSpecSchema.optional(),
   board: BoardSchema,
   inventory: z.array(BrickSchema),
   /** Goal position for slider puzzles */
@@ -308,6 +363,18 @@ export const PuzzleDefinitionSchema = z.object({
     tags: z.array(z.string()).optional(),
     version: z.string().optional(),
   }).optional(),
+}).superRefine((def, ctx) => {
+  // A plugin puzzle must carry its module; a grid puzzle must not masquerade
+  // as one. board/inventory/validation_rules stay required for both tiers so
+  // existing grid-schema guarantees (and tests) are untouched — plugin puzzles
+  // carry harmless minimal values the plugin engine ignores.
+  if (def.engine === 'plugin' && !def.plugin) {
+    ctx.addIssue({
+      code: 'custom',
+      message: "engine 'plugin' requires a `plugin` definition",
+      path: ['plugin'],
+    });
+  }
 });
 
 export type PuzzleDefinition = z.infer<typeof PuzzleDefinitionSchema>;
