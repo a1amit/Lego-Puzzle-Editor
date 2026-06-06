@@ -7,7 +7,6 @@ import { Toaster, toast } from 'sonner';
 import { Header } from '../components/layout/Header';
 import { Sidebar } from '../components/layout/Sidebar';
 import { PuzzleShell } from './PuzzleShell';
-import { OnboardingOverlay } from '../components/ui/OnboardingOverlay';
 import { KeyboardShortcutsOverlay } from '../components/ui/KeyboardShortcutsOverlay';
 import { usePuzzleStore } from '../store/puzzleStore';
 import { useUserStore } from '../store/userStore';
@@ -229,7 +228,6 @@ function LegoBackground() {
 export function RootLayout() {
   const [showChat, setShowChat] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const lastActionError = usePuzzleStore((s) => s.lastActionError);
   const location = useLocation();
@@ -242,14 +240,6 @@ export function RootLayout() {
   const showLevelUp = useGamificationStore((s) => s.showLevelUp);
   const dismissLevelUp = useGamificationStore((s) => s.dismissLevelUp);
   const processOfflineQueue = useGamificationStore((s) => s.processOfflineQueue);
-
-  // Show onboarding on first puzzle visit
-  useEffect(() => {
-    if (isPuzzleRoute && !localStorage.getItem('lego-puzzle-hasVisited')) {
-      localStorage.setItem('lego-puzzle-hasVisited', 'true');
-      setShowOnboarding(true);
-    }
-  }, [isPuzzleRoute]);
 
   // Close chat and instructions when leaving puzzle routes
   useEffect(() => {
@@ -362,7 +352,6 @@ export function RootLayout() {
           <Suspense fallback={null}>
             {showLevelUp && <LevelUpPopup onDismiss={dismissLevelUp} />}
           </Suspense>
-          <OnboardingOverlay isVisible={showOnboarding} onDismiss={() => setShowOnboarding(false)} />
           <KeyboardShortcutsOverlay />
           <Analytics />
         </div>
