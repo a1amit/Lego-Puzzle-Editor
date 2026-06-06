@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, X } from 'lucide-react';
 import { PluginHostFrame, type PluginFrameState, type LibSpec } from './PluginHostFrame';
 import type { PuzzlePluginMeta } from './contract';
 import type { PuzzleDefinition } from '../../types/puzzle';
 import { useUserStore } from '../../store/userStore';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 
 /**
  * PluginRenderer — the host-side React surface for a `engine: 'plugin'` puzzle.
@@ -40,9 +41,11 @@ export function PluginRenderer({ puzzle, resetSignal = 0, onState, onComplete, o
   // solution"). The sandbox can't see auth itself, so the host injects it.
   const isAdmin = useUserStore((s) => s.profile?.role === 'admin');
 
+  const isMobile = useIsMobile();
   const [progress, setProgress] = useState(0);
   const [solved, setSolved] = useState(false);
   const [instructions, setInstructions] = useState<string | undefined>(undefined);
+  const [instructionsDismissed, setInstructionsDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [libs, setLibs] = useState<Record<string, LibSpec> | undefined>(undefined);
   const solvedRef = useRef(false);
@@ -52,6 +55,7 @@ export function PluginRenderer({ puzzle, resetSignal = 0, onState, onComplete, o
     solvedRef.current = false;
     setSolved(false);
     setError(null);
+    setInstructionsDismissed(false);
   }, [resetSignal]);
 
   // Lazily fetch the Three.js source for webgl plugins (kept out of the main
@@ -147,12 +151,31 @@ export function PluginRenderer({ puzzle, resetSignal = 0, onState, onComplete, o
         </span>
       </div>
 
-      {instructions && !solved && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none text-center max-w-[70%]">
-          <span className="inline-block px-3 py-1 rounded-md text-[11px] text-muted-foreground bg-background/60 backdrop-blur-sm border border-border">
-            {instructions}
-          </span>
-        </div>
+      {instructions && !solved && !instructionsDismissed && (
+        isMobile ? (
+          // Mobile: a dismissible top banner below the chips — full width,
+          // left-aligned and height-capped so the long description doesn't
+          // float over the puzzle as a tall centered block.
+          <div className="absolute top-14 inset-x-2 z-10">
+            <div className="relative rounded-lg bg-background/85 backdrop-blur-sm border border-border pl-3 pr-9 py-2 max-h-[24dvh] overflow-y-auto">
+              <p className="text-[12px] leading-snug text-muted-foreground">{instructions}</p>
+              <button
+                type="button"
+                aria-label="Dismiss instructions"
+                onClick={() => setInstructionsDismissed(true)}
+                className="absolute top-1 right-1 w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none text-center max-w-[70%]">
+            <span className="inline-block px-3 py-1 rounded-md text-[11px] text-muted-foreground bg-background/60 backdrop-blur-sm border border-border">
+              {instructions}
+            </span>
+          </div>
+        )
       )}
 
       {error && (
