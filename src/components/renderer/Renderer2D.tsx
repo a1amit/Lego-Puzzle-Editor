@@ -243,6 +243,12 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   // Show rotate button when an inventory piece is selected (for mobile users)
   const showRotateButton = !!selectedInventoryPiece || !!selectedPlacedPiece;
 
+  // On compact UIs the touch control bar sits in a reserved strip at the bottom
+  // (via container padding) so it never overlaps — and block — board cells.
+  // The ResizeObserver measures the content box (excludes padding), so the
+  // board automatically re-fits into the space above the bar.
+  const showTouchControls = compact && showRotateButton;
+
   if (!puzzle) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-editor-bg">
@@ -252,7 +258,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   }
 
   return (
-    <div ref={containerRef} className={`relative w-full h-full flex items-center justify-center ${className}`} style={{ background: C.background }}>
+    <div ref={containerRef} className={`relative w-full h-full flex items-center justify-center ${showTouchControls ? 'pb-20' : ''} ${className}`} style={{ background: C.background }}>
       <svg
         ref={svgRef}
         width="100%"
@@ -505,8 +511,9 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
       </svg>
 
       {/* Touch control bar \u2014 replaces keyboard R / Delete / Esc on phones.
-          Shown when a piece or inventory tile is selected. */}
-      {compact && (selectedInventoryPiece || selectedPlacedPiece) && (
+          Lives in the reserved bottom strip (container pb-20) so it never
+          covers tappable board cells. */}
+      {showTouchControls && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-3 z-20 flex items-center gap-2 px-2 py-1.5 rounded-full bg-black/70 backdrop-blur-sm border border-white/15 shadow-lg">
           {/* Slider puzzles don't rotate (and removing a pre-placed block would
               soft-lock the puzzle), so only show Done for them. */}

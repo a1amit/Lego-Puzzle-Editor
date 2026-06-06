@@ -1036,6 +1036,9 @@ function PuzzleSceneInner() {
   const isMobile = useIsMobile();
   // Compact = touch device OR phone-width: show on-screen rotate/remove/done.
   const compact = isTouch || isMobile;
+  // Reserve a bottom strip for the control bar (container padding) so it never
+  // overlaps the board; the R3F canvas re-fits into the space above it.
+  const showTouchControls = compact && !!(selectedPlacedBrick || selectedInventoryBrick);
 
   // Hide cursor when any brick is selected for placement/movement (mouse only)
   const shouldHideCursor = !isTouch && (hasInventorySelection || hasPlacedBrickSelection);
@@ -1063,7 +1066,7 @@ function PuzzleSceneInner() {
 
   return (
     <div
-      className={`w-full h-full relative transition-opacity duration-300 ${sceneReady ? 'opacity-100' : 'opacity-0'}`}
+      className={`w-full h-full relative transition-opacity duration-300 ${showTouchControls ? 'pb-20' : ''} ${sceneReady ? 'opacity-100' : 'opacity-0'}`}
       style={{ cursor: shouldHideCursor ? 'none' : 'auto', backgroundColor: '#0f1520', touchAction: 'none' }}
       onContextMenu={(e) => {
         if (hasInventorySelection) {
@@ -1141,8 +1144,10 @@ function PuzzleSceneInner() {
       </Canvas>
 
       {/* Touch control bar — rotate/remove/deselect replace the keyboard R,
-          right-click and double-click which are unavailable on a phone. */}
-      {compact && (selectedPlacedBrick || selectedInventoryBrick) && (
+          right-click and double-click which are unavailable on a phone.
+          Sits in the reserved bottom strip (wrapper pb-20) to avoid covering
+          the board. */}
+      {showTouchControls && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-3 z-20 flex items-center gap-2 px-2 py-1.5 rounded-full bg-black/70 backdrop-blur-sm border border-white/15 shadow-lg">
           <button
             type="button"
