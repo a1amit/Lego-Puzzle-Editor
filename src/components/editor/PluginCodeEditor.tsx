@@ -5,6 +5,7 @@ import './monacoSetup'; // side effect: configures MonacoEnvironment + loader
 import { usePuzzleStore } from '../../store/puzzleStore';
 import type { PuzzleDefinition, PluginRenderKind } from '../../types/puzzle';
 import { RUBIKS_CUBE_PLUGIN_SOURCE } from '../../runtime/plugin/examples/rubiksCubePlugin';
+import { ACYCLIC_SHADOWS_PLUGIN_SOURCE } from '../../runtime/plugin/examples/acyclicShadowsPlugin';
 import { Button } from '../ui/shadcn/button';
 import { Play } from 'lucide-react';
 import {
@@ -84,6 +85,7 @@ interface Template { label: string; renderKind: PluginRenderKind; source: string
 const TEMPLATES: Template[] = [
   { label: 'Toggle Grid (DOM)', renderKind: 'dom', source: STARTER_DOM },
   { label: "Rubik's Cube (WebGL)", renderKind: 'webgl', source: RUBIKS_CUBE_PLUGIN_SOURCE },
+  { label: 'Acyclic Shadows (WebGL)', renderKind: 'webgl', source: ACYCLIC_SHADOWS_PLUGIN_SOURCE },
 ];
 
 /** Best-effort read of meta.title from the module source for the initial

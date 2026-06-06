@@ -12,3 +12,4 @@ export { BLANK_PUZZLE, FIT_ALL_PUZZLE } from './templates';
 
 // Plugin puzzles (author-coded, run in a sandbox)
 export { RUBIKS_CUBE_PUZZLE } from './rubiks';
+export { ACYCLIC_SHADOWS_PUZZLE } from './acyclicShadows';

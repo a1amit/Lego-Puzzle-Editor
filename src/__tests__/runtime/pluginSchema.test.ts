@@ -26,9 +26,9 @@ describe('engine discriminator backwards-compat', () => {
   );
 
   it('every non-plugin built-in resolves to the grid tier', () => {
-    for (const { slug, def } of allPuzzles) {
+    for (const { def } of allPuzzles) {
       const parsed = PuzzleDefinitionSchema.parse(def);
-      if (slug === 'rubiks-cube') continue;
+      if (parsed.engine === 'plugin') continue;
       expect(parsed.engine === undefined || parsed.engine === 'grid').toBe(true);
     }
   });

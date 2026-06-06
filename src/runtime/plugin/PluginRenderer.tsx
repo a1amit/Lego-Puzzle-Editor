@@ -3,6 +3,7 @@ import { LoaderCircle } from 'lucide-react';
 import { PluginHostFrame, type PluginFrameState, type LibSpec } from './PluginHostFrame';
 import type { PuzzlePluginMeta } from './contract';
 import type { PuzzleDefinition } from '../../types/puzzle';
+import { useUserStore } from '../../store/userStore';
 
 /**
  * PluginRenderer — the host-side React surface for a `engine: 'plugin'` puzzle.
@@ -35,6 +36,9 @@ interface PluginRendererProps {
 export function PluginRenderer({ puzzle, resetSignal = 0, onState, onComplete, onMeta, onError }: PluginRendererProps) {
   const plugin = puzzle.plugin;
   const needsThree = plugin?.renderKind === 'webgl';
+  // Passed into the sandbox so plugins can gate admin-only UI (e.g. "Show
+  // solution"). The sandbox can't see auth itself, so the host injects it.
+  const isAdmin = useUserStore((s) => s.profile?.role === 'admin');
 
   const [progress, setProgress] = useState(0);
   const [solved, setSolved] = useState(false);
@@ -114,7 +118,7 @@ export function PluginRenderer({ puzzle, resetSignal = 0, onState, onComplete, o
         <PluginHostFrame
           source={plugin.module}
           seed={plugin.seed ?? 0}
-          params={plugin.params}
+          params={{ ...plugin.params, isAdmin }}
           libs={libs}
           resetSignal={resetSignal}
           onReady={(meta, st) => {
