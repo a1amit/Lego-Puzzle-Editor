@@ -82,7 +82,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center gap-3 mb-6">
         <Button asChild variant="ghost" size="sm">
           <Link to="/"><ArrowLeft className="h-4 w-4" /></Link>
@@ -122,58 +122,60 @@ export default function AdminPage() {
           }).map((u) => (
             <div
               key={u._id}
-              className={`flex items-center gap-3 p-4 rounded-xl bg-card border transition-colors ${
+              className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl bg-card border transition-colors ${
                 u.isBanned ? 'border-destructive/30 bg-destructive/5' : 'border-border'
               }`}
             >
-              {u.avatarUrl ? (
-                <img src={u.avatarUrl} alt="" className="w-9 h-9 rounded-full shrink-0" />
-              ) : (
-                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary shrink-0">
-                  {(u.displayName || u.username)[0]?.toUpperCase()}
-                </div>
-              )}
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {u.avatarUrl ? (
+                  <img src={u.avatarUrl} alt="" className="w-9 h-9 rounded-full shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                    {(u.displayName || u.username)[0]?.toUpperCase()}
+                  </div>
+                )}
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground truncate">
-                    {u.displayName || u.username}
-                  </span>
-                  {u.role === 'admin' && (
-                    <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">Admin</Badge>
-                  )}
-                  {u.isBanned && (
-                    <Badge variant="destructive" className="text-[10px]">Banned</Badge>
-                  )}
-                </div>
-                <div className="text-xs text-muted-foreground flex gap-3">
-                  <span>Lvl {u.level}</span>
-                  <span>{u.xp} XP</span>
-                  <span>{u.puzzlesCreated} created</span>
-                  <span>{u.puzzlesCompleted} solved</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {u.displayName || u.username}
+                    </span>
+                    {u.role === 'admin' && (
+                      <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">Admin</Badge>
+                    )}
+                    {u.isBanned && (
+                      <Badge variant="destructive" className="text-[10px]">Banned</Badge>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span>Lvl {u.level}</span>
+                    <span>{u.xp} XP</span>
+                    <span>{u.puzzlesCreated} created</span>
+                    <span>{u.puzzlesCompleted} solved</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
                 {u._id === myUserId ? (
                   <Badge variant="outline" className="text-[10px]">You</Badge>
                 ) : (
                   <>
                     {u.role === 'admin' ? (
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => updateUser(u._id, { role: 'user' })} title="Remove admin">
+                      <Button variant="ghost" size="sm" className="h-10 sm:h-8 gap-1.5 text-xs" onClick={() => updateUser(u._id, { role: 'user' })} title="Remove admin">
                         <ShieldOff className="h-3.5 w-3.5" />Demote
                       </Button>
                     ) : (
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => updateUser(u._id, { role: 'admin' })} title="Make admin">
+                      <Button variant="ghost" size="sm" className="h-10 sm:h-8 gap-1.5 text-xs" onClick={() => updateUser(u._id, { role: 'admin' })} title="Make admin">
                         <Shield className="h-3.5 w-3.5" />Promote
                       </Button>
                     )}
                     {u.isBanned ? (
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-success" onClick={() => updateUser(u._id, { isBanned: false })} title="Unban user">
+                      <Button variant="ghost" size="sm" className="h-10 sm:h-8 gap-1.5 text-xs text-success" onClick={() => updateUser(u._id, { isBanned: false })} title="Unban user">
                         <CheckCircle className="h-3.5 w-3.5" />Unban
                       </Button>
                     ) : (
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive" onClick={() => updateUser(u._id, { isBanned: true })} title="Ban user">
+                      <Button variant="ghost" size="sm" className="h-10 sm:h-8 gap-1.5 text-xs text-destructive" onClick={() => updateUser(u._id, { isBanned: true })} title="Ban user">
                         <Ban className="h-3.5 w-3.5" />Ban
                       </Button>
                     )}

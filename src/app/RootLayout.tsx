@@ -6,6 +6,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { Toaster, toast } from 'sonner';
 import { Header } from '../components/layout/Header';
 import { Sidebar } from '../components/layout/Sidebar';
+import { MobileNav } from '../components/layout/MobileNav';
 import { PuzzleShell } from './PuzzleShell';
 import { KeyboardShortcutsOverlay } from '../components/ui/KeyboardShortcutsOverlay';
 import { usePuzzleStore } from '../store/puzzleStore';
@@ -301,7 +302,7 @@ export function RootLayout() {
   return (
     <LazyMotion features={domAnimation}>
       <Sentry.ErrorBoundary fallback={<div className="flex items-center justify-center h-screen text-foreground">Something went wrong. Please refresh the page.</div>}>
-        <div className="h-screen w-screen flex flex-col overflow-hidden">
+        <div className="h-full w-full flex flex-col overflow-hidden">
           {/* Animated Lego brick background — hidden on puzzle routes */}
           {!isPuzzleRoute && <LegoBackground />}
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md">
@@ -333,10 +334,15 @@ export function RootLayout() {
             </main>
           </div>
 
+          {/* Mobile bottom navigation — primary nav on phones (non-puzzle routes) */}
+          {!isPuzzleRoute && <MobileNav />}
+
           <Toaster
             position="bottom-center"
             theme="dark"
             richColors
+            // Lift toasts above the mobile bottom nav / home indicator.
+            mobileOffset={{ bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }}
             toastOptions={{
               className: 'font-sans',
               style: { background: 'var(--card)', border: '1px solid var(--border)' },

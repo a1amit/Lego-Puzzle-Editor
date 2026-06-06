@@ -71,13 +71,16 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
           </div>
         </div>
 
-        {/* Edit button for owned puzzles */}
+        {/* Edit button for owned puzzles.
+            Hover-reveal on mouse devices; always visible (and a larger tap
+            target) on touch devices where there is no hover. */}
         {onEdit && (
           <div
             role="button"
             tabIndex={0}
-            className="absolute bottom-2.5 right-2.5 z-10 w-8 h-8 rounded-lg bg-background/90 border border-border hover:border-primary/50 hover:bg-primary/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer backdrop-blur-sm"
+            className="absolute bottom-2.5 right-2.5 z-10 w-8 h-8 [@media(hover:none)]:w-10 [@media(hover:none)]:h-10 rounded-lg bg-background/90 border border-border hover:border-primary/50 hover:bg-primary/20 flex items-center justify-center opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-all cursor-pointer backdrop-blur-sm"
             title="Edit puzzle"
+            aria-label="Edit puzzle"
             onClick={(e) => { e.stopPropagation(); onEdit(puzzle.slug); }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onEdit(puzzle.slug); } }}
           >

@@ -351,31 +351,33 @@ function GroupedCompletions({ completions }: { completions: CompletionEntry[] })
         const isOpen = expanded.has(g.slug);
         return (
           <div key={g.slug}>
-            <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => toggle(g.slug)}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => toggle(g.slug)}>
               <Puzzle className="h-4 w-4 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-[8rem]">
                 <p className="text-sm font-medium text-foreground truncate">{g.title}</p>
                 <p className="text-xs text-muted-foreground">
                   Best: {g.bestMoves} moves &middot; {g.bestTime}s &middot; Solved {g.solveCount}{g.solveCount === 1 ? ' time' : ' times'}
                 </p>
               </div>
-              {g.totalXp > 0 && (
-                <span className="text-xs font-bold text-primary shrink-0">+{g.totalXp} XP</span>
-              )}
-              <Link
-                to={`/puzzle/${g.slug}`}
-                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
-                onClick={e => e.stopPropagation()}
-              >
-                <Play className="h-3 w-3" />
-                Play
-              </Link>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              <div className="flex items-center gap-3 shrink-0 ml-auto">
+                {g.totalXp > 0 && (
+                  <span className="text-xs font-bold text-primary shrink-0">+{g.totalXp} XP</span>
+                )}
+                <Link
+                  to={`/puzzle/${g.slug}`}
+                  className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <Play className="h-3 w-3" />
+                  Play
+                </Link>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </div>
             </div>
             {isOpen && (
               <div className="border-t border-border bg-muted/10 px-4 py-2 space-y-1">
                 {g.solves.map((s, i) => (
-                  <div key={i} className="flex items-center gap-3 text-xs text-muted-foreground py-1">
+                  <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground py-1">
                     <span className="w-24 shrink-0">{new Date(s.completedAt).toLocaleDateString()}</span>
                     <span>{s.moveCount} moves</span>
                     <span>&middot;</span>

@@ -133,9 +133,12 @@ export default function LeaderboardPage() {
                   </div>
                 </div>
 
-                {/* Mobile: compact XP + streak */}
+                {/* Mobile: compact XP + solved/level + streak */}
                 <div className="sm:hidden text-right">
                   <p className="text-sm font-bold text-foreground">{entry.xp.toLocaleString()} XP</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">
+                    {entry.puzzlesCompleted} solved &middot; Lv.{entry.level}
+                  </p>
                   {entry.streakDays > 0 && (
                     <p className="text-[11px] text-orange-400 flex items-center gap-1 justify-end">
                       <Flame className="h-3 w-3" />{entry.streakDays}d

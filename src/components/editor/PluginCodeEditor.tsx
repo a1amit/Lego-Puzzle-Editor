@@ -3,6 +3,7 @@ import Editor, { type OnMount } from '@monaco-editor/react';
 import type * as monaco from 'monaco-editor';
 import './monacoSetup'; // side effect: configures MonacoEnvironment + loader
 import { usePuzzleStore } from '../../store/puzzleStore';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { PuzzleDefinition, PluginRenderKind } from '../../types/puzzle';
 import { RUBIKS_CUBE_PLUGIN_SOURCE } from '../../runtime/plugin/examples/rubiksCubePlugin';
 import { ACYCLIC_SHADOWS_PLUGIN_SOURCE } from '../../runtime/plugin/examples/acyclicShadowsPlugin';
@@ -116,6 +117,7 @@ interface PluginCodeEditorProps {
 }
 
 export function PluginCodeEditor({ className = '' }: PluginCodeEditorProps) {
+  const isMobile = useIsMobile();
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const setPuzzle = usePuzzleStore((s) => s.setPuzzle);
   const currentPuzzle = usePuzzleStore((s) => s.puzzle);
@@ -206,13 +208,17 @@ export function PluginCodeEditor({ className = '' }: PluginCodeEditorProps) {
           onChange={(v) => { codeRef.current = v ?? ''; }}
           options={{
             minimap: { enabled: false },
-            fontSize: 13,
+            fontSize: isMobile ? 16 : 13,
             fontFamily: "'JetBrains Mono', monospace",
+            lineNumbers: isMobile ? 'off' : 'on',
             wordWrap: 'on',
             scrollBeyondLastLine: false,
             automaticLayout: true,
             tabSize: 2,
-            scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+            scrollbar: {
+              verticalScrollbarSize: isMobile ? 14 : 8,
+              horizontalScrollbarSize: isMobile ? 14 : 8,
+            },
             padding: { top: 12, bottom: 12 },
           }}
           loading={

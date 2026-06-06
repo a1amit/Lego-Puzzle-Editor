@@ -12,6 +12,8 @@ import type { UsePuzzleEngineReturn } from '../../engine';
 import { getValidSlideDestinations, findPiecesStackedOnTop, getPieceCells } from '../../engine';
 import { SCENE_2D } from '../../config/sceneConfig';
 import { useRuleBuilderStore } from '../editor/ruleBuilder/useRuleBuilderStore';
+import { useIsTouch, useIsMobile } from '../../hooks/useMediaQuery';
+import { RotateCw, Trash2, Check } from 'lucide-react';
 
 import {
   SvgDefs,
@@ -46,7 +48,15 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   const isPickerActive = useRuleBuilderStore(s => s.cellPickerTarget !== null);
   const pickerCells = useRuleBuilderStore(s => s.cellPickerCells);
 
+  // "compact" = a touch device OR a phone-width viewport. In either case we
+  // show the on-screen control bar (rotate/remove/done) and hide the SVG
+  // rotate button + keyboard-only affordances. Both hooks are called
+  // unconditionally (no `||` short-circuit) to satisfy the rules of hooks.
+  const isTouch = useIsTouch();
+  const isMobile = useIsMobile();
+  const compact = isTouch || isMobile;
   const containerRef = useRef<HTMLDivElement>(null);
+  const boardGroupRef = useRef<SVGGElement>(null);
   const [containerSize, setContainerSize] = useState<{ w: number; h: number } | null>(null);
 
   // Observe container size for dynamic cell sizing
@@ -147,6 +157,31 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
     return vbW > 0 && rect.width > 0 ? rect.width / vbW : 1;
   }, []);
 
+  // Map a client (screen) coordinate to a board cell using the board group's
+  // own screen CTM. This is the source of truth for the drop target during a
+  // drag — on touch the pointer is implicitly captured to the press target, so
+  // per-cell pointerenter/leave never fire on the cells a finger slides over
+  // and `hoveredCell` would otherwise stay stale/null. Computing the cell from
+  // the pointer position works for both mouse and touch.
+  const cellFromClient = useCallback(
+    (clientX: number, clientY: number): { x: number; y: number } | null => {
+      const g = boardGroupRef.current;
+      const svg = svgRef.current;
+      if (!g || !svg) return null;
+      const ctm = g.getScreenCTM();
+      if (!ctm) return null;
+      const pt = svg.createSVGPoint();
+      pt.x = clientX;
+      pt.y = clientY;
+      const local = pt.matrixTransform(ctm.inverse());
+      const cx = Math.floor(local.x / cellSize);
+      const cy = Math.floor(local.y / cellSize);
+      if (cx < 0 || cx >= width || cy < 0 || cy >= height) return null;
+      return { x: cx, y: cy };
+    },
+    [cellSize, width, height],
+  );
+
   // Clear drag visual on any pointer release anywhere — even outside the
   // SVG — so the piece doesn't get stuck mid-translate if the user
   // releases off-board.
@@ -211,6 +246,12 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   // Show rotate button when an inventory piece is selected (for mobile users)
   const showRotateButton = !!selectedInventoryPiece || !!selectedPlacedPiece;
 
+  // On compact UIs the touch control bar sits in a reserved strip at the bottom
+  // (via container padding) so it never overlaps — and block — board cells.
+  // The ResizeObserver measures the content box (excludes padding), so the
+  // board automatically re-fits into the space above the bar.
+  const showTouchControls = compact && showRotateButton;
+
   if (!puzzle) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-editor-bg">
@@ -220,7 +261,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   }
 
   return (
-    <div ref={containerRef} className={`w-full h-full flex items-center justify-center ${className}`} style={{ background: C.background }}>
+    <div ref={containerRef} className={`relative w-full h-full flex items-center justify-center ${showTouchControls ? 'pb-20' : ''} ${className}`} style={{ background: C.background }}>
       <svg
         ref={svgRef}
         width="100%"
@@ -256,6 +297,7 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
 
         {/* Main board area */}
         <g
+          ref={boardGroupRef}
           transform={`translate(${PADDING + hintsLeftWidth}, ${PADDING + hintsTopHeight})`}
           onPointerDown={dragNdrop ? (e) => {
             dragStartRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
@@ -273,6 +315,9 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
               dx: (e.clientX - start.x) / scale,
               dy: (e.clientY - start.y) / scale,
             });
+            // Track the drop target from the pointer position so the ghost
+            // and commit work on touch (where pointerenter never fires).
+            setHoveredCell(cellFromClient(e.clientX, e.clientY));
           } : undefined}
           onPointerUp={dragNdrop ? (e) => {
             const start = dragStartRef.current;
@@ -295,8 +340,11 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
               const moved = Math.sqrt(dx * dx + dy * dy) >= DRAG_THRESHOLD_PX;
               if (!moved) return; // simple tap — selection only, no commit
             }
-            if (!hoveredCell) return; // released off-board
-            handleCellPointerUp(hoveredCell.x, hoveredCell.y);
+            // Resolve the target cell from the release coordinate (robust on
+            // touch); fall back to the last hovered cell for mouse.
+            const cell = cellFromClient(e.clientX, e.clientY) ?? hoveredCell;
+            if (!cell) return; // released off-board
+            handleCellPointerUp(cell.x, cell.y);
           } : undefined}
         >
           {/* Board background with gradient and shadow */}
@@ -420,8 +468,8 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
             />
           )}
 
-          {/* On-screen rotate button (for mobile users) */}
-          {showRotateButton && (
+          {/* On-screen rotate button (desktop mouse only — compact UI uses the HTML control bar) */}
+          {showRotateButton && !compact && (
             <g
               transform={`translate(${width * cellSize - 36}, ${height * cellSize - 36})`}
               onPointerDown={(e) => { e.stopPropagation(); handleRotate(); }}
@@ -464,6 +512,49 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
           {puzzle.goal && ' \u2022 Slider Puzzle'}
         </text>
       </svg>
+
+      {/* Touch control bar \u2014 replaces keyboard R / Delete / Esc on phones.
+          Lives in the reserved bottom strip (container pb-20) so it never
+          covers tappable board cells. */}
+      {showTouchControls && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-3 z-20 flex items-center gap-2 px-2 py-1.5 rounded-full bg-black/70 backdrop-blur-sm border border-white/15 shadow-lg">
+          {/* Slider puzzles don't rotate (and removing a pre-placed block would
+              soft-lock the puzzle), so only show Done for them. */}
+          {!isSliderPuzzle && (
+            <button
+              type="button"
+              aria-label="Rotate piece"
+              className="h-11 px-3 inline-flex items-center gap-1.5 rounded-full text-white/90 text-xs font-medium active:scale-95 transition-transform"
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleRotate(); }}
+            >
+              <RotateCw className="w-5 h-5" /> Rotate
+            </button>
+          )}
+          {selectedPlacedPiece && !isSliderPuzzle && (
+            <button
+              type="button"
+              aria-label="Remove piece"
+              className="h-11 px-3 inline-flex items-center gap-1.5 rounded-full text-red-300 text-xs font-medium active:scale-95 transition-transform"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                engine.removePiece(selectedPlacedPiece.instanceId);
+                engine.selectPiece(null);
+              }}
+            >
+              <Trash2 className="w-5 h-5" /> Remove
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label="Done"
+            className="h-11 px-3 inline-flex items-center gap-1.5 rounded-full text-white/90 text-xs font-medium active:scale-95 transition-transform"
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); engine.selectPiece(null); }}
+          >
+            <Check className="w-5 h-5" /> Done
+          </button>
+        </div>
+      )}
     </div>
   );
 }
