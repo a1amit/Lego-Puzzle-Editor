@@ -279,7 +279,7 @@ const CUBE = (function () {
     function mkBtn(label, f, d) {
       var b = document.createElement("button");
       b.textContent = label;
-      b.style.cssText = "padding:6px 10px;font-size:13px;font-weight:600;color:#e8e8ea;background:#262a33;border:1px solid #3a3f4b;border-radius:6px;cursor:pointer;min-width:36px";
+      b.style.cssText = "padding:9px 12px;font-size:15px;font-weight:600;color:#e8e8ea;background:#262a33;border:1px solid #3a3f4b;border-radius:8px;cursor:pointer;min-width:44px;min-height:44px;touch-action:manipulation";
       b.onmouseenter = function () { b.style.background = "#30353f"; };
       b.onmouseleave = function () { b.style.background = "#262a33"; };
       b.onclick = function () { api.emitMove({ face: f, dir: d }); };

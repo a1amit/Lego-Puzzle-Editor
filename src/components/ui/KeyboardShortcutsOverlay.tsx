@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useIsTouch } from '../../hooks/useMediaQuery';
 
 const SHORTCUTS = [
   { keys: ['R'], description: 'Rotate selected brick' },
@@ -12,8 +13,12 @@ const SHORTCUTS = [
 
 export function KeyboardShortcutsOverlay() {
   const [isVisible, setIsVisible] = useState(false);
+  // Keyboard/mouse-only shortcuts are meaningless on touch devices — never
+  // wire up the listener or render the overlay there.
+  const isTouch = useIsTouch();
 
   useEffect(() => {
+    if (isTouch) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
@@ -27,9 +32,9 @@ export function KeyboardShortcutsOverlay() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible]);
+  }, [isVisible, isTouch]);
 
-  if (!isVisible) return null;
+  if (isTouch || !isVisible) return null;
 
   return (
     <div

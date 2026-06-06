@@ -4,6 +4,7 @@ import Editor, { OnMount, OnChange } from '@monaco-editor/react';
 import './monacoSetup'; // side effect: configures MonacoEnvironment + loader
 import { usePuzzleStore } from '../../store/puzzleStore';
 import { PuzzleDefinitionSchema } from '../../types/puzzle';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import { Button } from '../ui/shadcn/button';
 import { Badge } from '../ui/shadcn/badge';
 import {
@@ -142,6 +143,7 @@ interface PuzzleEditorProps {
 }
 
 export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
+  const isMobile = useIsMobile();
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof import('monaco-editor') | null>(null);
   const { jsonSource, setJsonSource, parseAndLoadPuzzle, parseError } = usePuzzleStore();
@@ -379,15 +381,19 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
           onMount={handleEditorMount}
           options={{
             minimap: { enabled: false },
-            fontSize: 13,
+            // >=16px on mobile avoids iOS auto-zooming the page on focus.
+            fontSize: isMobile ? 16 : 13,
             fontFamily: "'JetBrains Mono', monospace",
-            lineNumbers: 'on',
+            lineNumbers: isMobile ? 'off' : 'on',
             wordWrap: 'on',
             scrollBeyondLastLine: false,
             automaticLayout: true,
             tabSize: 2,
             formatOnPaste: true,
-            scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+            scrollbar: {
+              verticalScrollbarSize: isMobile ? 14 : 8,
+              horizontalScrollbarSize: isMobile ? 14 : 8,
+            },
             padding: { top: 12, bottom: 12 },
           }}
           loading={

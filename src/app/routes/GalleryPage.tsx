@@ -262,6 +262,8 @@ export default function GalleryPage() {
               onCategoryChange={setCategory}
               selectedDifficulty={difficulty}
               onDifficultyChange={setDifficulty}
+              sort={sort}
+              onSortChange={setSort}
             />
           )}
         </div>

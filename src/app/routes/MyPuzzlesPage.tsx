@@ -95,7 +95,7 @@ export default function MyPuzzlesPage() {
 
   return (
     <div className="px-4 sm:px-6 py-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
@@ -142,7 +142,7 @@ export default function MyPuzzlesPage() {
                       {style.label}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                     <span>{p.category}</span>
                     <span className="capitalize">{p.difficulty}</span>
                     {p.status === 'published' && (
@@ -159,7 +159,7 @@ export default function MyPuzzlesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                    className="h-10 w-10 sm:h-8 sm:w-8 p-0 hover:bg-primary/10 hover:text-primary"
                     onClick={() => navigate(`/puzzle/${p.slug}`)}
                     title="Preview"
                   >
@@ -168,7 +168,7 @@ export default function MyPuzzlesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                    className="h-10 w-10 sm:h-8 sm:w-8 p-0 hover:bg-primary/10 hover:text-primary"
                     onClick={() => navigate(`/puzzle/${p.slug}/edit`)}
                     title="Edit"
                   >
@@ -177,7 +177,7 @@ export default function MyPuzzlesPage() {
                   <Button
                     variant={deletingSlug === p.slug ? 'destructive' : 'ghost'}
                     size="sm"
-                    className={`h-8 w-8 p-0 ${deletingSlug !== p.slug ? 'hover:bg-destructive/10 hover:text-destructive' : ''}`}
+                    className={`h-10 w-10 sm:h-8 sm:w-8 p-0 ${deletingSlug !== p.slug ? 'hover:bg-destructive/10 hover:text-destructive' : ''}`}
                     onClick={() => handleDelete(p.slug)}
                     title={deletingSlug === p.slug ? 'Click again to confirm' : 'Delete'}
                   >

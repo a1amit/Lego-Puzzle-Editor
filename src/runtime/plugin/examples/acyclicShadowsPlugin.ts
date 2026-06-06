@@ -396,7 +396,7 @@ const ACYCLIC = (function () {
     function mkBtn(label, fn) {
       var b = document.createElement("button");
       b.textContent = label;
-      b.style.cssText = "padding:6px 10px;font-size:12px;font-weight:600;color:#e8e8ea;background:#262a33;border:1px solid #3a3f4b;border-radius:6px;cursor:pointer";
+      b.style.cssText = "padding:9px 13px;min-height:40px;font-size:14px;font-weight:600;color:#e8e8ea;background:#262a33;border:1px solid #3a3f4b;border-radius:8px;cursor:pointer;touch-action:manipulation";
       b.onmouseenter = function () { b.style.background = "#30353f"; };
       b.onmouseleave = function () { b.style.background = "#262a33"; };
       b.onclick = fn; bar.appendChild(b); return b;
@@ -429,7 +429,12 @@ const ACYCLIC = (function () {
     // orbit (drag) + pick (click). A small movement threshold separates the two.
     var dragging = false, moved = 0, lx = 0, ly = 0, pinch = 0;
     var raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
-    function pt(e) { return e.touches && e.touches[0] ? e.touches[0] : e; }
+    // On touchend, e.touches is empty — the released point lives in
+    // changedTouches. Without this, tap-to-toggle reads undefined coords and
+    // silently fails on touch.
+    function pt(e) {
+      return (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+    }
     function touchDist(e) {
       var a = e.touches[0], b = e.touches[1];
       var dx = a.clientX - b.clientX, dy = a.clientY - b.clientY;
@@ -459,7 +464,8 @@ const ACYCLIC = (function () {
       lx = p.clientX; ly = p.clientY; invalidate();
     }
     function up(e) {
-      if (dragging && moved < 6) pick(e);
+      // Slightly looser tap threshold for touch (fingers jitter more than a mouse).
+      if (dragging && moved < 10) pick(e);
       dragging = false; pinch = 0; renderer.domElement.style.cursor = "grab";
     }
     function onWheel(e) { e.preventDefault(); zoomBy(e.deltaY > 0 ? 1.1 : 0.9); }

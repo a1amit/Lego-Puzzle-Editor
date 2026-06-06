@@ -12,6 +12,8 @@ import { SHAPE_LIBRARY } from '../../types/puzzle';
 import { getBrickCells, rotateShape } from '../../validation/ValidationRegistry';
 import { applySnapZones, getFootprintExtent } from '../../engine/utils';
 import { SCENE_3D, GOAL_INDICATOR_3D, COLORS } from '../../config/sceneConfig';
+import { useIsTouch, useIsMobile } from '../../hooks/useMediaQuery';
+import { RotateCw, Trash2, Check } from 'lucide-react';
 
 // Error boundary to catch Three.js / WebGL crashes gracefully
 class SceneErrorBoundary extends React.Component<
@@ -307,6 +309,18 @@ function DragDropManager({ setOrbitEnabled }: { setOrbitEnabled: (enabled: boole
   const { width, height } = boardState.dimensions;
   const boardOffset = { x: width / 2, y: height / 2 };
 
+  // Resolve a board cell directly from a pointer event's world intersection
+  // point. Used as a fallback on touch where a tap may not produce a
+  // pointermove, so `hoveredCell` (set only on raycasted move) can be stale.
+  const cellFromEvent = (event: any): { x: number; y: number } | null => {
+    const p = event?.point;
+    if (!p) return null;
+    const cx = Math.floor(p.x + boardOffset.x);
+    const cy = Math.floor(p.z + boardOffset.y);
+    if (cx < 0 || cx >= width || cy < 0 || cy >= height) return null;
+    return { x: cx, y: cy };
+  };
+
   // Default-on: puzzles without an explicit dragNdrop setting use the
   // press-drag-release flow. Opt out by setting `dragNdrop: false`.
   const dragNdrop = puzzle?.dragNdrop ?? true;
@@ -599,7 +613,7 @@ function DragDropManager({ setOrbitEnabled }: { setOrbitEnabled: (enabled: boole
     // release commits exactly one action.
     if (selectedInventoryBrick) {
       event.stopPropagation?.();
-      const current = useHoverStore.getState().hoveredCell;
+      const current = useHoverStore.getState().hoveredCell ?? cellFromEvent(event);
       if (!current) return;
       placeInventoryAt(current.x, current.y);
       return;
@@ -622,12 +636,15 @@ function DragDropManager({ setOrbitEnabled }: { setOrbitEnabled: (enabled: boole
         if (typeof ne?.clientX === 'number') {
           const dx = ne.clientX - start.x;
           const dy = ne.clientY - start.y;
-          const moved = Math.sqrt(dx * dx + dy * dy) >= DRAG_THRESHOLD_PX;
+          // Fingers jitter more than a mouse — use a larger threshold for touch
+          // so a tap-to-select isn't misread as a (no-op) drag-move.
+          const threshold = ne.pointerType === 'touch' ? 12 : DRAG_THRESHOLD_PX;
+          const moved = Math.sqrt(dx * dx + dy * dy) >= threshold;
           if (!moved) return;
         }
       }
 
-      const current = useHoverStore.getState().hoveredCell;
+      const current = useHoverStore.getState().hoveredCell ?? cellFromEvent(event);
       if (!current) return; // released off-board
 
       const shape = SHAPE_LIBRARY[selectedPlacedBrick.shape];
@@ -1015,18 +1032,39 @@ function PuzzleSceneInner() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedPlacedBrick, selectedInventoryBrick, rotateBrick, rotatePreview, selectBrick, removeBrick]);
 
-  // Hide cursor when any brick is selected for placement/movement
-  const shouldHideCursor = hasInventorySelection || hasPlacedBrickSelection;
+  const isTouch = useIsTouch();
+  const isMobile = useIsMobile();
+  // Compact = touch device OR phone-width: show on-screen rotate/remove/done.
+  const compact = isTouch || isMobile;
+
+  // Hide cursor when any brick is selected for placement/movement (mouse only)
+  const shouldHideCursor = !isTouch && (hasInventorySelection || hasPlacedBrickSelection);
   const boardCellCount = boardState.dimensions.width * boardState.dimensions.height;
   const isLargeBoard = boardCellCount >= 400;
   const effectiveDpr = isLargeBoard
     ? ([1, 1.5] as [number, number])
     : (SCENE_3D.renderer.dpr as unknown as [number, number]);
 
+  // Camera framing: pull back on phones and for large boards, and raise the
+  // zoom-out limit so the whole board can be framed by pinch on a narrow
+  // portrait viewport (the user can always pinch back in to maxZoom).
+  const maxDim = Math.max(boardState.dimensions.width, boardState.dimensions.height);
+  const camFactor = (isMobile ? 1.35 : 1) * Math.max(1, maxDim / 8);
+  const cameraPosition = (SCENE_3D.camera.position as readonly number[]).map(
+    (c) => c * camFactor,
+  ) as unknown as [number, number, number];
+  const maxDistance = Math.max(SCENE_3D.camera.maxZoom, maxDim * 3.2);
+
+  // Context actions for the touch control bar.
+  const handleTouchRotate = () => {
+    if (selectedPlacedBrick) rotateBrick(selectedPlacedBrick.instanceId);
+    else if (selectedInventoryBrick) rotatePreview();
+  };
+
   return (
     <div
       className={`w-full h-full relative transition-opacity duration-300 ${sceneReady ? 'opacity-100' : 'opacity-0'}`}
-      style={{ cursor: shouldHideCursor ? 'none' : 'auto', backgroundColor: '#0f1520' }}
+      style={{ cursor: shouldHideCursor ? 'none' : 'auto', backgroundColor: '#0f1520', touchAction: 'none' }}
       onContextMenu={(e) => {
         if (hasInventorySelection) {
           e.preventDefault();
@@ -1060,7 +1098,7 @@ function PuzzleSceneInner() {
       >
         <PerspectiveCamera
           makeDefault
-          position={SCENE_3D.camera.position as unknown as [number, number, number]}
+          position={cameraPosition}
           fov={SCENE_3D.camera.fov}
         />
 
@@ -1073,7 +1111,7 @@ function PuzzleSceneInner() {
           enableDamping
           dampingFactor={0.08}
           minDistance={SCENE_3D.camera.minZoom}
-          maxDistance={SCENE_3D.camera.maxZoom}
+          maxDistance={maxDistance}
           maxPolarAngle={SCENE_3D.camera.maxPolarAngle}
           target={SCENE_3D.camera.target as unknown as [number, number, number]}
         />
@@ -1101,6 +1139,44 @@ function PuzzleSceneInner() {
         {/* Subtle fog for depth */}
         <fog attach="fog" args={[SCENE_3D.fog.color, SCENE_3D.fog.near, SCENE_3D.fog.far]} />
       </Canvas>
+
+      {/* Touch control bar — rotate/remove/deselect replace the keyboard R,
+          right-click and double-click which are unavailable on a phone. */}
+      {compact && (selectedPlacedBrick || selectedInventoryBrick) && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-3 z-20 flex items-center gap-2 px-2 py-1.5 rounded-full bg-black/70 backdrop-blur-sm border border-white/15 shadow-lg">
+          <button
+            type="button"
+            aria-label="Rotate brick"
+            className="h-11 px-3 inline-flex items-center gap-1.5 rounded-full text-white/90 text-xs font-medium active:scale-95 transition-transform"
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleTouchRotate(); }}
+          >
+            <RotateCw className="w-5 h-5" /> Rotate
+          </button>
+          {selectedPlacedBrick && (
+            <button
+              type="button"
+              aria-label="Remove brick"
+              className="h-11 px-3 inline-flex items-center gap-1.5 rounded-full text-red-300 text-xs font-medium active:scale-95 transition-transform"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                removeBrick(selectedPlacedBrick.instanceId);
+                selectBrick(null);
+              }}
+            >
+              <Trash2 className="w-5 h-5" /> Remove
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label="Done"
+            className="h-11 px-3 inline-flex items-center gap-1.5 rounded-full text-white/90 text-xs font-medium active:scale-95 transition-transform"
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); selectBrick(null); }}
+          >
+            <Check className="w-5 h-5" /> Done
+          </button>
+        </div>
+      )}
     </div>
   );
 }

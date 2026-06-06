@@ -122,7 +122,7 @@ export function CongratulationsPopup({
   return (
     <Dialog open={isVisible} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="celebration-dialog max-w-sm p-0 gap-0 border-none overflow-visible bg-transparent shadow-none"
+        className="celebration-dialog mx-4 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm p-0 gap-0 border-none overflow-visible bg-transparent shadow-none"
         showCloseButton={false}
       >
         {/* ── Full-viewport confetti layer ── */}
@@ -274,10 +274,12 @@ export function CongratulationsPopup({
 
           {/* Corner Lego studs (bigger, with inner ring for realism) */}
           {[
-            { pos: '-top-3.5 -left-3.5', color: 'bg-lego-red' },
-            { pos: '-top-3.5 -right-3.5', color: 'bg-lego-blue' },
-            { pos: '-bottom-3.5 -left-3.5', color: 'bg-lego-yellow' },
-            { pos: '-bottom-3.5 -right-3.5', color: 'bg-lego-green' },
+            // Smaller negative offsets at <sm so the studs don't clip past the
+            // viewport edge on narrow phones; full pop-out on sm+.
+            { pos: 'top-0 left-0 sm:-top-3.5 sm:-left-3.5', color: 'bg-lego-red' },
+            { pos: 'top-0 right-0 sm:-top-3.5 sm:-right-3.5', color: 'bg-lego-blue' },
+            { pos: 'bottom-0 left-0 sm:-bottom-3.5 sm:-left-3.5', color: 'bg-lego-yellow' },
+            { pos: 'bottom-0 right-0 sm:-bottom-3.5 sm:-right-3.5', color: 'bg-lego-green' },
           ].map(({ pos, color }, i) => (
             <div key={i} className={`absolute ${pos} w-8 h-8 ${color} rounded-full border-2 border-background shadow-lg ${prefersReducedMotion ? '' : 'celebration-corner-stud'}`} style={prefersReducedMotion ? undefined : { animationDelay: `${0.6 + i * 0.1}s` }}>
               <div className="absolute inset-1.5 rounded-full border border-white/20" />

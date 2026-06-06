@@ -7,6 +7,7 @@ import {
   MousePointerClick, RotateCw, Trash2, Move, Grid3X3, ChevronDown,
 } from 'lucide-react';
 import type { UsePuzzleEngineReturn } from '../../engine';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 
 const FRIENDLY_RULES: Record<string, { label: string; desc: string }> = {
   'ALL_BOARD_SQUARES_MUST_BE_COVERED': { label: 'Full Coverage', desc: 'Every cell on the board must be covered by a brick' },
@@ -39,6 +40,7 @@ interface PuzzleInfoPopupProps {
 export function PuzzleInfoPopup({ isOpen, onClose, engine }: PuzzleInfoPopupProps) {
   const store = usePuzzleStore(useShallow(s => ({ puzzle: s.puzzle })));
   const puzzle = engine?.puzzle ?? store.puzzle;
+  const isMobile = useIsMobile();
 
   const [size, setSize] = useState({ w: 420, h: 520 });
   const [pos, setPos] = useState(() => ({
@@ -103,19 +105,27 @@ export function PuzzleInfoPopup({ isOpen, onClose, engine }: PuzzleInfoPopupProp
   return (
     <div
       ref={popupRef}
-      className="fixed z-[45] rounded-2xl border border-border/80 bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden cursor-move"
-      style={{
-        left: pos.x, top: pos.y,
-        width: minimized ? 300 : size.w,
-        height: minimized ? 'auto' : size.h,
-      }}
-      onPointerDown={onDragStart}
-      onPointerMove={onDragMove}
-      onPointerUp={onDragEnd}
+      className={
+        isMobile
+          ? 'fixed z-[45] left-0 right-0 bottom-0 w-full rounded-t-2xl border-t border-border/80 bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden pb-safe'
+          : 'fixed z-[45] rounded-2xl border border-border/80 bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden cursor-move'
+      }
+      style={
+        isMobile
+          ? { maxHeight: '85dvh' }
+          : {
+              left: pos.x, top: pos.y,
+              width: minimized ? 300 : size.w,
+              height: minimized ? 'auto' : size.h,
+            }
+      }
+      onPointerDown={isMobile ? undefined : onDragStart}
+      onPointerMove={isMobile ? undefined : onDragMove}
+      onPointerUp={isMobile ? undefined : onDragEnd}
     >
       {/* ── Title Bar ── */}
       <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gradient-to-r from-[var(--surface-raised)] to-card border-b border-border select-none shrink-0">
-        <GripHorizontal className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+        {!isMobile && <GripHorizontal className="w-4 h-4 text-muted-foreground/50 shrink-0" />}
         <BookOpen className="w-4 h-4 text-primary shrink-0" />
         <span className="text-sm font-bold text-foreground flex-1 truncate">Rules & Controls</span>
         <div className="flex items-center gap-1.5">
@@ -126,11 +136,22 @@ export function PuzzleInfoPopup({ isOpen, onClose, engine }: PuzzleInfoPopupProp
             {puzzle.viewMode}
           </Badge>
         </div>
-        <button onPointerDown={e => e.stopPropagation()} onClick={() => setMinimized(!minimized)} className="p-1.5 rounded-lg hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors">
-          <Minus className="w-3.5 h-3.5" />
-        </button>
-        <button onPointerDown={e => e.stopPropagation()} onClick={onClose} className="p-1.5 rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors">
-          <X className="w-3.5 h-3.5" />
+        {!isMobile && (
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => setMinimized(!minimized)} className="p-1.5 rounded-lg hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors">
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={onClose}
+          aria-label="Close"
+          className={
+            isMobile
+              ? 'flex items-center justify-center w-10 h-10 -mr-1.5 rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors'
+              : 'p-1.5 rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors'
+          }
+        >
+          <X className={isMobile ? 'w-5 h-5' : 'w-3.5 h-3.5'} />
         </button>
       </div>
 
@@ -244,8 +265,8 @@ export function PuzzleInfoPopup({ isOpen, onClose, engine }: PuzzleInfoPopupProp
         </div>
       )}
 
-      {/* ── Resize Handle ── */}
-      {!minimized && (
+      {/* ── Resize Handle (desktop only) ── */}
+      {!isMobile && !minimized && (
         <div
           className="absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize group"
           onPointerDown={onResizeStart}

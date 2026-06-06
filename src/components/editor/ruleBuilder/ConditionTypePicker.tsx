@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { usePuzzleStore } from '../../../store/puzzleStore';
+import { useIsMobile } from '../../../hooks/useMediaQuery';
 import { CONDITION_META, CONDITION_CATEGORIES, type ConditionCategory } from '../../../validation/conditionMeta';
 import type { LeafKind } from '../../../types/customRules';
 import { LEAF_KINDS } from '../../../types/customRules';
@@ -27,11 +28,15 @@ const CATEGORY_ICONS: Record<ConditionCategory, typeof Grid3X3> = {
 export function ConditionTypePicker({ onSelect, onSelectCombinator, onClose, anchorRef }: ConditionTypePickerProps) {
   const [selectedCategory, setSelectedCategory] = useState<ConditionCategory | 'Logic'>('Cell');
   const viewMode = usePuzzleStore(s => s.puzzle?.viewMode ?? '3D');
+  const isMobile = useIsMobile();
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-  // Position the panel relative to the anchor button
+  // Position the panel relative to the anchor button (desktop only — on mobile
+  // it renders as a bottom sheet so it never overflows or sits under the
+  // on-screen keyboard).
   useEffect(() => {
+    if (isMobile) return;
     const anchor = anchorRef.current;
     if (!anchor) return;
     const rect = anchor.getBoundingClientRect();
@@ -52,29 +57,32 @@ export function ConditionTypePicker({ onSelect, onSelectCombinator, onClose, anc
     }
 
     setPos({ top, left: Math.max(8, left) });
-  }, [anchorRef]);
+  }, [anchorRef, isMobile]);
 
-  // Close on outside click
+  // Close on outside press (pointerdown covers mouse + touch)
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
+    const handleClick = (e: Event) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('pointerdown', handleClick);
+    return () => document.removeEventListener('pointerdown', handleClick);
   }, [onClose]);
 
   const content = (
     <div
       ref={panelRef}
-      className="fixed w-[360px] rounded-xl shadow-2xl overflow-hidden border border-[var(--border-default)]"
-      style={{
-        top: pos.top,
-        left: pos.left,
-        zIndex: 9999,
-        backgroundColor: 'var(--surface-raised)',
-      }}
+      className={
+        isMobile
+          ? 'fixed left-0 right-0 bottom-0 rounded-t-2xl shadow-2xl overflow-hidden border-t border-[var(--border-default)] pb-safe'
+          : 'fixed w-[min(360px,calc(100vw-1rem))] rounded-xl shadow-2xl overflow-hidden border border-[var(--border-default)]'
+      }
+      style={
+        isMobile
+          ? { zIndex: 9999, backgroundColor: 'var(--surface-raised)' }
+          : { top: pos.top, left: pos.left, zIndex: 9999, backgroundColor: 'var(--surface-raised)' }
+      }
     >
       {/* Category tabs */}
       <div className="flex flex-wrap gap-1 p-2 border-b border-[var(--border-subtle)]" style={{ backgroundColor: 'var(--surface-sunken)' }}>

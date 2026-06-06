@@ -19,8 +19,12 @@
 -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none';">
 <style>
-  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
-  #root { width: 100%; height: 100%; }
+  /* touch-action:none + overscroll-behavior:none stop one-finger orbit drags and
+     two-finger pinches from scrolling the page or triggering native zoom — even
+     though the plugins use passive touch listeners. canvas inherits it. */
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; touch-action: none; overscroll-behavior: none; }
+  #root { width: 100%; height: 100%; touch-action: none; }
+  canvas { touch-action: none; }
   * { box-sizing: border-box; }
 </style>
 </head>

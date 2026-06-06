@@ -2,6 +2,7 @@ import { useRuleBuilderStore } from './useRuleBuilderStore';
 import { Badge } from '../../ui/shadcn/badge';
 import { Button } from '../../ui/shadcn/button';
 import { Crosshair, Check, Trash2 } from 'lucide-react';
+import { useIsMobile, useIsTouch } from '../../../hooks/useMediaQuery';
 
 export function CellPickerOverlay() {
   const isPickingCells = useRuleBuilderStore(s => s.cellPickerTarget !== null);
@@ -9,6 +10,8 @@ export function CellPickerOverlay() {
   const stopCellPicker = useRuleBuilderStore(s => s.stopCellPicker);
   const clearPickerCells = useRuleBuilderStore(s => s.clearPickerCells);
   const singleTarget = useRuleBuilderStore(s => s.singleCellPickerTarget);
+  const compact = useIsMobile() || useIsTouch();
+  const btnClass = compact ? 'h-10 px-3 text-xs gap-1.5' : 'h-6 text-[10px] gap-1';
 
   // Single-cell picker mode (path_exists start/end)
   if (singleTarget) {
@@ -35,18 +38,18 @@ export function CellPickerOverlay() {
       <Button
         variant="outline"
         size="xs"
-        className="h-6 text-[10px] gap-1"
+        className={btnClass}
         onClick={clearPickerCells}
       >
-        <Trash2 className="w-3 h-3" />
+        <Trash2 className="w-3.5 h-3.5" />
         Clear
       </Button>
       <Button
         size="xs"
-        className="h-6 text-[10px] gap-1 bg-cyan-600 hover:bg-cyan-500"
+        className={`${btnClass} bg-cyan-600 hover:bg-cyan-500`}
         onClick={stopCellPicker}
       >
-        <Check className="w-3 h-3" />
+        <Check className="w-3.5 h-3.5" />
         Done
       </Button>
     </div>

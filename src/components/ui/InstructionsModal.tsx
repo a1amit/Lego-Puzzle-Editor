@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useIsTouch } from '../../hooks/useMediaQuery';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,7 @@ function KBD({ children }: { children: React.ReactNode }) {
 
 function CopyableCode({ children }: { children: string }) {
   const [copied, setCopied] = useState(false);
+  const isTouch = useIsTouch();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(children);
@@ -62,7 +64,7 @@ function CopyableCode({ children }: { children: string }) {
       </pre>
       <button
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 rounded-md bg-secondary/80 border border-[var(--border-subtle)] text-muted-foreground hover:text-foreground hover:bg-secondary transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+        className={`absolute top-2 right-2 p-1.5 rounded-md bg-secondary/80 border border-[var(--border-subtle)] text-muted-foreground hover:text-foreground hover:bg-secondary transition-all group-hover:opacity-100 cursor-pointer ${isTouch ? 'opacity-100' : 'opacity-0'}`}
         aria-label="Copy code"
       >
         {copied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
@@ -372,6 +374,7 @@ function ShapesTab() {
 }
 
 function ValidationTab() {
+  const isTouch = useIsTouch();
   const rules = [
     { name: 'ALL_BOARD_SQUARES_MUST_BE_COVERED', type: 'COVERAGE', desc: 'Every cell on the board must be covered by a brick. Used for classic coverage puzzles.' },
     { name: 'ALL_BRICKS_MUST_BE_USED', type: 'COUNT', desc: 'All bricks from the inventory must be placed on the board. Board can have empty cells.' },
@@ -447,19 +450,35 @@ function ValidationTab() {
             <code className="text-primary text-sm">{rule.name}</code>
             <p className="text-muted-foreground text-sm mt-1">{rule.desc}</p>
             {rule.paramDetails && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <span className="text-muted-foreground text-xs">Params:</span>
-                {rule.paramDetails.map((param, idx) => (
-                  <span key={idx} className="relative group">
-                    <code className="text-cyan-400 text-xs cursor-help px-1.5 py-0.5 bg-cyan-500/10 rounded hover:bg-cyan-500/20 transition-colors">
-                      {param.name}
-                    </code>
-                    <span className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-popover border border-border rounded-lg text-xs text-popover-foreground opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
-                      {param.tooltip}
+              isTouch ? (
+                // Touch: hover popovers never reveal, so show each param's
+                // description inline (always visible) instead.
+                <div className="mt-2 space-y-1">
+                  <span className="text-muted-foreground text-xs">Params:</span>
+                  {rule.paramDetails.map((param, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <code className="text-cyan-400 text-xs shrink-0 px-1.5 py-0.5 bg-cyan-500/10 rounded">
+                        {param.name}
+                      </code>
+                      <span className="text-muted-foreground text-xs">{param.tooltip}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="text-muted-foreground text-xs">Params:</span>
+                  {rule.paramDetails.map((param, idx) => (
+                    <span key={idx} className="relative group">
+                      <code className="text-cyan-400 text-xs cursor-help px-1.5 py-0.5 bg-cyan-500/10 rounded hover:bg-cyan-500/20 transition-colors">
+                        {param.name}
+                      </code>
+                      <span className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-popover border border-border rounded-lg text-xs text-popover-foreground opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
+                        {param.tooltip}
+                      </span>
                     </span>
-                  </span>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
         ))}
@@ -1131,7 +1150,10 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
           </div>
         </Tabs>
 
-        <DialogFooter className="px-6 py-4 border-t border-border flex-shrink-0">
+        <DialogFooter
+          className="px-6 py-4 pb-safe-bottom border-t border-border flex-shrink-0"
+          style={{ '--pb-extra': '1rem' } as React.CSSProperties}
+        >
           <Button onClick={onClose}>Got it!</Button>
         </DialogFooter>
       </DialogContent>

@@ -16,6 +16,7 @@ import { usePuzzleStore } from '../../store/puzzleStore';
 import { ArrowUp, X, Plus, Lightbulb, ClipboardCheck, ChartBar, Zap, WandSparkles, GripHorizontal } from 'lucide-react';
 import { Button } from '../ui/shadcn/button';
 import { LegoHelperIcon } from './LegoHelperIcon';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 
 // Re-export for backward compatibility
 export { LegoHelperIcon };
@@ -34,21 +35,6 @@ interface ChatPanelProps {
 function isRTL(text: string) {
   const rtlRegex = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
   return rtlRegex.test(text);
-}
-
-/** Hook to detect mobile viewport (<768px) */
-function useIsMobile(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth < breakpoint : false
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    setIsMobile(mq.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, [breakpoint]);
-  return isMobile;
 }
 
 const PANEL_WIDTH = 420;

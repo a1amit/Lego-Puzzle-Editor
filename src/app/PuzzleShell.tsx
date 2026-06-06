@@ -21,9 +21,12 @@ import { SoundManager } from '../services/SoundManager';
 import { PUZZLE_CATEGORIES, BLANK_PUZZLE } from '../config/puzzleCategories';
 import { recordCompletion } from '../store/completionTracker';
 import { useUserStore } from '../store/userStore';
+import { useIsMobile } from '../hooks/useMediaQuery';
+import { MobilePuzzlePlay } from '../components/layout/MobilePuzzlePlay';
 
-import { Save, Upload, ArchiveRestore, BookOpen, PanelLeftOpen, PanelRightOpen, GraduationCap, Lightbulb } from 'lucide-react';
+import { Save, Upload, ArchiveRestore, BookOpen, PanelLeftOpen, PanelRightOpen, GraduationCap, Lightbulb, Eye, Braces, ListChecks, CodeXml, Pencil } from 'lucide-react';
 import { CellPickerOverlay } from '../components/editor/ruleBuilder/CellPickerOverlay';
+import { useRuleBuilderStore } from '../components/editor/ruleBuilder/useRuleBuilderStore';
 
 // Lazy-loaded heavy components
 const PuzzleEditor = React.lazy(() =>
@@ -242,6 +245,7 @@ function SidePanel({ puzzle, showInfo, setShowInfo, activeEngine, validationResu
 }
 
 function PreviewPanel() {
+  const isMobile = useIsMobile();
   const puzzle = usePuzzleStore((s) => s.puzzle);
   const storeIsComplete = usePuzzleStore((s) => s.isComplete);
   const storeMoveCount = usePuzzleStore((s) => s.moveCount);
@@ -389,20 +393,36 @@ function PreviewPanel() {
     usePuzzleStore.setState({ puzzle: next, jsonSource: JSON.stringify(next, null, 2) });
   };
 
+  const rendererEl = (
+    <RendererPanel is2D={is2D} isPlugin={isPlugin} engine={engine} viewMode={viewMode} puzzle={puzzle} pluginResetSignal={pluginResetSignal} onPluginState={handlePluginState} onPluginComplete={() => setPluginComplete(true)} onPluginMeta={handlePluginMeta} />
+  );
+
   return (
     <>
-      <ResizablePanels direction="horizontal" defaultSize={panelFlipped ? 30 : 70} minSize={18} maxSize={82}>
-        {panelFlipped ? (
-          <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} flipped />
-        ) : (
-          <RendererPanel is2D={is2D} isPlugin={isPlugin} engine={engine} viewMode={viewMode} puzzle={puzzle} pluginResetSignal={pluginResetSignal} onPluginState={handlePluginState} onPluginComplete={() => setPluginComplete(true)} onPluginMeta={handlePluginMeta} />
-        )}
-        {panelFlipped ? (
-          <RendererPanel is2D={is2D} isPlugin={isPlugin} engine={engine} viewMode={viewMode} puzzle={puzzle} pluginResetSignal={pluginResetSignal} onPluginState={handlePluginState} onPluginComplete={() => setPluginComplete(true)} onPluginMeta={handlePluginMeta} />
-        ) : (
-          <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} />
-        )}
-      </ResizablePanels>
+      {isMobile ? (
+        <MobilePuzzlePlay
+          renderer={rendererEl}
+          puzzle={puzzle}
+          activeEngine={activeEngine}
+          validationResults={validationResults}
+          isComplete={isComplete}
+          showInfo={showInfo}
+          setShowInfo={setShowInfo}
+        />
+      ) : (
+        <ResizablePanels direction="horizontal" defaultSize={panelFlipped ? 30 : 70} minSize={18} maxSize={82}>
+          {panelFlipped ? (
+            <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} flipped />
+          ) : (
+            rendererEl
+          )}
+          {panelFlipped ? (
+            rendererEl
+          ) : (
+            <SidePanel puzzle={puzzle} showInfo={showInfo} setShowInfo={setShowInfo} activeEngine={activeEngine} validationResults={validationResults} isComplete={isComplete} />
+          )}
+        </ResizablePanels>
+      )}
 
       <PuzzleInfoPopup isOpen={showInfo} onClose={() => setShowInfo(false)} engine={activeEngine} />
 
@@ -441,12 +461,92 @@ function SplitView() {
   );
 }
 
+/** Single-pane wrapper that keeps a tab mounted but hidden when inactive. */
+function EditorPane({ active, children }: { active: boolean; children: React.ReactNode }) {
+  return <div className={`absolute inset-0 ${active ? '' : 'hidden'}`}>{children}</div>;
+}
+
+/**
+ * Dedicated mobile editor: a full-screen tabbed surface (Board / JSON / Rules /
+ * Code) with a thumb-reachable bottom tab bar, replacing the desktop
+ * side-by-side split. The Board tab stays mounted so the live preview / engine
+ * state and the rule-builder cell picker persist across tab switches; when a
+ * cell picker is armed we auto-switch to Board so the author can tap cells.
+ */
+function MobileEditorTabs({ preview }: { preview: React.ReactNode }) {
+  const [tab, setTab] = useState<'board' | 'json' | 'rules' | 'plugin'>('board');
+  const [visited, setVisited] = useState<Set<string>>(() => new Set(['board']));
+  const pickerArmed = useRuleBuilderStore(
+    (s) => s.cellPickerTarget !== null || s.singleCellPickerTarget !== null,
+  );
+
+  useEffect(() => {
+    if (pickerArmed) setTab('board');
+  }, [pickerArmed]);
+
+  const go = (t: 'board' | 'json' | 'rules' | 'plugin') => {
+    setTab(t);
+    setVisited((v) => (v.has(t) ? v : new Set(v).add(t)));
+  };
+
+  const TABS = [
+    { id: 'board' as const, label: 'Board', icon: <Eye className="w-5 h-5" /> },
+    { id: 'json' as const, label: 'JSON', icon: <Braces className="w-5 h-5" /> },
+    { id: 'rules' as const, label: 'Rules', icon: <ListChecks className="w-5 h-5" /> },
+    { id: 'plugin' as const, label: 'Code', icon: <CodeXml className="w-5 h-5" /> },
+  ];
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex-1 min-h-0 relative">
+        <EditorPane active={tab === 'board'}>{preview}</EditorPane>
+        {visited.has('json') && (
+          <EditorPane active={tab === 'json'}>
+            <Suspense fallback={<EditorSkeleton />}>
+              <PuzzleEditor className="h-full" />
+            </Suspense>
+          </EditorPane>
+        )}
+        {visited.has('rules') && (
+          <EditorPane active={tab === 'rules'}>
+            <Suspense fallback={<EditorSkeleton />}>
+              <RuleBuilderPanel className="h-full" />
+            </Suspense>
+          </EditorPane>
+        )}
+        {visited.has('plugin') && (
+          <EditorPane active={tab === 'plugin'}>
+            <Suspense fallback={<EditorSkeleton />}>
+              <PluginCodeEditor className="h-full" />
+            </Suspense>
+          </EditorPane>
+        )}
+      </div>
+      <div className="shrink-0 grid grid-cols-4 bg-[var(--surface-raised)] border-t border-border pb-safe">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => go(t.id)}
+            className={`h-12 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${
+              tab === t.id ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            {t.icon}
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface PuzzleShellProps {
   visible: boolean;
 }
 
 export function PuzzleShell({ visible }: PuzzleShellProps) {
-  const isMobile = () => window.innerWidth < 640;
+  const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
   const isCreateRoute = location.pathname === '/create';
@@ -469,7 +569,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
   const userRole = useUserStore((s) => s.profile?.role);
 
   const [mountedModes, setMountedModes] = useState<Set<EditorViewMode>>(() =>
-    new Set([isMobile() ? 'preview' : (isEditRoute ? 'split' : 'preview')])
+    new Set([(typeof window !== 'undefined' && window.innerWidth < 768) ? 'preview' : (isEditRoute ? 'split' : 'preview')])
   );
   const [hasEverBeenVisible, setHasEverBeenVisible] = useState(visible);
   const [puzzleStatus, setPuzzleStatus] = useState<'draft' | 'published' | null>(null);
@@ -479,7 +579,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
 
   // Initialize view mode on first mount
   useEffect(() => {
-    const initial: EditorViewMode = isMobile() ? 'preview' : (isEditRoute ? 'split' : 'preview');
+    const initial: EditorViewMode = isMobile ? 'preview' : (isEditRoute ? 'split' : 'preview');
     setViewMode(initial);
     setIsEditRoute(isEditRoute);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -589,14 +689,11 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     setMountedModes(new Set([viewMode]));
   }, [viewMode]);
 
-  // Mobile auto-switch
+  // Mobile auto-switch: phones use the dedicated single-surface play/editor
+  // layouts (no side-by-side split/editor view modes).
   useEffect(() => {
-    const handleResize = () => {
-      if (isMobile() && viewMode !== 'preview') setViewMode('preview');
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [viewMode, setViewMode]);
+    if (isMobile && viewMode !== 'preview') setViewMode('preview');
+  }, [isMobile, viewMode, setViewMode]);
 
   // Save draft to API (create new or update existing)
   const handleSaveDraft = () => {
@@ -710,7 +807,7 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     }`}>
       {/* Creator toolbar — shown for owners and admins */}
       {(isEditRoute || isOwnPuzzle || userRole === 'admin') && visible && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-card/80 backdrop-blur-sm border-b border-border shrink-0 z-20">
+        <div className="flex flex-wrap items-center gap-2 gap-y-1.5 px-3 sm:px-4 py-2 bg-card/80 backdrop-blur-sm border-b border-border shrink-0 z-20">
           <span className="text-xs text-muted-foreground">
             {isCreateRoute ? 'New Puzzle' : `Editing: ${usePuzzleStore.getState().puzzle?.title || slug}`}
           </span>
@@ -732,6 +829,12 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
               </button>
             ))}
           </div>
+          {/* Mobile: jump into the tabbed editor (no desktop view-mode toggle) */}
+          {isMobile && !isEditRoute && slug && (
+            <Button variant="default" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => navigate(`/puzzle/${slug}/edit`)}>
+              <Pencil className="h-3 w-3" />Edit
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleSaveDraft}>
             <Save className="h-3 w-3" />{puzzleStatus === 'published' ? 'Save' : 'Save Draft'}
           </Button>
@@ -755,20 +858,30 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
           <p className="text-sm text-muted-foreground">Loading puzzle...</p>
         </div>
       )}
-      {mountedModes.has('split') && (
-        <div className={`absolute inset-0 transition-opacity duration-150 ease-out ${viewMode === 'split' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
-          <SplitView />
+      {isMobile ? (
+        /* Mobile: a single full-screen surface. Edit routes get the tabbed
+           editor (Board/JSON/Rules/Code); play routes get the play layout. */
+        <div className="absolute inset-0">
+          {isEditRoute ? <MobileEditorTabs preview={<PreviewPanel />} /> : <PreviewPanel />}
         </div>
-      )}
-      {mountedModes.has('editor') && (
-        <div className={`absolute inset-0 transition-opacity duration-150 ease-out ${viewMode === 'editor' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
-          <EditorPanel />
-        </div>
-      )}
-      {mountedModes.has('preview') && (
-        <div className={`absolute inset-0 transition-opacity duration-150 ease-out ${viewMode === 'preview' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
-          <PreviewPanel />
-        </div>
+      ) : (
+        <>
+          {mountedModes.has('split') && (
+            <div className={`absolute inset-0 transition-opacity duration-150 ease-out ${viewMode === 'split' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
+              <SplitView />
+            </div>
+          )}
+          {mountedModes.has('editor') && (
+            <div className={`absolute inset-0 transition-opacity duration-150 ease-out ${viewMode === 'editor' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
+              <EditorPanel />
+            </div>
+          )}
+          {mountedModes.has('preview') && (
+            <div className={`absolute inset-0 transition-opacity duration-150 ease-out ${viewMode === 'preview' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
+              <PreviewPanel />
+            </div>
+          )}
+        </>
       )}
       </div>
     </div>

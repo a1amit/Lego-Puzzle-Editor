@@ -186,13 +186,13 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
       </div>
 
       {/* Center: View mode toggle (only on puzzle routes, desktop only) */}
-      <div className="hidden sm:flex flex-1 items-center justify-center">
+      <div className="hidden md:flex flex-1 items-center justify-center">
         {isPuzzleRoute && <ViewModeToggle />}
       </div>
 
       {/* Right: Actions (desktop) */}
       <TooltipProvider delayDuration={300}>
-        <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0 ml-auto">
+        <div className="hidden md:flex items-center gap-1.5 flex-shrink-0 ml-auto">
           {isPuzzleRoute && (undoStack.length > 0 || redoStack.length > 0) && (
             <>
               <Tooltip>
@@ -272,7 +272,7 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
       </TooltipProvider>
 
       {/* Right: Mobile hamburger menu */}
-      <div className="flex sm:hidden items-center gap-1.5 ml-auto">
+      <div className="flex md:hidden items-center gap-1.5 ml-auto">
         {isPuzzleRoute && (undoStack.length > 0 || redoStack.length > 0) && (
           <>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleUndo} disabled={undoStack.length === 0}>
