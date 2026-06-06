@@ -50,8 +50,11 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
 
   // "compact" = a touch device OR a phone-width viewport. In either case we
   // show the on-screen control bar (rotate/remove/done) and hide the SVG
-  // rotate button + keyboard-only affordances.
-  const compact = useIsTouch() || useIsMobile();
+  // rotate button + keyboard-only affordances. Both hooks are called
+  // unconditionally (no `||` short-circuit) to satisfy the rules of hooks.
+  const isTouch = useIsTouch();
+  const isMobile = useIsMobile();
+  const compact = isTouch || isMobile;
   const containerRef = useRef<HTMLDivElement>(null);
   const boardGroupRef = useRef<SVGGElement>(null);
   const [containerSize, setContainerSize] = useState<{ w: number; h: number } | null>(null);

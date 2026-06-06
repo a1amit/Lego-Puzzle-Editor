@@ -10,7 +10,10 @@ export function CellPickerOverlay() {
   const stopCellPicker = useRuleBuilderStore(s => s.stopCellPicker);
   const clearPickerCells = useRuleBuilderStore(s => s.clearPickerCells);
   const singleTarget = useRuleBuilderStore(s => s.singleCellPickerTarget);
-  const compact = useIsMobile() || useIsTouch();
+  // Call both hooks unconditionally (no `||` short-circuit) per rules of hooks.
+  const isMobile = useIsMobile();
+  const isTouch = useIsTouch();
+  const compact = isMobile || isTouch;
   const btnClass = compact ? 'h-10 px-3 text-xs gap-1.5' : 'h-6 text-[10px] gap-1';
 
   // Single-cell picker mode (path_exists start/end)
