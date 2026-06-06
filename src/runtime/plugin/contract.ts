@@ -49,6 +49,9 @@ export interface PluginRenderApi<S, M> {
   getState(): S;
   /** Submit a move; the host applies it via `applyMove` and re-renders. */
   emitMove(move: M): void;
+  /** Render-time config from the host: the puzzle's `plugin.params` plus host
+   *  injections such as `isAdmin`. Not part of game state — for gating UI. */
+  params?: Record<string, unknown>;
   helpers: PluginHelpers;
 }
 

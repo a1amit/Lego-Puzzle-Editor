@@ -110,6 +110,7 @@
             post({ source: 'lpe-plugin', type: 'STATE', solved: false, progress: verdict().progress, moveCount: moveCount, message: String((e && e.message) || e) });
           }
         },
+        params: cfg.params,
         helpers: { rng: Math.random }
       };
 
