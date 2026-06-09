@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { ArrowLeft, Shield, ShieldOff, Ban, CheckCircle, Search } from 'lucide-react';
@@ -88,7 +88,7 @@ export default function AdminPage() {
           <Link to="/"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
-        <Badge variant="outline" className="text-xs">
+        <Badge variant="outline" className="font-mono uppercase tracking-wider text-[10px]">
           {users.length} users
         </Badge>
       </div>
@@ -101,7 +101,7 @@ export default function AdminPage() {
           placeholder="Search users..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-card border border-border focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground placeholder:text-muted-foreground"
+          className="w-full pl-9 pr-4 py-2 text-sm rounded-full bg-[var(--surface-sunken)] border border-border focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground placeholder:text-muted-foreground"
         />
       </div>
 
@@ -112,19 +112,22 @@ export default function AdminPage() {
           ))}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="bg-[var(--surface-raised)]/70 backdrop-blur-xl border border-border rounded-xl p-2 sm:p-3 space-y-2">
           {users.filter((u) => {
             if (!searchQuery) return true;
             const q = searchQuery.toLowerCase();
             return (u.displayName || '').toLowerCase().includes(q)
               || u.username.toLowerCase().includes(q)
               || u.role.includes(q);
-          }).map((u) => (
+          }).map((u, i) => (
             <div
               key={u._id}
-              className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl bg-card border transition-colors ${
-                u.isBanned ? 'border-destructive/30 bg-destructive/5' : 'border-border'
+              className={`card-rise flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border transition-colors ${
+                u.isBanned
+                  ? 'bg-destructive/8 border-destructive/25'
+                  : 'bg-card border-border hover:bg-[var(--surface-raised)]/50 hover:border-primary/20'
               }`}
+              style={{ '--i': i } as CSSProperties}
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 {u.avatarUrl ? (
@@ -141,13 +144,13 @@ export default function AdminPage() {
                       {u.displayName || u.username}
                     </span>
                     {u.role === 'admin' && (
-                      <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">Admin</Badge>
+                      <Badge className="font-mono uppercase text-[10px] bg-primary/20 text-primary border-primary/30">Admin</Badge>
                     )}
                     {u.isBanned && (
-                      <Badge variant="destructive" className="text-[10px]">Banned</Badge>
+                      <Badge variant="destructive" className="font-mono uppercase text-[10px]">Banned</Badge>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                  <div className="font-mono text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
                     <span>Lvl {u.level}</span>
                     <span>{u.xp} XP</span>
                     <span>{u.puzzlesCreated} created</span>
@@ -158,7 +161,7 @@ export default function AdminPage() {
 
               <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
                 {u._id === myUserId ? (
-                  <Badge variant="outline" className="text-[10px]">You</Badge>
+                  <Badge variant="outline" className="font-mono uppercase text-[10px]">You</Badge>
                 ) : (
                   <>
                     {u.role === 'admin' ? (
@@ -171,11 +174,11 @@ export default function AdminPage() {
                       </Button>
                     )}
                     {u.isBanned ? (
-                      <Button variant="ghost" size="sm" className="h-10 sm:h-8 gap-1.5 text-xs text-success" onClick={() => updateUser(u._id, { isBanned: false })} title="Unban user">
+                      <Button variant="ghost" size="sm" className="h-10 sm:h-8 gap-1.5 text-xs text-success hover:text-success hover:bg-success/10" onClick={() => updateUser(u._id, { isBanned: false })} title="Unban user">
                         <CheckCircle className="h-3.5 w-3.5" />Unban
                       </Button>
                     ) : (
-                      <Button variant="ghost" size="sm" className="h-10 sm:h-8 gap-1.5 text-xs text-destructive" onClick={() => updateUser(u._id, { isBanned: true })} title="Ban user">
+                      <Button variant="ghost" size="sm" className="h-10 sm:h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => updateUser(u._id, { isBanned: true })} title="Ban user">
                         <Ban className="h-3.5 w-3.5" />Ban
                       </Button>
                     )}

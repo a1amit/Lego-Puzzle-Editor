@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { Plus, Pencil, Eye, Trash2, FileText, FolderOpen } from 'lucide-react';
+import { Plus, Pencil, Eye, Trash2, FolderOpen } from 'lucide-react';
 import { Button } from '../../components/ui/shadcn/button';
 import { Badge } from '../../components/ui/shadcn/badge';
 import { useAppAuth } from '../../auth/AuthProvider';
@@ -103,9 +103,9 @@ export default function MyPuzzlesPage() {
             </div>
             My Puzzles
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">{puzzles.length} puzzle{puzzles.length !== 1 ? 's' : ''} created</p>
+          <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mt-1.5">{puzzles.length} puzzle{puzzles.length !== 1 ? 's' : ''} created</p>
         </div>
-        <Button onClick={() => navigate('/create')} size="sm" className="gap-1.5 bg-gold text-gold-foreground hover:bg-gold/90 font-semibold">
+        <Button onClick={() => navigate('/create')} size="sm" className="brick-btn gap-1.5 bg-gold text-gold-foreground hover:bg-gold font-bold">
           <Plus className="h-4 w-4" />New Puzzle
         </Button>
       </div>
@@ -117,21 +117,30 @@ export default function MyPuzzlesPage() {
           ))}
         </div>
       ) : puzzles.length === 0 ? (
-        <div className="rounded-xl bg-card/50 border border-dashed border-border p-12 text-center">
-          <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground mb-4">You haven't created any puzzles yet.</p>
-          <Button onClick={() => navigate('/create')} className="gap-2 bg-gold text-gold-foreground hover:bg-gold/90">
+        <div className="rounded-xl bg-[var(--surface-raised)]/70 backdrop-blur-xl border border-dashed border-border p-12 text-center">
+          {/* CSS-built LEGO brick: rounded rect + 2 studs, slightly tilted */}
+          <div
+            aria-hidden="true"
+            className="relative mx-auto mt-2 mb-6 h-8 w-16 -rotate-6 rounded-[4px] bg-[#D01012] shadow-[0_4px_14px_rgba(0,0,0,0.4)]"
+          >
+            <span className="absolute -top-2 left-[15%] h-[22px] w-[22px] rounded-full bg-inherit brightness-125 shadow-[inset_0_-2px_3px_rgba(0,0,0,0.25)]" />
+            <span className="absolute -top-2 right-[15%] h-[22px] w-[22px] rounded-full bg-inherit brightness-125 shadow-[inset_0_-2px_3px_rgba(0,0,0,0.25)]" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground mb-1">No puzzles yet</h2>
+          <p className="text-sm text-muted-foreground mb-6">Every great build starts with a single brick.</p>
+          <Button onClick={() => navigate('/create')} className="brick-btn gap-2 bg-gold text-gold-foreground hover:bg-gold font-bold">
             <Plus className="h-4 w-4" />Create Your First Puzzle
           </Button>
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {puzzles.map((p) => {
+        <div className="bg-[var(--surface-raised)]/70 backdrop-blur-xl border border-border rounded-xl p-2 sm:p-3 space-y-1.5">
+          {puzzles.map((p, i) => {
             const style = STATUS_STYLES[p.status] || STATUS_STYLES.draft;
             return (
               <div
                 key={p._id}
-                className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors group"
+                className="card-rise flex items-center gap-3 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors group"
+                style={{ '--i': i } as CSSProperties}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -147,11 +156,11 @@ export default function MyPuzzlesPage() {
                     <span className="capitalize">{p.difficulty}</span>
                     {p.status === 'published' && (
                       <>
-                        <span>{p.stats.completions} solves</span>
-                        <span>{p.stats.likes} likes</span>
+                        <span className="font-mono">{p.stats.completions} solves</span>
+                        <span className="font-mono">{p.stats.likes} likes</span>
                       </>
                     )}
-                    <span>{new Date(p.updatedAt || p.createdAt).toLocaleDateString()}</span>
+                    <span className="font-mono">{new Date(p.updatedAt || p.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
 
