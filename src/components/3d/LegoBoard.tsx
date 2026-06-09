@@ -579,7 +579,10 @@ export function LegoBoard({
         />
       </instancedMesh>
 
-      {/* Instanced picker cell highlights (same pattern as goal rings) */}
+      {/* Instanced picker cell highlights (same pattern as goal rings).
+          Deliberately cyan on the board — no LEGO brick color is cyan, so
+          picked cells stay readable on any brick; the picker's UI chrome
+          uses the acid accent instead. */}
       <instancedMesh ref={pickerRef} args={[undefined, undefined, maxInstances]} renderOrder={999}>
         <planeGeometry args={[0.9, 0.9]} />
         <meshBasicMaterial

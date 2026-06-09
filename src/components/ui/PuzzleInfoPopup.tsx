@@ -166,7 +166,7 @@ export function PuzzleInfoPopup({ isOpen, onClose, engine }: PuzzleInfoPopupProp
             defaultOpen
           >
             <div className="p-3.5 rounded-xl bg-[var(--surface-raised)] border border-border/60">
-              <h2 className="text-base font-bold text-foreground leading-tight">{puzzle.title}</h2>
+              <h2 className="text-base font-bold font-display text-foreground leading-tight">{puzzle.title}</h2>
               {puzzle.description && (
                 <p className="mt-2 text-sm text-foreground/70 leading-relaxed whitespace-pre-wrap">
                   {puzzle.description}

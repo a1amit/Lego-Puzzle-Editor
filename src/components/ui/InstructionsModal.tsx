@@ -1094,7 +1094,7 @@ export function InstructionsModal({ isOpen, onClose }: InstructionsModalProps) {
               <Puzzle className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold">Puzzle Creator Guide</DialogTitle>
+              <DialogTitle className="text-xl font-bold font-display">Puzzle Creator Guide</DialogTitle>
               <DialogDescription>Learn how to create custom puzzles</DialogDescription>
             </div>
           </div>

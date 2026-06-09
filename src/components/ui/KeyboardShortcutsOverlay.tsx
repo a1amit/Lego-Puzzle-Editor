@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { m } from 'framer-motion';
 import { useIsTouch } from '../../hooks/useMediaQuery';
 
 const SHORTCUTS = [
@@ -45,11 +46,14 @@ export function KeyboardShortcutsOverlay() {
       aria-modal="true"
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div
+      <m.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
         className="relative bg-card border border-border rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-sm font-semibold text-foreground mb-4 tracking-wide">KEYBOARD SHORTCUTS</h2>
+        <h2 className="text-xs font-mono font-semibold text-foreground mb-4 tracking-widest">KEYBOARD SHORTCUTS</h2>
         <div className="space-y-2.5">
           {SHORTCUTS.map((shortcut) => (
             <div key={shortcut.description} className="flex items-center justify-between gap-4">
@@ -70,7 +74,7 @@ export function KeyboardShortcutsOverlay() {
         <p className="text-[10px] text-muted-foreground mt-4 text-center">
           Press <kbd className="px-1 py-0.5 bg-secondary rounded font-mono text-[10px]">?</kbd> or <kbd className="px-1 py-0.5 bg-secondary rounded font-mono text-[10px]">Esc</kbd> to close
         </p>
-      </div>
+      </m.div>
     </div>
   );
 }

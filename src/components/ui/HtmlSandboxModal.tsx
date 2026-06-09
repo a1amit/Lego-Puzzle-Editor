@@ -33,7 +33,7 @@ export function HtmlSandboxModal({ open, onOpenChange, title, html }: HtmlSandbo
         className="w-full sm:max-w-[720px] gap-3 p-4 grid-rows-[auto_1fr]"
         style={{ height: 'min(80dvh, 520px)' }}
       >
-        <DialogTitle className="text-base">{title}</DialogTitle>
+        <DialogTitle className="text-base font-display">{title}</DialogTitle>
         <iframe
           title={title}
           srcDoc={html}

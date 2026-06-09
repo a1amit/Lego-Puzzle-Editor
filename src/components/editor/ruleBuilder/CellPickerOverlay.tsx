@@ -18,11 +18,11 @@ export function CellPickerOverlay() {
 
   // Single-cell picker mode (path_exists start/end)
   if (singleTarget) {
-    const label = singleTarget.field === 'startCell' ? 'start' : 'end';
-    const color = singleTarget.field === 'startCell' ? 'emerald' : 'red';
+    const isStart = singleTarget.field === 'startCell';
+    const label = isStart ? 'start' : 'end';
     return (
-      <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-[var(--surface-raised)]/95 backdrop-blur-md border border-${color}-500/40 rounded-xl shadow-xl`}>
-        <Crosshair className={`w-4 h-4 text-${color}-400 animate-pulse`} />
+      <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-[var(--surface-raised)]/95 backdrop-blur-md border ${isStart ? 'border-success/40' : 'border-destructive/40'} rounded-xl shadow-xl`}>
+        <Crosshair className={`w-4 h-4 ${isStart ? 'text-success' : 'text-destructive'} animate-pulse`} />
         <span className="text-xs text-foreground font-medium">Click a cell to set the <strong>{label}</strong> point</span>
       </div>
     );
@@ -32,8 +32,8 @@ export function CellPickerOverlay() {
   if (!isPickingCells) return null;
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-[var(--surface-raised)]/95 backdrop-blur-md border border-cyan-500/40 rounded-xl shadow-xl">
-      <Crosshair className="w-4 h-4 text-cyan-400 animate-pulse" />
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-[var(--surface-raised)]/95 backdrop-blur-md border border-primary/40 rounded-xl shadow-xl">
+      <Crosshair className="w-4 h-4 text-primary animate-pulse" />
       <span className="text-xs text-foreground font-medium">Click cells to select</span>
       <Badge variant="secondary" className="text-[10px] font-mono">
         {cellCount} selected
@@ -49,7 +49,7 @@ export function CellPickerOverlay() {
       </Button>
       <Button
         size="xs"
-        className={`${btnClass} bg-cyan-600 hover:bg-cyan-500`}
+        className={btnClass}
         onClick={stopCellPicker}
       >
         <Check className="w-3.5 h-3.5" />

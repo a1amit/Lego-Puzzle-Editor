@@ -41,6 +41,9 @@ export const GridCell = memo(function GridCell({
   const centerX = x * cellSize + cellSize / 2;
   const centerY = y * cellSize + cellSize / 2;
 
+  // Picker highlight is deliberately cyan ON THE BOARD (not the acid chrome
+  // accent): no LEGO brick color is cyan, so picked cells stay readable on
+  // bricks of any color — acid yellow would vanish on yellow bricks.
   const fill = isPickerSelected
     ? 'rgba(6, 182, 212, 0.45)'
     : isInvalid

@@ -4,10 +4,10 @@ import { PuzzleThumbnail } from './PuzzleThumbnail';
 import type { GalleryPuzzle } from '../../store/galleryStore';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: 'bg-green-500/20 text-green-400 border-green-500/30',
-  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  hard: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  expert: 'bg-red-500/20 text-red-400 border-red-500/30',
+  easy: 'bg-green-500/12 text-green-300/90 border-green-500/25',
+  medium: 'bg-yellow-500/12 text-yellow-300/90 border-yellow-500/25',
+  hard: 'bg-orange-500/12 text-orange-300/90 border-orange-500/25',
+  expert: 'bg-red-500/12 text-red-300/90 border-red-500/25',
 };
 
 const DIFFICULTY_GLOW: Record<string, string> = {

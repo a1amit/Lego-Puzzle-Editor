@@ -140,7 +140,7 @@ export function LevelTitleCard({ level, xp, overrideTier, className = '' }: Leve
 
           {/* XP progress bar */}
           <div className="mt-2.5">
-            <div className="flex justify-between text-[10px] text-white/40 mb-1">
+            <div className="flex justify-between text-[10px] font-mono text-white/40 mb-1">
               <span>{xp.toLocaleString()} XP</span>
               <span>{nextLevelXP.toLocaleString()} XP</span>
             </div>
