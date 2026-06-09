@@ -1,7 +1,7 @@
 import React, { useEffect, Suspense, useState, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useAppAuth, useUser } from '../auth/AuthProvider';
-import { LazyMotion, domAnimation, MotionConfig } from 'framer-motion';
+import { LazyMotion, domAnimation, MotionConfig, m, useReducedMotion } from 'framer-motion';
 import { Analytics } from '@vercel/analytics/react';
 import { Toaster, toast } from 'sonner';
 import { Header } from '../components/layout/Header';
@@ -226,6 +226,72 @@ function LegoBackground() {
   );
 }
 
+/**
+ * Cold-load preloader: the four logo bricks drop and snap into place, then
+ * the shell takes over. Shown once per session, skipped entirely for
+ * reduced-motion users, total < 1.3s.
+ */
+const PRELOADER_BRICKS = ['#D01012', '#F5CD2F', '#287F46', '#0055BF'];
+
+function Preloader() {
+  const reduceMotion = useReducedMotion();
+  // Phased by timers, not animation completion: rAF can stall in background
+  // tabs, and the overlay must NEVER stay covering the app.
+  const [phase, setPhase] = useState<'show' | 'fade' | 'gone'>(() => {
+    try { return sessionStorage.getItem('vl-preloaded') ? 'gone' : 'show'; } catch { return 'gone'; }
+  });
+
+  useEffect(() => {
+    if (phase !== 'show') return;
+    try { sessionStorage.setItem('vl-preloaded', '1'); } catch { /* private mode */ }
+    const t = setTimeout(() => setPhase('fade'), 1250);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'fade') return;
+    const t = setTimeout(() => setPhase('gone'), 400);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  if (reduceMotion || phase === 'gone') return null;
+
+  return (
+    (
+        <div
+          className={`fixed inset-0 z-[100] flex items-center justify-center bg-background transition-opacity duration-300 ease-out ${
+            phase === 'fade' ? 'opacity-0 pointer-events-none' : ''
+          }`}
+        >
+          <div className="flex flex-col items-center gap-5">
+            <div className="grid grid-cols-2 gap-1.5">
+              {PRELOADER_BRICKS.map((color, i) => (
+                <m.div
+                  key={color}
+                  className="w-8 h-8 rounded-md flex items-center justify-center"
+                  style={{ background: color }}
+                  initial={{ y: -70, opacity: 0, rotate: i % 2 ? 8 : -8 }}
+                  animate={{ y: 0, opacity: 1, rotate: 0 }}
+                  transition={{ type: 'spring', visualDuration: 0.45, bounce: 0.4, delay: 0.1 + i * 0.12 }}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-white/30 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.25)]" />
+                </m.div>
+              ))}
+            </div>
+            <m.span
+              className="font-display font-bold text-xl tracking-tight text-foreground"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', visualDuration: 0.4, bounce: 0.2, delay: 0.62 }}
+            >
+              Virtual Lego
+            </m.span>
+          </div>
+        </div>
+    )
+  );
+}
+
 export function RootLayout() {
   const [showChat, setShowChat] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -303,6 +369,7 @@ export function RootLayout() {
     <LazyMotion features={domAnimation}>
       <MotionConfig reducedMotion="user">
       <Sentry.ErrorBoundary fallback={<div className="flex items-center justify-center h-screen text-foreground">Something went wrong. Please refresh the page.</div>}>
+        <Preloader />
         <div className="h-full w-full flex flex-col overflow-hidden">
           {/* Night-baseplate atmosphere: drifting color orbs + film grain */}
           <div className="atmosphere" aria-hidden="true">
