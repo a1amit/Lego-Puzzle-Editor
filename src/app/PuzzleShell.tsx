@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react';
+import { m } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { ResizablePanels } from '../components/layout/ResizablePanels';
@@ -50,23 +51,25 @@ const PluginRenderer = React.lazy(() =>
 
 function EditorSkeleton() {
   return (
-    <div className="h-full flex flex-col bg-[#0f0f14]">
+    <div className="h-full flex flex-col bg-[var(--surface-sunken)]">
       <div className="flex-1 m-2 rounded-lg bg-muted/10 animate-pulse" />
     </div>
   );
 }
 
 function SceneSkeleton() {
-  return <div className="h-full w-full bg-[#0f1520]" />;
+  return <div className="h-full w-full bg-[var(--surface-sunken)]" />;
 }
 
+/* The editor is the app's "blueprint workshop" register: mono labels,
+   hairline borders — precision next to the glossy play surface. */
 function EditorPanel() {
   return (
     <Tabs defaultValue="json" className="h-full flex flex-col bg-background">
-      <TabsList className="flex-shrink-0 mx-2 mt-2">
-        <TabsTrigger value="json" className="text-xs">JSON Editor</TabsTrigger>
-        <TabsTrigger value="rules" className="text-xs">Custom Rules</TabsTrigger>
-        <TabsTrigger value="code" className="text-xs">Plugin (Code)</TabsTrigger>
+      <TabsList className="flex-shrink-0 mx-2 mt-2 border border-[var(--border-subtle)] bg-[var(--surface-sunken)]">
+        <TabsTrigger value="json" className="text-[11px] font-mono uppercase tracking-wider">JSON</TabsTrigger>
+        <TabsTrigger value="rules" className="text-[11px] font-mono uppercase tracking-wider">Rules</TabsTrigger>
+        <TabsTrigger value="code" className="text-[11px] font-mono uppercase tracking-wider">Plugin Code</TabsTrigger>
       </TabsList>
       <TabsContent value="json" className="flex-1 min-h-0">
         <Suspense fallback={<EditorSkeleton />}>
@@ -111,7 +114,7 @@ function RendererPanel({
   onPluginError?: (msg: string) => void;
 }) {
   return (
-    <div className="h-full bg-[radial-gradient(circle_at_30%_20%,rgba(101,143,222,0.16),rgba(8,12,20,0.15)_35%,rgba(8,12,20,0.9)_100%)] relative">
+    <div className="h-full play-stage relative">
       {isPlugin && puzzle ? (
         <Suspense fallback={<SceneSkeleton />}>
           <PluginRenderer
@@ -132,7 +135,7 @@ function RendererPanel({
       )}
       <div className="absolute top-3 right-3 z-10">
         {isPlugin ? (
-          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-primary/20 text-primary border border-primary/30">
+          <span className="px-2 py-0.5 rounded font-mono text-[10px] uppercase tracking-wider bg-primary/15 text-primary border border-primary/30 backdrop-blur-sm">
             Plugin
           </span>
         ) : (
@@ -155,7 +158,7 @@ function SidePanel({ puzzle, showInfo, setShowInfo, activeEngine, validationResu
   const hasTutorial = typeof puzzle?.tutorial_html === 'string' && puzzle.tutorial_html.length > 0;
   const hasHint = typeof puzzle?.clue_html === 'string' && puzzle.clue_html.length > 0;
   return (
-    <div className={`h-full min-w-[300px] bg-gradient-to-b from-card to-background ${flipped ? 'border-r' : 'border-l'} border-border shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col`}>
+    <div className={`h-full min-w-[300px] bg-[var(--surface-raised)]/70 backdrop-blur-xl ${flipped ? 'border-r' : 'border-l'} border-border shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col`}>
       <div className="shrink-0 px-3 pt-2 pb-1 flex items-center gap-1.5">
         <span className="text-[11px] font-semibold text-muted-foreground truncate flex-1">
           {puzzle?.title}
@@ -522,16 +525,23 @@ function MobileEditorTabs({ preview }: { preview: React.ReactNode }) {
           </EditorPane>
         )}
       </div>
-      <div className="shrink-0 grid grid-cols-4 bg-[var(--surface-raised)] border-t border-border pb-safe">
+      <div className="shrink-0 grid grid-cols-4 bg-[var(--surface-raised)]/95 backdrop-blur-xl border-t border-border pb-safe">
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => go(t.id)}
-            className={`h-12 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${
+            className={`relative h-12 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors active:scale-95 ${
               tab === t.id ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
+            {tab === t.id && (
+              <m.span
+                layoutId="editor-tab-stud"
+                transition={{ type: 'spring', visualDuration: 0.3, bounce: 0.3 }}
+                className="absolute top-1 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]"
+              />
+            )}
             {t.icon}
             <span>{t.label}</span>
           </button>
@@ -807,16 +817,16 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
     }`}>
       {/* Creator toolbar — shown for owners and admins */}
       {(isEditRoute || isOwnPuzzle || userRole === 'admin') && visible && (
-        <div className="flex flex-wrap items-center gap-2 gap-y-1.5 px-3 sm:px-4 py-2 bg-card/80 backdrop-blur-sm border-b border-border shrink-0 z-20">
-          <span className="text-xs text-muted-foreground">
-            {isCreateRoute ? 'New Puzzle' : `Editing: ${usePuzzleStore.getState().puzzle?.title || slug}`}
+        <div className="flex flex-wrap items-center gap-2 gap-y-1.5 px-3 sm:px-4 py-2 bg-[var(--surface-raised)]/70 backdrop-blur-xl border-b border-border shrink-0 z-20">
+          <span className="text-[11px] font-mono text-muted-foreground">
+            {isCreateRoute ? 'NEW PUZZLE' : <><span className="uppercase tracking-wider">Editing</span> · <span className="text-foreground/80">{usePuzzleStore.getState().puzzle?.title || slug}</span></>}
           </span>
           <div className="flex items-center gap-1 mr-auto ml-3">
             {(['easy', 'medium', 'hard', 'expert'] as const).map(d => (
               <button
                 key={d}
                 onClick={() => setPuzzleDifficulty(d)}
-                className={`h-6 px-2 text-[11px] capitalize rounded-md border transition-colors ${
+                className={`h-6 px-2 text-[10px] font-mono capitalize rounded-md border transition-colors ${
                   puzzleDifficulty === d
                     ? d === 'easy' ? 'bg-green-500/30 text-green-300 border-green-500/50'
                     : d === 'medium' ? 'bg-yellow-500/30 text-yellow-300 border-yellow-500/50'

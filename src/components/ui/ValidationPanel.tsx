@@ -79,7 +79,7 @@ export function ValidationPanel({ className = '', engine }: ValidationPanelProps
     <div aria-live="polite" className={`flex flex-col overflow-hidden ${className}`}>
       {/* Header */}
       <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-[var(--surface-raised)] to-[var(--surface-base)] border-b border-border flex items-center justify-between">
-        <h3 className="text-sm font-semibold tracking-wide text-foreground flex items-center gap-2">
+        <h3 className="text-xs font-mono font-semibold tracking-widest text-foreground flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-primary" />
           VALIDATION
         </h3>

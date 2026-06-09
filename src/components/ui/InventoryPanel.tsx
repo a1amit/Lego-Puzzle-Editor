@@ -117,8 +117,8 @@ const BrickItem = memo(function BrickItem({ id, shape, color, remaining, isSelec
       </div>
 
       <div className="text-center leading-tight">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{shape}</div>
-        <div className={`text-sm font-bold tabular-nums ${remaining > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+        <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">{shape}</div>
+        <div className={`text-sm font-mono font-bold tabular-nums ${remaining > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
           x{remaining}
         </div>
       </div>
@@ -201,12 +201,12 @@ export function InventoryPanel({ className = '', engine }: InventoryPanelProps) 
     <div className={`flex flex-col overflow-hidden ${className}`}>
       {/* Header */}
       <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-r from-[var(--surface-raised)] to-[var(--surface-base)] border-b border-border">
-        <h3 className="text-sm font-semibold tracking-wide text-foreground flex items-center gap-2">
+        <h3 className="text-xs font-mono font-semibold tracking-widest text-foreground flex items-center gap-2">
           <Package className="w-4 h-4 text-primary" />
           INVENTORY
         </h3>
         <div className="mt-1 text-xs text-muted-foreground flex items-center justify-between">
-          <span>{usedBricks} / {totalBricks} bricks placed</span>
+          <span className="font-mono">{usedBricks} / {totalBricks} bricks placed</span>
           <span className="font-mono tabular-nums text-foreground/90">{Math.round(usedPercent)}%</span>
         </div>
         <Progress value={usedPercent} className="mt-2 h-1.5 [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-primary [&>[data-slot=progress-indicator]]:to-primary/70 [&>[data-slot=progress-indicator]]:transition-all [&>[data-slot=progress-indicator]]:duration-500 [&>[data-slot=progress-indicator]]:ease-out" />

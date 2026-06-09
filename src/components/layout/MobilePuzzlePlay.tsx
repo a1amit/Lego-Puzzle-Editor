@@ -77,7 +77,7 @@ export function MobilePuzzlePlay({
       {/* Bottom sheet (hidden for plugin puzzles that own their full UI) */}
       {!isPlugin && (
         <div
-          className="shrink-0 flex flex-col bg-[var(--surface-raised)] border-t border-border rounded-t-2xl shadow-[0_-8px_24px_rgba(0,0,0,0.35)] transition-[height] duration-200 ease-out pb-safe"
+          className="shrink-0 flex flex-col bg-[var(--surface-raised)]/95 backdrop-blur-xl border-t border-border rounded-t-2xl shadow-[0_-8px_24px_rgba(0,0,0,0.35)] transition-[height] duration-200 ease-out pb-safe"
           style={{ height: open ? 'min(46dvh, 360px)' : '3rem' }}
         >
           {/* Grab handle / header — tap or drag to toggle */}

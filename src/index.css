@@ -393,6 +393,18 @@ html, body {
   animation: marquee-slide 6s linear infinite;
 }
 
+/* ─── Play stage: the lit table the puzzle sits on ─── */
+/* A soft center spotlight over the stud-grid baseplate — the puzzle is the
+   one bright object in the room. */
+.play-stage {
+  background-color: var(--surface-sunken);
+  background-image:
+    radial-gradient(circle at 1px 1px, oklch(1 0 0 / 0.022) 1.2px, transparent 1.3px),
+    radial-gradient(ellipse 70% 55% at 50% 42%, oklch(0.30 0.045 250 / 0.40), transparent 70%),
+    radial-gradient(ellipse at 50% 130%, oklch(0.05 0.01 250 / 0.9), transparent 55%);
+  background-size: 24px 24px, auto, auto;
+}
+
 /* ─── Card cascade: CSS-only build-up stagger (compositor, always completes) ─── */
 @keyframes card-rise-in {
   from { opacity: 0; transform: translateY(24px) scale(0.97); }
