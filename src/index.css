@@ -663,6 +663,25 @@ html, body {
   animation: 200ms ease-out 50ms both fade-in;
 }
 
+/* ─── "Opening the box": gallery card → play stage morph ─── */
+/* The clicked card's thumbnail is named puzzle-hero on click (the card
+   unmounts on puzzle routes, so the name never duplicates); the play stage
+   carries the same name only while the shell is visible. The browser then
+   morphs the card rect into the stage rect on navigation. */
+[data-shell-visible="true"] .play-stage {
+  view-transition-name: puzzle-hero;
+}
+::view-transition-group(puzzle-hero) {
+  animation-duration: 380ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-old(puzzle-hero),
+::view-transition-new(puzzle-hero) {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
 /* ─── Reduced motion ─── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -672,7 +691,10 @@ html, body {
     scroll-behavior: auto !important;
   }
   ::view-transition-old(root),
-  ::view-transition-new(root) {
+  ::view-transition-new(root),
+  ::view-transition-group(puzzle-hero),
+  ::view-transition-old(puzzle-hero),
+  ::view-transition-new(puzzle-hero) {
     animation: none !important;
   }
 }

@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { m } from 'framer-motion';
 import { Sparkles, CheckCircle, Play } from 'lucide-react';
 import { Button } from '../ui/shadcn/button';
@@ -35,6 +36,14 @@ export function FeaturedSection({ onPuzzleClick, solvedSlugs }: FeaturedSectionP
   const hero = featured[0];
   const rest = featured.slice(1);
 
+  // "Opening the box": name the hero preview for the view-transition morph
+  // into the play stage (see PuzzleCard for the same pattern).
+  const heroThumbRef = useRef<HTMLDivElement>(null);
+  const openHero = (id: string) => {
+    heroThumbRef.current?.style.setProperty('view-transition-name', 'puzzle-hero');
+    onPuzzleClick(id);
+  };
+
   return (
     <div className="relative overflow-hidden">
       <div className="relative px-4 sm:px-6 pt-10 sm:pt-14 pb-8">
@@ -61,7 +70,7 @@ export function FeaturedSection({ onPuzzleClick, solvedSlugs }: FeaturedSectionP
             initial="hidden"
             animate="show"
             className="relative rounded-2xl overflow-hidden mb-6 cursor-pointer group border border-[var(--border-default)] hover:border-primary/40 transition-colors"
-            onClick={() => onPuzzleClick(hero.id)}
+            onClick={() => openHero(hero.id)}
           >
             {/* Quiet night-panel backdrop — the thumbnail carries the color */}
             <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.14_0.025_250)] via-[oklch(0.16_0.027_250)] to-[oklch(0.19_0.03_252)]" />
@@ -69,7 +78,7 @@ export function FeaturedSection({ onPuzzleClick, solvedSlugs }: FeaturedSectionP
 
             <div className="relative flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-8">
               {/* Left: Puzzle preview */}
-              <div className="relative w-32 h-32 sm:w-44 sm:h-44 rounded-xl overflow-hidden shrink-0 border border-white/10 shadow-lg shadow-black/30">
+              <div ref={heroThumbRef} className="relative w-32 h-32 sm:w-44 sm:h-44 rounded-xl overflow-hidden shrink-0 border border-white/10 shadow-lg shadow-black/30">
                 <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-[1.07]">
                   <PuzzleThumbnail
                     dimensions={hero.puzzle.board.dimensions}
@@ -104,7 +113,7 @@ export function FeaturedSection({ onPuzzleClick, solvedSlugs }: FeaturedSectionP
                 <Button
                   size="sm"
                   className="brick-btn gap-2 bg-gold text-gold-foreground hover:bg-gold font-bold"
-                  onClick={(e) => { e.stopPropagation(); onPuzzleClick(hero.id); }}
+                  onClick={(e) => { e.stopPropagation(); openHero(hero.id); }}
                 >
                   <Play className="h-4 w-4" />
                   Play Now

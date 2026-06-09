@@ -812,9 +812,14 @@ export function PuzzleShell({ visible }: PuzzleShellProps) {
   if (!hasEverBeenVisible) return null;
 
   return (
-    <div className={`absolute inset-0 transition-opacity duration-150 ease-out flex flex-col ${
-      visible ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-    }`}>
+    <div
+      // Names the play stage for the card→stage view-transition morph only
+      // while visible (a hidden shell must never claim the name).
+      data-shell-visible={visible ? 'true' : 'false'}
+      className={`absolute inset-0 transition-opacity duration-150 ease-out flex flex-col ${
+        visible ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+      }`}
+    >
       {/* Creator toolbar — shown for owners and admins */}
       {(isEditRoute || isOwnPuzzle || userRole === 'admin') && visible && (
         <div className="flex flex-wrap items-center gap-2 gap-y-1.5 px-3 sm:px-4 py-2 bg-[var(--surface-raised)]/70 backdrop-blur-xl border-b border-border shrink-0 z-20">

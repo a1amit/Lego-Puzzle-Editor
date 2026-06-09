@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Heart, Users, Play, Pencil, CheckCircle } from 'lucide-react';
 import { Badge } from '../ui/shadcn/badge';
 import { PuzzleThumbnail } from './PuzzleThumbnail';
@@ -34,13 +35,22 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
   const isPlugin = def.engine === 'plugin'
     || (dimensions.width <= 1 && dimensions.height <= 1);
 
+  // "Opening the box": name this card's thumbnail for the view-transition
+  // morph into the play stage. Set on click only — the one clicked card owns
+  // the name for the old snapshot, and it unmounts on puzzle routes so the
+  // name never duplicates.
+  const thumbRef = useRef<HTMLDivElement>(null);
+
   return (
     <button
-      onClick={() => onClick(puzzle.slug)}
+      onClick={() => {
+        thumbRef.current?.style.setProperty('view-transition-name', 'puzzle-hero');
+        onClick(puzzle.slug);
+      }}
       className={`group text-left w-full rounded-xl bg-card border border-border hover:border-primary/40 transition-all duration-200 overflow-hidden hover:shadow-xl hover:-translate-y-0.5 ${DIFFICULTY_GLOW[puzzle.difficulty] || 'group-hover:shadow-primary/5'} focus:outline-none focus:ring-2 focus:ring-primary/50`}
     >
       {/* Thumbnail: full-bleed art with a slow zoom on hover */}
-      <div className="relative h-40 bg-card overflow-hidden">
+      <div ref={thumbRef} className="relative h-40 bg-card overflow-hidden">
         <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-[1.07]">
           <PuzzleThumbnail
             dimensions={dimensions}
