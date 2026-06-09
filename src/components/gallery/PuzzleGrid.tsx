@@ -9,13 +9,23 @@ interface PuzzleGridProps {
   ownedSlugs?: Set<string>;
   solvedSlugs?: Set<string>;
   likedSlugs?: Set<string>;
+  /** Changes when the user navigates (page/filter/sort) — replays the cascade.
+      Data refetches that merely swap list contents must NOT replay it. */
+  cascadeKey?: string;
 }
 
-export function PuzzleGrid({ puzzles, onPuzzleClick, onPuzzleEdit, onPuzzleLike, ownedSlugs, solvedSlugs, likedSlugs }: PuzzleGridProps) {
+export function PuzzleGrid({ puzzles, onPuzzleClick, onPuzzleEdit, onPuzzleLike, ownedSlugs, solvedSlugs, likedSlugs, cascadeKey }: PuzzleGridProps) {
+  // The Build-Up: cards stack in one after another, like bricks. CSS-only
+  // (compositor) so it can never strand a card invisible.
   return (
-    <div role="list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {puzzles.map((puzzle) => (
-        <div key={puzzle._id} role="listitem">
+    <div role="list" key={cascadeKey} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {puzzles.map((puzzle, i) => (
+        <div
+          key={puzzle._id}
+          role="listitem"
+          className="card-rise"
+          style={{ '--i': i } as React.CSSProperties}
+        >
           <PuzzleCard
             puzzle={puzzle}
             onClick={onPuzzleClick}

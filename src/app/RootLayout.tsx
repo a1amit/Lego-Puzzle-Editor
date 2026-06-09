@@ -1,7 +1,7 @@
 import React, { useEffect, Suspense, useState, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useAppAuth, useUser } from '../auth/AuthProvider';
-import { LazyMotion, domAnimation } from 'framer-motion';
+import { LazyMotion, domAnimation, MotionConfig } from 'framer-motion';
 import { Analytics } from '@vercel/analytics/react';
 import { Toaster, toast } from 'sonner';
 import { Header } from '../components/layout/Header';
@@ -301,8 +301,16 @@ export function RootLayout() {
 
   return (
     <LazyMotion features={domAnimation}>
+      <MotionConfig reducedMotion="user">
       <Sentry.ErrorBoundary fallback={<div className="flex items-center justify-center h-screen text-foreground">Something went wrong. Please refresh the page.</div>}>
         <div className="h-full w-full flex flex-col overflow-hidden">
+          {/* Night-baseplate atmosphere: drifting color orbs + film grain */}
+          <div className="atmosphere" aria-hidden="true">
+            <div className="atmosphere-orb" />
+            <div className="atmosphere-orb" />
+            <div className="atmosphere-orb" />
+            <div className="atmosphere-grain" />
+          </div>
           {/* Animated Lego brick background — hidden on puzzle routes */}
           {!isPuzzleRoute && <LegoBackground />}
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md">
@@ -362,6 +370,7 @@ export function RootLayout() {
           <Analytics />
         </div>
       </Sentry.ErrorBoundary>
+      </MotionConfig>
     </LazyMotion>
   );
 }

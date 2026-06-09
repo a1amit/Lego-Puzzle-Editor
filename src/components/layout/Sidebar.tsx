@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { m } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Show, SignInButton, useUser } from '../../auth/AuthProvider';
 import { useUserStore } from '../../store/userStore';
@@ -48,20 +49,34 @@ function NavItem({ to, icon, label, isActive, badge, collapsed, onClick }: NavIt
     <Link
       to={to}
       onClick={onClick}
-      className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
         isActive
-          ? 'bg-primary/15 text-primary border border-primary/20'
-          : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border border-transparent'
+          ? 'text-primary'
+          : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent'
       } ${collapsed ? 'justify-center px-2' : ''}`}
     >
-      <span className="shrink-0 w-5 h-5 flex items-center justify-center">{icon}</span>
+      {/* Active "stud": one springy pill that slides between nav items */}
+      {isActive && (
+        <m.span
+          layoutId="sidebar-active-stud"
+          transition={{ type: 'spring', visualDuration: 0.3, bounce: 0.25 }}
+          className="absolute inset-0 rounded-lg bg-primary/12 border border-primary/25"
+          style={{ borderRadius: 8 }}
+        />
+      )}
+      <span className="relative shrink-0 w-5 h-5 flex items-center justify-center transition-transform group-hover:scale-110 group-active:scale-95">
+        {icon}
+      </span>
       {!collapsed && (
         <>
-          <span className="flex-1 truncate">{label}</span>
+          <span className="relative flex-1 truncate">{label}</span>
           {badge && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-semibold">
+            <span className="relative text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-semibold">
               {badge}
             </span>
+          )}
+          {isActive && (
+            <span className="relative w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
           )}
         </>
       )}
@@ -88,16 +103,18 @@ export function Sidebar({ className = '' }: SidebarProps) {
 
   return (
     <aside
-      className={`hidden md:flex flex-col bg-sidebar border-r border-sidebar-border shrink-0 transition-all duration-200 ${
+      className={`hidden md:flex flex-col bg-sidebar/70 backdrop-blur-xl border-r border-sidebar-border shrink-0 transition-all duration-200 relative z-20 ${
         collapsed ? 'w-[68px]' : 'w-[220px]'
       } ${className}`}
     >
       {/* Logo + Collapse */}
       <div className={`flex items-center h-14 px-3 border-b border-sidebar-border shrink-0 ${collapsed ? 'justify-center' : 'gap-2.5'}`}>
-        <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity shrink-0">
-          <LegoLogo className="w-8 h-8" />
+        <Link to="/" className="group flex items-center gap-2.5 shrink-0">
+          <LegoLogo className="w-8 h-8 transition-transform duration-300 group-hover:rotate-[-6deg] group-hover:scale-110" />
           {!collapsed && (
-            <span className="font-bold text-base text-foreground tracking-tight">Virtual Lego</span>
+            <span className="font-display font-bold text-lg text-foreground tracking-tight">
+              Virtual Lego
+            </span>
           )}
         </Link>
         {!collapsed && (
@@ -170,7 +187,7 @@ export function Sidebar({ className = '' }: SidebarProps) {
         <Show when="signed-in">
           <div className={`pt-3 ${!collapsed ? 'px-3' : ''}`}>
             {!collapsed && (
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+              <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-muted-foreground mb-2">
                 My stuff
               </p>
             )}
@@ -201,19 +218,19 @@ export function Sidebar({ className = '' }: SidebarProps) {
           )}
         </Show>
 
-        {/* Create puzzle CTA */}
+        {/* Create puzzle CTA — the one brick-physical button in the chrome */}
         <div className="pt-3">
           {collapsed ? (
             <Button
               size="icon"
-              className="w-full h-9 bg-gold text-gold-foreground hover:bg-gold/90"
+              className="brick-btn w-full h-9 bg-gold text-gold-foreground hover:bg-gold"
               onClick={() => navigate('/create')}
             >
               <Plus className="h-4 w-4" />
             </Button>
           ) : (
             <Button
-              className="w-full gap-2 bg-gold text-gold-foreground hover:bg-gold/90 font-semibold"
+              className="brick-btn w-full gap-2 bg-gold text-gold-foreground hover:bg-gold font-bold"
               size="sm"
               onClick={() => navigate('/create')}
             >
