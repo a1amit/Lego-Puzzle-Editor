@@ -31,19 +31,27 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
   const dimensions = def.board?.dimensions ?? { width: 8, height: 4 };
   const viewMode = def.viewMode ?? '3D';
   const title = def.title ?? puzzle.slug;
+  const isPlugin = def.engine === 'plugin'
+    || (dimensions.width <= 1 && dimensions.height <= 1);
 
   return (
     <button
       onClick={() => onClick(puzzle.slug)}
-      className={`group text-left w-full rounded-xl bg-card border border-border hover:border-primary/40 transition-all duration-200 overflow-hidden hover:shadow-xl ${DIFFICULTY_GLOW[puzzle.difficulty] || 'group-hover:shadow-primary/5'} focus:outline-none focus:ring-2 focus:ring-primary/50`}
+      className={`group text-left w-full rounded-xl bg-card border border-border hover:border-primary/40 transition-all duration-200 overflow-hidden hover:shadow-xl hover:-translate-y-0.5 ${DIFFICULTY_GLOW[puzzle.difficulty] || 'group-hover:shadow-primary/5'} focus:outline-none focus:ring-2 focus:ring-primary/50`}
     >
-      {/* Thumbnail */}
-      <div className="relative h-40 bg-gradient-to-br from-background via-card to-background flex items-center justify-center overflow-hidden">
-        <PuzzleThumbnail
-          dimensions={dimensions}
-          viewMode={viewMode}
-          className="opacity-50 group-hover:opacity-75 transition-opacity duration-300 scale-110 group-hover:scale-125"
-        />
+      {/* Thumbnail: full-bleed art with a slow zoom on hover */}
+      <div className="relative h-40 bg-card overflow-hidden">
+        <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-[1.07]">
+          <PuzzleThumbnail
+            dimensions={dimensions}
+            viewMode={viewMode}
+            engine={def.engine}
+            seedKey={puzzle.slug}
+          />
+        </div>
+
+        {/* scrims: keep badges legible up top, melt into the card below */}
+        <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/45 to-transparent pointer-events-none" />
 
         {/* Top badges row */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
@@ -65,9 +73,9 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
         </div>
 
         {/* Hover play overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <div className="w-12 h-12 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 flex items-center justify-center">
-            <Play className="h-5 w-5 text-primary ml-0.5" />
+        <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-primary/25 backdrop-blur-sm border border-primary/40 shadow-lg shadow-black/30 flex items-center justify-center scale-90 group-hover:scale-100 transition-transform duration-300">
+            <Play className="h-5 w-5 text-white ml-0.5" />
           </div>
         </div>
 
@@ -136,7 +144,7 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
             </span>
           )}
           <span className="ml-auto text-[10px] text-muted-foreground/70">
-            {dimensions.width}x{dimensions.height}
+            {isPlugin ? 'plugin' : `${dimensions.width}×${dimensions.height}`}
           </span>
         </div>
       </div>

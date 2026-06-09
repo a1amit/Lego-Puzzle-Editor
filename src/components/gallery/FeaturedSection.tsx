@@ -37,14 +37,17 @@ export function FeaturedSection({ onPuzzleClick, solvedSlugs }: FeaturedSectionP
 
             <div className="relative flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-8">
               {/* Left: Puzzle preview */}
-              <div className="relative w-32 h-32 sm:w-44 sm:h-44 rounded-xl bg-background/40 flex items-center justify-center overflow-hidden shrink-0 border border-white/5 backdrop-blur-sm shadow-lg shadow-black/20">
-                <PuzzleThumbnail
-                  dimensions={hero.puzzle.board.dimensions}
-                  viewMode={hero.is3D ? '3D' : '2D'}
-                  className="opacity-70 group-hover:opacity-90 transition-opacity scale-125"
-                />
-                <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Play className="h-10 w-10 text-primary drop-shadow-lg" />
+              <div className="relative w-32 h-32 sm:w-44 sm:h-44 rounded-xl overflow-hidden shrink-0 border border-white/10 shadow-lg shadow-black/30">
+                <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-[1.07]">
+                  <PuzzleThumbnail
+                    dimensions={hero.puzzle.board.dimensions}
+                    viewMode={hero.is3D ? '3D' : '2D'}
+                    engine={hero.puzzle.engine}
+                    seedKey={hero.id}
+                  />
+                </div>
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Play className="h-10 w-10 text-white drop-shadow-lg" />
                 </div>
               </div>
 
@@ -96,11 +99,13 @@ export function FeaturedSection({ onPuzzleClick, solvedSlugs }: FeaturedSectionP
                   isSolved ? 'border-success/30' : 'border-border hover:border-primary/40 hover:bg-card'
                 }`}
               >
-                <div className="w-12 h-12 rounded-lg bg-background/50 flex items-center justify-center overflow-hidden shrink-0 border border-border/50">
+                <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-border/50">
                   <PuzzleThumbnail
                     dimensions={p.puzzle.board.dimensions}
                     viewMode={p.is3D ? '3D' : '2D'}
-                    className="opacity-60 group-hover:opacity-80 scale-150"
+                    engine={p.puzzle.engine}
+                    seedKey={p.id}
+                    className="opacity-90 group-hover:opacity-100 transition-opacity"
                   />
                 </div>
                 <div className="min-w-0 flex-1">

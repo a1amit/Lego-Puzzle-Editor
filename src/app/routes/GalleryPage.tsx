@@ -30,6 +30,7 @@ function getLocalPuzzles(): GalleryPuzzle[] {
       definition: {
         title: p.label,
         viewMode: (p.is3D ? '3D' : '2D') as '2D' | '3D',
+        engine: p.puzzle.engine,
         board: { dimensions: p.puzzle.board.dimensions },
       },
       createdAt: '2024-01-01T00:00:00.000Z',

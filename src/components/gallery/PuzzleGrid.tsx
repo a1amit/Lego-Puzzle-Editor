@@ -36,7 +36,7 @@ export function PuzzleGridSkeleton({ count = 6 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="rounded-xl bg-card border border-border overflow-hidden animate-pulse">
           {/* Thumbnail skeleton */}
-          <div className="h-36 bg-muted/30 relative">
+          <div className="h-40 bg-muted/30 relative">
             <div className="absolute top-2 right-2 h-4 w-8 rounded bg-muted/40" />
           </div>
           {/* Info skeleton */}
