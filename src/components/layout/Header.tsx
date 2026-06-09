@@ -34,6 +34,7 @@ import {
   Columns2,
   CodeXml,
   Eye,
+  Globe,
   Menu,
   Undo2,
   Redo2,
@@ -268,6 +269,17 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
             </TooltipTrigger>
             <TooltipContent>View on GitHub</TooltipContent>
           </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                <a href="https://lego-puzzle-team-website.vercel.app/" target="_blank" rel="noopener noreferrer">
+                  <Globe className="h-4 w-4" />
+                </a>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Team Website</TooltipContent>
+          </Tooltip>
         </div>
       </TooltipProvider>
 
@@ -313,6 +325,11 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
             <DropdownMenuItem asChild className="gap-3 py-2">
               <a href="https://github.com/a1amit/Lego-Puzzle-Editor" target="_blank" rel="noopener noreferrer">
                 <GithubIcon className="h-4 w-4" /><span>GitHub</span>
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-3 py-2">
+              <a href="https://lego-puzzle-team-website.vercel.app/" target="_blank" rel="noopener noreferrer">
+                <Globe className="h-4 w-4" /><span>Team Website</span>
               </a>
             </DropdownMenuItem>
 
