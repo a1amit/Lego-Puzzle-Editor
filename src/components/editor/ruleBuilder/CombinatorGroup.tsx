@@ -16,8 +16,8 @@ interface CombinatorGroupProps {
 
 const KIND_STYLES: Record<CombinatorKind, { label: string; headerBg: string; borderLeft: string }> = {
   ALL:        { label: 'ALL (AND)',   headerBg: 'bg-blue-500/15 border-b-blue-500/25',   borderLeft: 'border-l-blue-400' },
-  ANY:        { label: 'ANY (OR)',    headerBg: 'bg-emerald-500/15 border-b-emerald-500/25', borderLeft: 'border-l-emerald-400' },
-  NONE:       { label: 'NONE (NOR)',  headerBg: 'bg-red-500/15 border-b-red-500/25',     borderLeft: 'border-l-red-400' },
+  ANY:        { label: 'ANY (OR)',    headerBg: 'bg-success/15 border-b-success/25', borderLeft: 'border-l-success' },
+  NONE:       { label: 'NONE (NOR)',  headerBg: 'bg-destructive/15 border-b-destructive/30', borderLeft: 'border-l-destructive' },
   EXACTLY_N:  { label: 'EXACTLY N',  headerBg: 'bg-purple-500/15 border-b-purple-500/25', borderLeft: 'border-l-purple-400' },
   AT_LEAST_N: { label: 'AT LEAST N', headerBg: 'bg-amber-500/15 border-b-amber-500/25', borderLeft: 'border-l-amber-400' },
 };

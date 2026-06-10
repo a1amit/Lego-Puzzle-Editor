@@ -107,7 +107,7 @@ interface ViewModeIndicatorProps {
 
 export function ViewModeIndicator({ viewMode, className = '' }: ViewModeIndicatorProps) {
   return (
-    <Badge variant="secondary" className={`gap-1.5 ${className}`}>
+    <Badge variant="secondary" className={`gap-1.5 font-mono text-[10px] uppercase tracking-wider bg-black/35 backdrop-blur-sm border border-white/10 ${className}`}>
       {viewMode === '3D' ? (
         <Box className="w-3.5 h-3.5" />
       ) : (

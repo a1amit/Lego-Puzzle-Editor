@@ -30,6 +30,7 @@ function getLocalPuzzles(): GalleryPuzzle[] {
       definition: {
         title: p.label,
         viewMode: (p.is3D ? '3D' : '2D') as '2D' | '3D',
+        engine: p.puzzle.engine,
         board: { dimensions: p.puzzle.board.dimensions },
       },
       createdAt: '2024-01-01T00:00:00.000Z',
@@ -227,7 +228,7 @@ export default function GalleryPage() {
                 aria-label="Search puzzles"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full h-9 pl-9 pr-4 rounded-lg bg-secondary/80 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
+                className="w-full h-9 pl-9 pr-4 rounded-full bg-secondary/80 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-shadow"
               />
             </div>
 
@@ -288,7 +289,7 @@ export default function GalleryPage() {
                   </div>
                 </div>
               )}
-              <PuzzleGrid puzzles={displayPuzzles} onPuzzleClick={handlePuzzleClick} onPuzzleEdit={handlePuzzleEdit} onPuzzleLike={handlePuzzleLike} ownedSlugs={ownedSlugs} solvedSlugs={solvedSlugs} likedSlugs={likedSlugs} />
+              <PuzzleGrid puzzles={displayPuzzles} onPuzzleClick={handlePuzzleClick} onPuzzleEdit={handlePuzzleEdit} onPuzzleLike={handlePuzzleLike} ownedSlugs={ownedSlugs} solvedSlugs={solvedSlugs} likedSlugs={likedSlugs} cascadeKey={`${currentPage}:${search}:${category}:${difficulty}:${sort}`} />
             </div>
 
             {/* Pagination controls */}
@@ -305,8 +306,8 @@ export default function GalleryPage() {
                   Previous
                 </Button>
 
-                <span className="text-sm text-muted-foreground px-3">
-                  Page {currentPage} of {totalPages}
+                <span className="text-xs font-mono text-muted-foreground px-3">
+                  Page {currentPage} / {totalPages}
                 </span>
 
                 <Button

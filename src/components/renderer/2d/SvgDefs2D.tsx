@@ -20,12 +20,6 @@ export function SvgDefs({ pieces, inventoryColors, cellSize }: SvgDefsProps) {
 
   return (
     <defs>
-      {/* Background radial gradient */}
-      <radialGradient id="bg-gradient" cx="50%" cy="45%" r="65%">
-        <stop offset="0%" stopColor={C.background} />
-        <stop offset="100%" stopColor={C.backgroundEdge} />
-      </radialGradient>
-
       {/* Board surface gradient */}
       <radialGradient id="board-gradient" cx="50%" cy="40%" r="70%">
         <stop offset="0%" stopColor={C.boardSurface} />
@@ -152,14 +146,20 @@ export function SvgDefs({ pieces, inventoryColors, cellSize }: SvgDefsProps) {
         @keyframes dash-march {
           to { stroke-dashoffset: -16; }
         }
+        /* The Snap: a brick clicking down — drop in slightly large, squash
+           on contact, spring back. Centered on the piece via fill-box. */
         @keyframes piece-place {
-          from { transform: scale(0.85); }
-          to { transform: scale(1.0); }
+          0%   { transform: scale(1.14); opacity: 0.75; }
+          55%  { transform: scale(0.95, 0.93); opacity: 1; }
+          80%  { transform: scale(1.025, 1.02); }
+          100% { transform: scale(1); }
         }
         .dest-pulse { animation: pulse-dest 1.5s ease-in-out infinite; }
         .dash-march { animation: dash-march 0.6s linear infinite; }
         .piece-place {
-          animation: piece-place 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: piece-place 300ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         .piece-slide {
           transition: transform 200ms ease-out;

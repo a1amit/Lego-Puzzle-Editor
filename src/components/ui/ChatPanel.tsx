@@ -7,6 +7,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router';
+import { m, type Variants } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -39,6 +40,28 @@ function isRTL(text: string) {
 
 const PANEL_WIDTH = 420;
 const PANEL_HEIGHT = 620;
+
+// Shared motion: spring entrance for chat messages
+const messageSpring = { type: 'spring', visualDuration: 0.3, bounce: 0.2 } as const;
+const messageEntrance = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: messageSpring,
+} as const;
+
+// Staggered spring entrance for suggestion cards
+const suggestionContainer: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+};
+const suggestionItem: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', visualDuration: 0.35, bounce: 0.25 },
+  },
+};
 
 /** Clamp position to keep panel visible within the viewport */
 function clampPosition(pos: { x: number; y: number }) {
@@ -320,27 +343,27 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
   // Suggestion blocks for empty state
   const suggestions = [
     {
-      icon: <Lightbulb className="w-5 h-5 text-purple-400" />,
+      icon: Lightbulb,
       title: "Hints",
       content: "Give me a hint for solving this puzzle",
     },
     {
-      icon: <ClipboardCheck className="w-5 h-5 text-blue-400" />,
+      icon: ClipboardCheck,
       title: "Rules",
       content: "Explain the rules of this puzzle",
     },
     {
-      icon: <ChartBar className="w-5 h-5 text-pink-400" />,
+      icon: ChartBar,
       title: "Progress",
       content: "How am I doing so far?",
     },
     {
-      icon: <Zap className="w-5 h-5 text-orange-400" />,
+      icon: Zap,
       title: "Strategy",
       content: "What strategy should I use?",
     },
     {
-      icon: <WandSparkles className="w-5 h-5 text-emerald-400" />,
+      icon: WandSparkles,
       title: "Design",
       content: "Help me design a new puzzle",
     },
@@ -351,28 +374,33 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
     <>
       {/* Suggestion cards (empty state) */}
       {messages.length === 0 && (
-        <div className="px-4 py-5 grid grid-cols-2 gap-2.5 overflow-y-auto">
+        <m.div
+          initial="hidden"
+          animate="show"
+          variants={suggestionContainer}
+          className="px-4 py-5 grid grid-cols-2 gap-2.5 overflow-y-auto"
+        >
           {!apiConfigured && (
             <div className="col-span-2 px-3 py-2 bg-warning/10 rounded-lg border border-warning/30 text-xs text-warning mb-1">
               API key not configured in .env file
             </div>
           )}
           {suggestions.map((block, index) => (
-            <button
+            <m.button
               key={block.title}
+              variants={suggestionItem}
               onClick={() => sendMessage(block.content)}
               disabled={!apiConfigured}
-              className={`p-3.5 flex flex-col text-left gap-3 rounded-xl w-full bg-secondary hover:bg-[var(--surface-panel)] border border-[var(--border-subtle)] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed animate-suggestion-in outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${index === suggestions.length - 1 && suggestions.length % 2 !== 0 ? 'col-span-2' : ''}`}
-              style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'both' }}
+              className={`group p-3.5 flex flex-col text-left gap-3 rounded-xl w-full bg-secondary hover:bg-[var(--surface-panel)] border border-[var(--border-subtle)] transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${index === suggestions.length - 1 && suggestions.length % 2 !== 0 ? 'col-span-2' : ''}`}
             >
-              {block.icon}
+              <block.icon className="w-5 h-5 text-muted-foreground transition-colors duration-200 group-hover:text-primary group-focus-visible:text-primary" />
               <div>
                 <div className="text-sm font-semibold text-foreground">{block.title}</div>
                 <div className="text-xs text-muted-foreground leading-snug mt-0.5">{block.content}</div>
               </div>
-            </button>
+            </m.button>
           ))}
-        </div>
+        </m.div>
       )}
 
       {/* Messages area */}
@@ -390,27 +418,40 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
 
             {/* Loading dots */}
             {isLoading && (
-              <div className="p-2 flex gap-2 items-start animate-message-in">
+              <m.div {...messageEntrance} className="p-2 flex gap-2 items-start">
                 <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-primary/60 to-primary">
                   <LegoHelperIcon className="w-5 h-5" />
                 </div>
                 <div className="px-4 py-3 rounded-xl bg-secondary border border-[var(--border-subtle)]">
                   <div className="flex gap-1.5">
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    {[0, 1, 2].map((i) => (
+                      <m.span
+                        key={i}
+                        className="block w-2 h-2 bg-muted-foreground rounded-full"
+                        initial={{ y: 0, scale: 1 }}
+                        animate={{ y: -4, scale: 1.15 }}
+                        transition={{
+                          type: 'spring',
+                          visualDuration: 0.35,
+                          bounce: 0.3,
+                          repeat: Infinity,
+                          repeatType: 'mirror',
+                          delay: i * 0.12,
+                        }}
+                      />
+                    ))}
                   </div>
                 </div>
-              </div>
+              </m.div>
             )}
 
             {/* Error */}
             {error && (
-              <div className="flex justify-center py-2 animate-message-in">
+              <m.div {...messageEntrance} className="flex justify-center py-2">
                 <div className="bg-destructive/10 text-destructive rounded-xl px-4 py-2 text-xs border border-destructive/30">
                   {error}
                 </div>
-              </div>
+              </m.div>
             )}
 
             <div ref={messagesEndRef} className="pb-2" />
@@ -464,7 +505,7 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
         {/* Bottom sheet */}
         <div
           ref={sheetRef}
-          className="absolute bottom-0 left-0 right-0 bg-[var(--surface-raised)]/95 backdrop-blur-xl border-t border-[var(--border-subtle)] rounded-t-2xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
+          className="absolute bottom-0 left-0 right-0 bg-[var(--surface-raised)]/70 backdrop-blur-xl border-t border-border rounded-t-2xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
           style={{
             maxHeight: '85vh',
             transform: `translateY(${sheetTranslateY}px)`,
@@ -484,10 +525,10 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
           {/* Title bar */}
           <div className="h-10 w-full flex items-center justify-between px-4 border-b border-[var(--border-subtle)] shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-primary/20">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-primary/15">
                 <LegoHelperIcon className="w-4 h-4" />
               </div>
-              <span className="text-foreground/90 text-sm font-medium tracking-tight">
+              <span className="font-display font-bold text-foreground text-sm tracking-tight">
                 Puzzle Assistant
               </span>
             </div>
@@ -526,7 +567,7 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
     <div className="fixed inset-0 z-50 font-sans pointer-events-none" style={{ isolation: 'isolate' }}>
       {/* Chat Window */}
       <div
-        className="pointer-events-auto absolute w-[420px] h-[620px] max-h-[80vh] bg-[var(--surface-raised)]/95 backdrop-blur-xl border border-[var(--border-subtle)] rounded-xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
+        className="pointer-events-auto absolute w-[420px] h-[620px] max-h-[80vh] bg-[var(--surface-raised)]/70 backdrop-blur-xl border border-border rounded-xl flex flex-col overflow-hidden shadow-2xl animate-chat-open"
         style={{
           left: `${position!.x}px`,
           top: `${position!.y}px`,
@@ -538,13 +579,13 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          className="h-11 w-full flex items-center justify-between px-4 bg-background/90 backdrop-blur-md border-b border-[var(--border-subtle)] cursor-move select-none shrink-0 touch-none"
+          className="h-11 w-full flex items-center justify-between px-4 bg-background/70 backdrop-blur-md border-b border-[var(--border-subtle)] cursor-move select-none shrink-0 touch-none"
         >
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/20">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/15">
               <LegoHelperIcon className="w-4.5 h-4.5" />
             </div>
-            <span className="text-foreground/90 text-sm font-medium tracking-tight">
+            <span className="font-display font-bold text-foreground text-sm tracking-tight">
               Puzzle Assistant
             </span>
           </div>
@@ -577,21 +618,21 @@ ${validationLines.length > 0 ? validationLines.join('\n') : '(no rules checked y
 /** User message bubble */
 function UserBubble({ content, rtl }: { content: string; rtl: boolean }) {
   return (
-    <div className="p-2 flex gap-2 items-start justify-end animate-message-in">
+    <m.div {...messageEntrance} className="p-2 flex gap-2 items-start justify-end">
       <div
         dir={rtl ? 'rtl' : 'ltr'}
         className="text-sm px-4 py-2.5 rounded-xl w-fit max-w-[80%] bg-gradient-to-br from-primary to-primary/80 text-primary-foreground leading-relaxed break-words whitespace-pre-wrap shadow-lg"
       >
         {content}
       </div>
-    </div>
+    </m.div>
   );
 }
 
 /** AI message bubble */
 function AIBubble({ content, rtl }: { content: string; rtl: boolean }) {
   return (
-    <div className="p-2 flex gap-2 items-start animate-message-in">
+    <m.div {...messageEntrance} className="p-2 flex gap-2 items-start">
       <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-primary/60 to-primary">
         <LegoHelperIcon className="w-5 h-5" />
       </div>
@@ -647,7 +688,7 @@ function AIBubble({ content, rtl }: { content: string; rtl: boolean }) {
           </ReactMarkdown>
         </div>
       </div>
-    </div>
+    </m.div>
   );
 }
 
@@ -671,17 +712,17 @@ function tokenizeJson(code: string): JsonToken[] {
   let match;
   while ((match = regex.exec(code)) !== null) {
     if (match[1] !== undefined) {
-      tokens.push({ text: match[1], className: 'text-cyan-400' });
+      tokens.push({ text: match[1], className: 'text-primary/90' });
       const rest = match[0].slice(match[1].length);
       if (rest) tokens.push({ text: rest, className: 'text-muted-foreground' });
     } else if (match[2] !== undefined) {
-      tokens.push({ text: match[2], className: 'text-emerald-400' });
+      tokens.push({ text: match[2], className: 'text-foreground/75' });
     } else if (match[3] !== undefined) {
-      tokens.push({ text: match[3], className: 'text-orange-400' });
+      tokens.push({ text: match[3], className: 'text-primary/80' });
     } else if (match[4] !== undefined) {
-      tokens.push({ text: match[4], className: 'text-purple-400' });
+      tokens.push({ text: match[4], className: 'text-primary/80' });
     } else if (match[5] !== undefined) {
-      tokens.push({ text: match[5], className: 'text-red-400' });
+      tokens.push({ text: match[5], className: 'text-destructive' });
     } else if (match[6] !== undefined) {
       tokens.push({ text: match[6], className: 'text-muted-foreground' });
     } else {

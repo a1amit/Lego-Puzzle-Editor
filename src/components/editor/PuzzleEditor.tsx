@@ -397,8 +397,8 @@ export function PuzzleEditor({ className = '' }: PuzzleEditorProps) {
             padding: { top: 12, bottom: 12 },
           }}
           loading={
-            <div className="flex items-center justify-center h-full bg-[#0f0f14]">
-              <div className="text-muted-foreground text-sm">Loading editor...</div>
+            <div className="flex items-center justify-center h-full bg-[var(--surface-sunken)]">
+              <div className="text-muted-foreground text-sm font-mono">Loading editor...</div>
             </div>
           }
         />

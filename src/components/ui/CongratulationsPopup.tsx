@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { m } from 'framer-motion';
 import { CONFETTI } from '../../config/sceneConfig';
 import {
   Dialog,
@@ -77,6 +78,10 @@ function MinifigHead({ color, style }: { color: string; style: React.CSSProperti
   );
 }
 
+/** Deterministic pseudo-random (same trick as PuzzleThumbnail) — pure during
+ *  render, so the confetti memo stays side-effect free. */
+function rand(seed: number) { return ((Math.sin(seed * 9301 + 49297) % 1) + 1) % 1; }
+
 export function CongratulationsPopup({
   isVisible,
   onClose,
@@ -92,22 +97,22 @@ export function CongratulationsPopup({
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // Pre-compute random confetti positions so they don't change on re-render
+  // Seeded per-index confetti layout: stable across re-renders and pure
+  // during render (no Math.random), with the same varied look every burst.
   const confettiPieces = useMemo(() => {
     // No confetti for reduced-motion users
     if (prefersReducedMotion) return [];
     return Array.from({ length: CONFETTI.particleCount + 10 }).map((_, i) => ({
-      left: Math.random() * 100,
-      delay: Math.random() * 1.8,
-      rotation: Math.random() * 360,
-      scale: 0.6 + Math.random() * 0.8,
-      drift: (Math.random() - 0.5) * 120,
+      left: rand(i * 7 + 1) * 100,
+      delay: rand(i * 13 + 2) * 1.8,
+      duration: 2.8 + rand(i * 17 + 3) * 1.6, // varied fall speeds = denser-feeling rain
+      rotation: rand(i * 19 + 4) * 360,
+      scale: 0.55 + rand(i * 23 + 5) * 0.95,
+      drift: (rand(i * 29 + 6) - 0.5) * 160,
       color: CONFETTI.colors[i % CONFETTI.colors.length],
       isMinifig: i % 8 === 0, // every 8th piece is a minifig head
     }));
-  },
-    [isVisible, prefersReducedMotion] // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  }, [prefersReducedMotion]);
 
   useEffect(() => {
     if (isVisible) {
@@ -127,33 +132,24 @@ export function CongratulationsPopup({
       >
         {/* ── Full-viewport confetti layer ── */}
         <div className="fixed inset-0 pointer-events-none z-[60] overflow-hidden">
-          {phase !== 'hidden' && confettiPieces.map((piece, i) =>
-            piece.isMinifig ? (
-              <MinifigHead
-                key={i}
-                color={piece.color}
-                style={{
-                  left: `${piece.left}%`,
-                  animationDelay: `${piece.delay}s`,
-                  '--drift': `${piece.drift}px`,
-                  '--start-rotation': `${piece.rotation}deg`,
-                  transform: `scale(${piece.scale})`,
-                } as React.CSSProperties}
-              />
+          {phase !== 'hidden' && confettiPieces.map((piece, i) => {
+            // NOTE: scale must travel through --scale (read by the brick-fall
+            // keyframes) — an inline `transform` would be overridden by the
+            // animation and every piece would render at 1x.
+            const style = {
+              left: `${piece.left}%`,
+              animationDelay: `${piece.delay}s`,
+              animationDuration: `${piece.duration}s`,
+              '--drift': `${piece.drift}px`,
+              '--start-rotation': `${piece.rotation}deg`,
+              '--scale': piece.scale,
+            } as React.CSSProperties;
+            return piece.isMinifig ? (
+              <MinifigHead key={i} color={piece.color} style={style} />
             ) : (
-              <LegoBrick
-                key={i}
-                color={piece.color}
-                style={{
-                  left: `${piece.left}%`,
-                  animationDelay: `${piece.delay}s`,
-                  '--drift': `${piece.drift}px`,
-                  '--start-rotation': `${piece.rotation}deg`,
-                  transform: `scale(${piece.scale})`,
-                } as React.CSSProperties}
-              />
-            )
-          )}
+              <LegoBrick key={i} color={piece.color} style={style} />
+            );
+          })}
         </div>
 
         {/* ── Main card ── */}
@@ -207,28 +203,18 @@ export function CongratulationsPopup({
               </svg>
             </div>
 
-            {/* Title with staggered letter animation */}
-            <DialogTitle className="celebration-title">
-              {prefersReducedMotion ? (
-                <span>Puzzle Solved!</span>
-              ) : (
-                <>
-                  <span className="celebration-letter" style={{ animationDelay: '0.3s' }}>P</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.35s' }}>u</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.4s' }}>z</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.45s' }}>z</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.5s' }}>l</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.55s' }}>e</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.6s' }}>&nbsp;</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.65s' }}>S</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.7s' }}>o</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.75s' }}>l</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.8s' }}>v</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.85s' }}>e</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.9s' }}>d</span>
-                  <span className="celebration-letter" style={{ animationDelay: '0.95s' }}>!</span>
-                </>
-              )}
+            {/* Title — the SOLVED stamp: slams in oversized and springs to rest.
+                MotionConfig reducedMotion="user" strips the transforms (keeps
+                the opacity fade) for reduced-motion users automatically. */}
+            <DialogTitle className="celebration-title font-display font-extrabold">
+              <m.span
+                className="inline-block will-change-transform"
+                initial={{ opacity: 0, scale: 1.15, rotate: -2 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', visualDuration: 0.4, bounce: 0.4, delay: 0.35 }}
+              >
+                Puzzle <span className="text-primary">Solved!</span>
+              </m.span>
             </DialogTitle>
 
             {puzzleTitle && (
@@ -237,11 +223,22 @@ export function CongratulationsPopup({
               </p>
             )}
 
-            {/* XP earned */}
+            {/* XP earned — measured value, so mono; the number pops 1 → 1.25 → 1 */}
             {xpEarned != null && xpEarned > 0 && (
-              <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 border border-primary/25">
-                <span className="text-sm font-bold text-primary">+{xpEarned} XP</span>
-              </div>
+              <m.div
+                className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-primary/15 border border-primary/25"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', visualDuration: 0.35, bounce: 0.35, delay: 0.75 }}
+              >
+                <m.span
+                  className="inline-block font-mono text-sm font-bold text-primary tabular-nums"
+                  animate={{ scale: [1, 1.25, 1] }}
+                  transition={{ duration: 0.5, times: [0, 0.5, 1], ease: [0.34, 1.56, 0.64, 1], delay: 0.9 }}
+                >
+                  +{xpEarned} XP
+                </m.span>
+              </m.div>
             )}
 
             {/* Divider with studs */}
@@ -257,7 +254,7 @@ export function CongratulationsPopup({
             <div className="flex gap-3 justify-center">
               <Button
                 onClick={onPlayAgain}
-                className="celebration-btn-primary"
+                className="brick-btn bg-gold text-gold-foreground hover:bg-gold font-bold gap-2 px-5"
               >
                 <RotateCw className="w-4 h-4" />
                 Play Again

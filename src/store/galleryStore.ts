@@ -20,6 +20,7 @@ export interface GalleryPuzzle {
     title: string;
     description?: string;
     viewMode: '2D' | '3D';
+    engine?: string;
     board: { dimensions: { width: number; height: number; depth: number } };
   };
   createdAt: string;

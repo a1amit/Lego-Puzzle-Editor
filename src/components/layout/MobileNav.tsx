@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router';
+import { m } from 'framer-motion';
 import { Home, Trophy, Plus, FolderOpen, User, LogIn } from 'lucide-react';
 import { Show, SignInButton, useUser } from '../../auth/AuthProvider';
 
@@ -13,10 +14,18 @@ function Tab({ to, icon, label, isActive }: TabProps) {
   return (
     <Link
       to={to}
-      className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 h-full transition-colors ${
+      className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 h-full transition-colors active:scale-95 ${
         isActive ? 'text-primary' : 'text-muted-foreground'
       }`}
     >
+      {/* Active "stud": springy dot that slides along the tab bar */}
+      {isActive && (
+        <m.span
+          layoutId="mobilenav-active-stud"
+          transition={{ type: 'spring', visualDuration: 0.3, bounce: 0.3 }}
+          className="absolute top-1 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]"
+        />
+      )}
       <span className="w-6 h-6 flex items-center justify-center">{icon}</span>
       <span className="text-[10px] font-medium leading-none truncate max-w-full px-0.5">{label}</span>
     </Link>

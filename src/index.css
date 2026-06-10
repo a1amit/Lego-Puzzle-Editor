@@ -17,17 +17,18 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Surface system — rich saturated navy */
-  --surface-overlay: oklch(0.11 0.045 250 / 0.88);
-  --surface-base: oklch(0.11 0.045 250);
-  --surface-raised: oklch(0.17 0.055 250);
-  --surface-panel: oklch(0.22 0.06 250);
-  --surface-sunken: oklch(0.08 0.035 250);
+  /* Surface system — "Night Baseplate": navy hue kept, chroma muted to a cast
+     so the colorful puzzles are the only loud objects on screen */
+  --surface-overlay: oklch(0.12 0.022 250 / 0.88);
+  --surface-base: oklch(0.12 0.022 250);
+  --surface-raised: oklch(0.16 0.024 250);
+  --surface-panel: oklch(0.20 0.026 250);
+  --surface-sunken: oklch(0.09 0.018 250);
 
-  /* Border hierarchy — blue-tinted */
-  --border-subtle: oklch(0.22 0.05 250);
-  --border-default: oklch(0.27 0.055 250);
-  --border-strong: oklch(0.34 0.06 250);
+  /* Border hierarchy — quiet, slightly blue */
+  --border-subtle: oklch(0.21 0.022 250);
+  --border-default: oklch(0.26 0.024 250);
+  --border-strong: oklch(0.33 0.026 250);
 
   /* Spacing scale */
   --space-xs: 0.25rem;
@@ -38,25 +39,26 @@
   --space-2xl: 2rem;
   --panel-padding: 0.875rem;
 
-  /* Dark theme — rich saturated navy + blue + gold */
-  --background: oklch(0.11 0.045 250);
-  --foreground: oklch(0.88 0.02 240);
-  --card: oklch(0.17 0.055 250);
-  --card-foreground: oklch(0.88 0.02 240);
-  --popover: oklch(0.17 0.055 250);
-  --popover-foreground: oklch(0.88 0.02 240);
-  --primary: oklch(0.62 0.18 250);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.16 0.05 250);
-  --secondary-foreground: oklch(0.88 0.02 240);
-  --muted: oklch(0.20 0.05 250);
-  --muted-foreground: oklch(0.55 0.03 240);
-  --accent: oklch(0.75 0.16 75);
-  --accent-foreground: oklch(0.12 0.02 75);
-  --destructive: oklch(0.50 0.18 25);
-  --border: oklch(0.24 0.05 250);
-  --input: oklch(0.19 0.05 250);
-  --ring: oklch(0.62 0.18 250);
+  /* Dark theme — night baseplate + ONE acid stud-yellow accent ("clutch").
+     LEGO red/blue/green stay reserved for puzzle content and semantics. */
+  --background: oklch(0.12 0.022 250);
+  --foreground: oklch(0.92 0.012 250);
+  --card: oklch(0.16 0.024 250);
+  --card-foreground: oklch(0.92 0.012 250);
+  --popover: oklch(0.16 0.024 250);
+  --popover-foreground: oklch(0.92 0.012 250);
+  --primary: oklch(0.88 0.175 100);
+  --primary-foreground: oklch(0.20 0.045 100);
+  --secondary: oklch(0.155 0.022 250);
+  --secondary-foreground: oklch(0.92 0.012 250);
+  --muted: oklch(0.19 0.022 250);
+  --muted-foreground: oklch(0.60 0.018 250);
+  --accent: oklch(0.22 0.026 250);
+  --accent-foreground: oklch(0.93 0.012 250);
+  --destructive: oklch(0.55 0.20 25);
+  --border: oklch(0.24 0.022 250);
+  --input: oklch(0.18 0.022 250);
+  --ring: oklch(0.88 0.175 100);
 
   /* Charts */
   --chart-1: oklch(0.60 0.16 255);
@@ -65,19 +67,19 @@
   --chart-4: oklch(0.63 0.26 304);
   --chart-5: oklch(0.65 0.24 16);
 
-  /* Sidebar — slightly lighter navy */
-  --sidebar: oklch(0.13 0.05 250);
-  --sidebar-foreground: oklch(0.88 0.02 240);
-  --sidebar-primary: oklch(0.62 0.18 250);
-  --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.20 0.06 250);
-  --sidebar-accent-foreground: oklch(0.88 0.02 240);
-  --sidebar-border: oklch(0.22 0.05 250);
-  --sidebar-ring: oklch(0.62 0.18 250);
+  /* Sidebar — glassy night panel */
+  --sidebar: oklch(0.135 0.022 250);
+  --sidebar-foreground: oklch(0.92 0.012 250);
+  --sidebar-primary: oklch(0.88 0.175 100);
+  --sidebar-primary-foreground: oklch(0.20 0.045 100);
+  --sidebar-accent: oklch(0.20 0.026 250);
+  --sidebar-accent-foreground: oklch(0.92 0.012 250);
+  --sidebar-border: oklch(0.21 0.022 250);
+  --sidebar-ring: oklch(0.88 0.175 100);
 
-  /* Gold accent — bright yellow-gold like reference */
-  --gold: oklch(0.78 0.17 80);
-  --gold-foreground: oklch(0.15 0.03 80);
+  /* Gold = the clutch accent (single voltage in the chrome) */
+  --gold: oklch(0.88 0.175 100);
+  --gold-foreground: oklch(0.20 0.045 100);
 }
 
 @theme inline {
@@ -148,9 +150,10 @@
   --color-warning: oklch(0.75 0.15 80);
   --color-warning-foreground: oklch(0.15 0 0);
 
-  /* Fonts */
+  /* Fonts — Bricolage Grotesque carries the brand voice, Inter does the work */
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
 }
 
 @layer base {
@@ -159,13 +162,20 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* The whole app sits on a baseplate: a faint stud dot-grid over quiet
+       night glows. Texture, not decoration. */
     background-image:
-      radial-gradient(ellipse at 20% 0%, oklch(0.28 0.12 245 / 0.30), transparent 50%),
-      radial-gradient(ellipse at 80% 0%, oklch(0.22 0.10 260 / 0.20), transparent 40%),
-      radial-gradient(ellipse at 50% 100%, oklch(0.18 0.08 235 / 0.18), transparent 50%);
+      radial-gradient(circle at 1px 1px, oklch(1 0 0 / 0.030) 1.2px, transparent 1.3px),
+      radial-gradient(ellipse at 20% 0%, oklch(0.24 0.06 245 / 0.35), transparent 50%),
+      radial-gradient(ellipse at 80% 0%, oklch(0.20 0.05 260 / 0.25), transparent 40%),
+      radial-gradient(ellipse at 50% 100%, oklch(0.17 0.04 235 / 0.20), transparent 50%);
+    background-size: 24px 24px, auto, auto, auto;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2 {
+    font-family: var(--font-display);
   }
 }
 
@@ -289,6 +299,137 @@ html, body {
 .lego-bg-brick-interactive[data-studs="1"]::before { display: none; }
 .lego-bg-brick-interactive[data-studs="1"]::after { left: 50%; right: auto; transform: translateX(-50%); }
 
+/* ─── Night Baseplate atmosphere (rendered once in the app shell) ─── */
+/* Three huge blurred color orbs drifting behind the glass chrome — the only
+   place LEGO pigments touch the chrome, and only as light. */
+@keyframes orb-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(8vw, 6vh, 0) scale(1.15); }
+}
+@keyframes orb-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.1); }
+  50%      { transform: translate3d(-7vw, -5vh, 0) scale(0.95); }
+}
+@keyframes orb-drift-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.95); }
+  50%      { transform: translate3d(5vw, -7vh, 0) scale(1.1); }
+}
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.atmosphere-orb {
+  position: absolute;
+  width: 44rem;
+  height: 44rem;
+  border-radius: 50%;
+  filter: blur(110px);
+  opacity: 0.13;
+}
+.atmosphere-orb:nth-child(1) {
+  top: -18rem; left: -10rem;
+  background: radial-gradient(circle, #0055BF, transparent 65%);
+  animation: orb-drift-a 38s ease-in-out infinite;
+}
+.atmosphere-orb:nth-child(2) {
+  bottom: -20rem; right: -12rem;
+  background: radial-gradient(circle, #D01012, transparent 65%);
+  animation: orb-drift-b 46s ease-in-out infinite;
+}
+.atmosphere-orb:nth-child(3) {
+  top: 30%; left: 55%;
+  background: radial-gradient(circle, #F5CD2F, transparent 65%);
+  animation: orb-drift-c 52s ease-in-out infinite;
+  opacity: 0.07;
+}
+/* Film grain: kills the flat dev-tool dark-mode look. One static SVG layer. */
+.atmosphere-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ─── "Stud press": brick-physical primary buttons ─── */
+/* A brick CTA: hard bottom edge like molded plastic, depresses on click. */
+.brick-btn {
+  position: relative;
+  border: none !important;
+  box-shadow:
+    0 4px 0 0 color-mix(in oklab, var(--primary) 45%, black),
+    0 6px 18px -4px color-mix(in oklab, var(--primary) 40%, transparent);
+  transition: transform 150ms var(--ease-spring), box-shadow 150ms var(--ease-spring);
+}
+.brick-btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 5px 0 0 color-mix(in oklab, var(--primary) 45%, black),
+    0 9px 24px -4px color-mix(in oklab, var(--primary) 50%, transparent);
+}
+.brick-btn:active {
+  transform: translateY(3px) scale(0.99) !important;
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, var(--primary) 45%, black),
+    0 2px 8px -2px color-mix(in oklab, var(--primary) 35%, transparent);
+}
+
+/* ─── LEGO color marquee strip (hero divider) ─── */
+@keyframes marquee-slide {
+  from { background-position: 0 0; }
+  to   { background-position: 96px 0; }
+}
+.brick-marquee {
+  height: 6px;
+  border-radius: 9999px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    #D01012 0 24px, #F5CD2F 24px 48px, #287F46 48px 72px, #0055BF 72px 96px
+  );
+  background-size: 96px 100%;
+  animation: marquee-slide 6s linear infinite;
+}
+
+/* ─── Play stage: the lit table the puzzle sits on ─── */
+/* A soft center spotlight over the stud-grid baseplate — the puzzle is the
+   one bright object in the room. */
+.play-stage {
+  background-color: var(--surface-sunken);
+  background-image:
+    radial-gradient(circle at 1px 1px, oklch(1 0 0 / 0.022) 1.2px, transparent 1.3px),
+    radial-gradient(ellipse 70% 55% at 50% 42%, oklch(0.30 0.045 250 / 0.40), transparent 70%),
+    radial-gradient(ellipse at 50% 130%, oklch(0.05 0.01 250 / 0.9), transparent 55%);
+  background-size: 24px 24px, auto, auto;
+}
+
+/* ─── Card cascade: CSS-only build-up stagger (compositor, always completes) ─── */
+@keyframes card-rise-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card-rise {
+  animation: card-rise-in 0.5s var(--ease-spring) both;
+  animation-delay: calc(var(--i, 0) * 65ms);
+}
+
+/* ─── Scroll-driven card reveal (zero-JS, compositor only) ─── */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    @keyframes scroll-reveal-in {
+      from { opacity: 0; transform: translateY(26px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .scroll-reveal {
+      animation: scroll-reveal-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 32%;
+    }
+  }
+}
+
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -325,15 +466,23 @@ html, body {
 }
 
 /* ─── Celebration: Card ─── */
+/* Glassy night chrome: translucent navy gradient + blur, acid-gold glow.
+   LEGO pigments stay out of the chrome — they live in the confetti/art. */
 .celebration-card {
   position: relative;
-  background: linear-gradient(145deg, var(--card) 0%, var(--background) 100%);
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--card) 92%, transparent) 0%,
+    color-mix(in oklab, var(--background) 96%, transparent) 100%
+  );
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border-radius: 1rem;
   border: 1.5px solid rgba(255,255,255,0.08);
   box-shadow:
     0 0 0 1px rgba(0,0,0,0.3),
     0 20px 60px -10px rgba(0,0,0,0.5),
-    0 0 40px -5px rgba(245, 205, 47, 0.12);
+    0 0 48px -6px color-mix(in oklab, var(--gold) 16%, transparent);
   overflow: visible;
   opacity: 0;
   transform: scale(0.85) translateY(30px);
@@ -371,25 +520,17 @@ html, body {
              trophy-float 3s ease-in-out 1s infinite;
 }
 
-/* ─── Celebration: Staggered letter pop-in ─── */
-@keyframes letter-pop {
-  0% { transform: translateY(20px) scale(0.5); opacity: 0; }
-  60% { transform: translateY(-3px) scale(1.1); opacity: 1; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
-}
+/* ─── Celebration: Title (SOLVED stamp — motion handled by framer spring) ─── */
 .celebration-title {
-  font-size: 1.75rem;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1.1;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--foreground);
   margin-bottom: 0.5rem;
   display: flex;
   justify-content: center;
-}
-.celebration-letter {
-  display: inline-block;
-  opacity: 0;
-  animation: letter-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* ─── Celebration: Subtitle fade-in ─── */
@@ -400,7 +541,8 @@ html, body {
 .celebration-subtitle {
   color: var(--muted-foreground);
   font-size: 0.9rem;
-  animation: subtitle-in 0.4s ease-out 1.1s both;
+  /* Lands just after the title stamp settles (~0.35s delay + 0.4s spring) */
+  animation: subtitle-in 0.4s ease-out 0.65s both;
 }
 
 /* ─── Celebration: Background stud pattern ─── */
@@ -427,25 +569,8 @@ html, body {
 }
 
 /* ─── Celebration: Buttons ─── */
-.celebration-btn-primary {
-  background: var(--color-lego-red) !important;
-  color: white !important;
-  font-weight: 600;
-  gap: 0.5rem;
-  border: none;
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-  box-shadow: 0 3px 0 0 #9e0c0e, 0 4px 12px rgba(208, 16, 18, 0.3);
-}
-.celebration-btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 0 0 #9e0c0e, 0 6px 16px rgba(208, 16, 18, 0.4);
-}
-.celebration-btn-primary:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 0 #9e0c0e, 0 2px 6px rgba(208, 16, 18, 0.3);
-}
+/* Primary CTA is the shared .brick-btn (gold) — only the quiet secondary
+   lives here. */
 .celebration-btn-secondary {
   border-color: var(--border) !important;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -538,6 +663,25 @@ html, body {
   animation: 200ms ease-out 50ms both fade-in;
 }
 
+/* ─── "Opening the box": gallery card → play stage morph ─── */
+/* The clicked card's thumbnail is named puzzle-hero on click (the card
+   unmounts on puzzle routes, so the name never duplicates); the play stage
+   carries the same name only while the shell is visible. The browser then
+   morphs the card rect into the stage rect on navigation. */
+[data-shell-visible="true"] .play-stage {
+  view-transition-name: puzzle-hero;
+}
+::view-transition-group(puzzle-hero) {
+  animation-duration: 380ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-old(puzzle-hero),
+::view-transition-new(puzzle-hero) {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
 /* ─── Reduced motion ─── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -547,7 +691,10 @@ html, body {
     scroll-behavior: auto !important;
   }
   ::view-transition-old(root),
-  ::view-transition-new(root) {
+  ::view-transition-new(root),
+  ::view-transition-group(puzzle-hero),
+  ::view-transition-old(puzzle-hero),
+  ::view-transition-new(puzzle-hero) {
     animation: none !important;
   }
 }

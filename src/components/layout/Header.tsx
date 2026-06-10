@@ -34,6 +34,7 @@ import {
   Columns2,
   CodeXml,
   Eye,
+  Globe,
   Menu,
   Undo2,
   Redo2,
@@ -157,13 +158,13 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
   const handleRedo = () => usePuzzleStore.getState().redo();
 
   return (
-    <header className="relative h-12 md:h-14 bg-[var(--surface-raised)]/80 backdrop-blur-md border-b border-[var(--border-subtle)] flex items-center px-4 z-40">
+    <header className="relative h-12 md:h-14 bg-[var(--surface-raised)]/60 backdrop-blur-xl border-b border-[var(--border-subtle)] flex items-center px-4 z-40">
       {/* Left: Logo (mobile always, desktop only on puzzle routes) + Puzzle title */}
       <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
         <Link to="/" className={`flex items-center gap-2.5 hover:opacity-80 transition-opacity ${!isPuzzleRoute ? 'md:hidden' : ''}`}>
           <LegoLogo className="w-8 h-8" />
           {isPuzzleRoute && (
-            <span className="font-semibold text-lg text-foreground tracking-tight hidden sm:inline">
+            <span className="font-display font-bold text-lg text-foreground tracking-tight hidden sm:inline">
               Virtual Lego
             </span>
           )}
@@ -268,6 +269,17 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
             </TooltipTrigger>
             <TooltipContent>View on GitHub</TooltipContent>
           </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                <a href="https://lego-puzzle-team-website.vercel.app/" target="_blank" rel="noopener noreferrer">
+                  <Globe className="h-4 w-4" />
+                </a>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Team Website</TooltipContent>
+          </Tooltip>
         </div>
       </TooltipProvider>
 
@@ -313,6 +325,11 @@ export function Header({ onChatToggle, isChatOpen, onShowInstructions, isPuzzleR
             <DropdownMenuItem asChild className="gap-3 py-2">
               <a href="https://github.com/a1amit/Lego-Puzzle-Editor" target="_blank" rel="noopener noreferrer">
                 <GithubIcon className="h-4 w-4" /><span>GitHub</span>
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-3 py-2">
+              <a href="https://lego-puzzle-team-website.vercel.app/" target="_blank" rel="noopener noreferrer">
+                <Globe className="h-4 w-4" /><span>Team Website</span>
               </a>
             </DropdownMenuItem>
 

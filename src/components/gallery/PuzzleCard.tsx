@@ -1,13 +1,14 @@
+import { useRef } from 'react';
 import { Heart, Users, Play, Pencil, CheckCircle } from 'lucide-react';
 import { Badge } from '../ui/shadcn/badge';
 import { PuzzleThumbnail } from './PuzzleThumbnail';
 import type { GalleryPuzzle } from '../../store/galleryStore';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: 'bg-green-500/20 text-green-400 border-green-500/30',
-  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  hard: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  expert: 'bg-red-500/20 text-red-400 border-red-500/30',
+  easy: 'bg-green-500/12 text-green-300/90 border-green-500/25',
+  medium: 'bg-yellow-500/12 text-yellow-300/90 border-yellow-500/25',
+  hard: 'bg-orange-500/12 text-orange-300/90 border-orange-500/25',
+  expert: 'bg-red-500/12 text-red-300/90 border-red-500/25',
 };
 
 const DIFFICULTY_GLOW: Record<string, string> = {
@@ -31,19 +32,36 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
   const dimensions = def.board?.dimensions ?? { width: 8, height: 4 };
   const viewMode = def.viewMode ?? '3D';
   const title = def.title ?? puzzle.slug;
+  const isPlugin = def.engine === 'plugin'
+    || (dimensions.width <= 1 && dimensions.height <= 1);
+
+  // "Opening the box": name this card's thumbnail for the view-transition
+  // morph into the play stage. Set on click only — the one clicked card owns
+  // the name for the old snapshot, and it unmounts on puzzle routes so the
+  // name never duplicates.
+  const thumbRef = useRef<HTMLDivElement>(null);
 
   return (
     <button
-      onClick={() => onClick(puzzle.slug)}
-      className={`group text-left w-full rounded-xl bg-card border border-border hover:border-primary/40 transition-all duration-200 overflow-hidden hover:shadow-xl ${DIFFICULTY_GLOW[puzzle.difficulty] || 'group-hover:shadow-primary/5'} focus:outline-none focus:ring-2 focus:ring-primary/50`}
+      onClick={() => {
+        thumbRef.current?.style.setProperty('view-transition-name', 'puzzle-hero');
+        onClick(puzzle.slug);
+      }}
+      className={`group text-left w-full rounded-xl bg-card border border-border hover:border-primary/40 transition-all duration-200 overflow-hidden hover:shadow-xl hover:-translate-y-0.5 ${DIFFICULTY_GLOW[puzzle.difficulty] || 'group-hover:shadow-primary/5'} focus:outline-none focus:ring-2 focus:ring-primary/50`}
     >
-      {/* Thumbnail */}
-      <div className="relative h-40 bg-gradient-to-br from-background via-card to-background flex items-center justify-center overflow-hidden">
-        <PuzzleThumbnail
-          dimensions={dimensions}
-          viewMode={viewMode}
-          className="opacity-50 group-hover:opacity-75 transition-opacity duration-300 scale-110 group-hover:scale-125"
-        />
+      {/* Thumbnail: full-bleed art with a slow zoom on hover */}
+      <div ref={thumbRef} className="relative h-40 bg-card overflow-hidden">
+        <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-[1.07]">
+          <PuzzleThumbnail
+            dimensions={dimensions}
+            viewMode={viewMode}
+            engine={def.engine}
+            seedKey={puzzle.slug}
+          />
+        </div>
+
+        {/* scrims: keep badges legible up top, melt into the card below */}
+        <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/45 to-transparent pointer-events-none" />
 
         {/* Top badges row */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
@@ -65,9 +83,9 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
         </div>
 
         {/* Hover play overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <div className="w-12 h-12 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 flex items-center justify-center">
-            <Play className="h-5 w-5 text-primary ml-0.5" />
+        <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-primary/25 backdrop-blur-sm border border-primary/40 shadow-lg shadow-black/30 flex items-center justify-center scale-90 group-hover:scale-100 transition-transform duration-300">
+            <Play className="h-5 w-5 text-white ml-0.5" />
           </div>
         </div>
 
@@ -108,7 +126,7 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
         </p>
 
         {/* Stats row */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
           <span className="flex items-center gap-1">
             <Users className="h-3 w-3" />
             {puzzle.stats.completions}
@@ -136,7 +154,7 @@ export function PuzzleCard({ puzzle, onClick, onEdit, onLike, isSolved, isLiked 
             </span>
           )}
           <span className="ml-auto text-[10px] text-muted-foreground/70">
-            {dimensions.width}x{dimensions.height}
+            {isPlugin ? 'plugin' : `${dimensions.width}×${dimensions.height}`}
           </span>
         </div>
       </div>

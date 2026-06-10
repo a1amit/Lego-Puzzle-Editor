@@ -39,7 +39,7 @@ export function LeafConditionRow({ ruleId, path, condition, onRemove }: LeafCond
   return (
     <div className={`flex items-start gap-2 p-2.5 rounded-lg border transition-colors ${
       isPickingThis
-        ? 'bg-cyan-500/10 border-cyan-500/40'
+        ? 'bg-primary/10 border-primary/40'
         : 'bg-[var(--surface-raised)] border-[var(--border-subtle)]'
     }`}>
       <div className="flex-1 min-w-0 space-y-2">
@@ -68,7 +68,7 @@ export function LeafConditionRow({ ruleId, path, condition, onRemove }: LeafCond
               onClick={() => startCellPicker(ruleId, path)}
               className={`flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-medium transition-colors ${
                 isPickingThis
-                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+                  ? 'bg-primary/15 text-primary border border-primary/40'
                   : 'bg-secondary text-muted-foreground hover:text-foreground border border-[var(--border-subtle)]'
               }`}
             >
@@ -169,7 +169,7 @@ export function LeafConditionRow({ ruleId, path, condition, onRemove }: LeafCond
                   onClick={() => startSingleCellPicker(ruleId, path, 'startCell')}
                   className={`flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-medium transition-colors ${
                     isPickingStart
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                      ? 'bg-success/15 text-success border border-success/40'
                       : 'bg-secondary text-muted-foreground hover:text-foreground border border-[var(--border-subtle)]'
                   }`}
                 >
@@ -186,7 +186,7 @@ export function LeafConditionRow({ ruleId, path, condition, onRemove }: LeafCond
                   onClick={() => startSingleCellPicker(ruleId, path, 'endCell')}
                   className={`flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-medium transition-colors ${
                     isPickingEnd
-                      ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                      ? 'bg-destructive/15 text-destructive border border-destructive/40'
                       : 'bg-secondary text-muted-foreground hover:text-foreground border border-[var(--border-subtle)]'
                   }`}
                 >
@@ -248,7 +248,7 @@ function CodeEditor({ code, onChange, condition }: {
         </div>
         <button
           onClick={handleTest}
-          className="flex items-center gap-1 h-6 px-2.5 rounded-md text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
+          className="flex items-center gap-1 h-6 px-2.5 rounded-md text-[11px] font-medium bg-success/15 text-success border border-success/25 hover:bg-success/25 transition-colors"
         >
           <Play className="w-3 h-3" />
           Test
@@ -273,8 +273,8 @@ function CodeEditor({ code, onChange, condition }: {
       {testResult && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] ${
           testResult.passed
-            ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-            : 'bg-red-500/10 border border-red-500/30 text-red-400'
+            ? 'bg-success/15 border border-success/25 text-success'
+            : 'bg-destructive/15 border border-destructive/30 text-destructive'
         }`}>
           {testResult.passed
             ? <Check className="w-3.5 h-3.5 shrink-0" />

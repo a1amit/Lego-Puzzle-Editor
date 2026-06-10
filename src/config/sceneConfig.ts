@@ -26,13 +26,13 @@ export const SCENE_3D = {
 
   postprocessing: {
     bloom: {
-      intensity: 0.08,
+      intensity: 0.13,
       luminanceThreshold: 0.62,
       luminanceSmoothing: 0.92,
     },
     vignette: {
       offset: 0.19,
-      darkness: 0.28,
+      darkness: 0.35,
     },
   },
 
@@ -41,7 +41,9 @@ export const SCENE_3D = {
     hemisphere: {
       intensity: 0.36,
       skyColor: '#fff5e6',
-      groundColor: '#2a2035',
+      // cool navy bounce light (was a purple cast that clashed with the
+      // desaturated night theme)
+      groundColor: '#1c2433',
     },
     main: { intensity: 1.26, position: [11, 18, 9] as const },
     fill: { intensity: 0.32, position: [-8, 10, -6] as const },
@@ -49,7 +51,7 @@ export const SCENE_3D = {
     point: { intensity: 0.18, position: [0, 6, 0] as const },
   },
 
-  fog: { color: '#0f1520', near: 30, far: 78 },
+  fog: { color: '#0c111b', near: 30, far: 78 },
 
   shadow: {
     mapSize: 2048 as number,
@@ -67,7 +69,7 @@ export const SCENE_3D = {
     far: 14,
   },
 
-  background: { color: '#0f1520', roughness: 0.95, metalness: 0.05 },
+  background: { color: '#0c111b', roughness: 0.95, metalness: 0.05 },
 } as const;
 
 // ============================================
@@ -156,7 +158,7 @@ export const COLORS = {
   goalFrame: '#52C477',
   slideDestination: '#3FB950',
   invalidCell: '#F85149',
-  background: '#0b101d',
+  background: '#0c111b',
 } as const;
 
 // ============================================
@@ -196,8 +198,8 @@ export const SCENE_2D = {
   colors: {
     background: '#0b101d',
     backgroundEdge: '#060a12',
-    boardSurface: '#1a2233',
-    boardSurfaceEdge: '#0f1520',
+    boardSurface: '#1b2334',
+    boardSurfaceEdge: '#0e131e',
     boardBorder: '#2a3548',
     cellBase: '#3a4255',
     cellBaseLight: '#454e63',
@@ -205,11 +207,11 @@ export const SCENE_2D = {
     cellBlockedLight: '#2d3240',
     cellStud: '#2d3344',
     cellStudHighlight: 'rgba(255,255,255,0.12)',
-    hoverCell: '#4a6fa5',
+    hoverCell: '#42597f',
     validDest: '#2d6b3f',
     validDestGlow: '#4ade80',
     invalidCell: '#6b2a2a',
-    selectionGlow: '#58A6FF',
+    selectionGlow: '#6EC1FF',
     hintBg: '#141b2a',
     hintText: '#c8d0e0',
     goalStroke: '#22c55e',

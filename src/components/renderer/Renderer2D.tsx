@@ -261,7 +261,9 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
   }
 
   return (
-    <div ref={containerRef} className={`relative w-full h-full flex items-center justify-center ${showTouchControls ? 'pb-20' : ''} ${className}`} style={{ background: C.background }}>
+    // Transparent backdrop: the board floats on the shell's lit .play-stage
+    // instead of painting its own opaque background over the spotlight.
+    <div ref={containerRef} className={`relative w-full h-full flex items-center justify-center ${showTouchControls ? 'pb-20' : ''} ${className}`}>
       <svg
         ref={svgRef}
         width="100%"
@@ -274,12 +276,6 @@ export function Renderer2D({ engine, className = '' }: Renderer2DProps) {
       >
         {/* SVG Definitions - filters, gradients, patterns */}
         <SvgDefs pieces={board.placedPieces} inventoryColors={puzzle.inventory.map(p => p.color)} cellSize={cellSize} />
-
-        {/* Background with radial gradient */}
-        <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="url(#bg-gradient)" />
-
-        {/* Vignette overlay */}
-        <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="url(#bg-gradient)" opacity="0.3" />
 
         {/* Nonogram hints */}
         {nonogramHints && (

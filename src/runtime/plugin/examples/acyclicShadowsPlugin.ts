@@ -26,7 +26,9 @@
  * WIN: a single simple closed loop AND all three shadows acyclic.
  * RENDER: Three.js — the loop as bricks, the three live shadows on the back
  *   walls, cyclic shadow edges painted red. Drag to orbit; click an edge to
- *   toggle (raycast against fat invisible pick proxies).
+ *   toggle (raycast against fat invisible pick proxies). A keyboard cursor
+ *   (arrows / W/S / Tab / Space, screen-relative) reaches the inner edges that
+ *   are hard to hit with a pointer.
  *
  * As with the Rubik's example, the value below is the self-contained ES module
  * SOURCE that runs inside the sandbox; the pure logic is side-effect free so it
@@ -334,6 +336,41 @@ const ACYCLIC = (function () {
       edgeObjs[ek] = { brick: brick, bmat: bmat };
     }
 
+    // ---- keyboard cursor: a highlighted edge you steer with the keys ----
+    // Inner edges are awkward to hit with a pointer, so the cursor renders with
+    // depth-test OFF (always visible, even inside the lattice) and is moved with
+    // arrows / W/S, turned with Tab, and toggled with Space — no precise click needed.
+    var cursorGeo = [boxByAxis(0, 1.04, 0.3), boxByAxis(1, 1.04, 0.3), boxByAxis(2, 1.04, 0.3)];
+    var curMeshes = [];
+    for (var ci = 0; ci < 3; ci++) {
+      var cm = new THREE.Mesh(cursorGeo[ci], new THREE.MeshBasicMaterial({
+        color: 0x4db8ff, transparent: true, opacity: 0.45, depthTest: false, depthWrite: false
+      }));
+      cm.renderOrder = 10; cm.visible = false; world.add(cm); curMeshes.push(cm);
+    }
+    var mid0 = Math.floor((n - 1) / 2);
+    var cur = { p: [mid0, mid0, mid0], ax: 0, on: false };
+    function clampCur() {
+      for (var i = 0; i < 3; i++) {
+        var max = (i === cur.ax) ? n - 2 : n - 1;   // base vertex of an ax-edge can't sit on the far face
+        if (cur.p[i] < 0) cur.p[i] = 0;
+        if (cur.p[i] > max) cur.p[i] = max;
+      }
+    }
+    function cursorKey() {
+      var b = cur.p.slice(); b[cur.ax] += 1;
+      return ekey(cur.p, b);
+    }
+    function updateCursor() {
+      for (var i = 0; i < 3; i++) curMeshes[i].visible = cur.on && i === cur.ax;
+      if (cur.on) {
+        var b = cur.p.slice(); b[cur.ax] += 1;
+        var wa = w(cur.p), wb = w(b);
+        curMeshes[cur.ax].position.set((wa[0] + wb[0]) / 2, (wa[1] + wb[1]) / 2, (wa[2] + wb[2]) / 2);
+      }
+      invalidate();
+    }
+
     // shadow line segments (rebuilt each update; tiny graphs, cheap)
     var shadowGroup = new THREE.Group(); world.add(shadowGroup);
     function clearShadow() {
@@ -424,6 +461,13 @@ const ACYCLIC = (function () {
       invalidate();
     });
     ui.appendChild(status); ui.appendChild(bar);
+    // keyboard hint — pointless on touch devices, so only show for fine pointers
+    if (!(self.matchMedia && self.matchMedia("(pointer: coarse)").matches)) {
+      var hint = document.createElement("div");
+      hint.style.cssText = "max-width:92%;text-align:center;font-size:11px;color:#9aa6b2;background:rgba(20,22,28,0.6);padding:3px 9px;border-radius:6px";
+      hint.textContent = "Click the puzzle, then: arrows move the highlight · W/S deeper/closer · Tab turns it · Space places/removes · Esc hides";
+      ui.appendChild(hint);
+    }
     root.appendChild(ui);
 
     // orbit (drag) + pick (click). A small movement threshold separates the two.
@@ -441,6 +485,9 @@ const ACYCLIC = (function () {
       return Math.sqrt(dx * dx + dy * dy);
     }
     function down(e) {
+      // pull keyboard focus onto the canvas so the cursor keys work right away
+      // (and so Space stops re-clicking a previously focused button)
+      if (renderer.domElement.focus) renderer.domElement.focus({ preventScroll: true });
       if (e.touches && e.touches.length >= 2) { pinch = touchDist(e); dragging = false; return; }
       dragging = true; moved = 0; var p = pt(e); lx = p.clientX; ly = p.clientY; renderer.domElement.style.cursor = "grabbing";
     }
@@ -475,7 +522,17 @@ const ACYCLIC = (function () {
       ndc.y = -((p.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(ndc, camera);
       var hits = raycaster.intersectObjects(proxies, false);
-      if (hits.length) api.emitMove({ type: "toggle", key: hits[0].object.userData.key });
+      if (hits.length) {
+        var hitKey = hits[0].object.userData.key;
+        var hp = parseEdge(hitKey);                 // ekey puts the lesser endpoint first
+        cur.p = hp[0].slice();
+        cur.ax = hp[0][0] !== hp[1][0] ? 0 : (hp[0][1] !== hp[1][1] ? 1 : 2);
+        // snap the cursor here (click an easy edge, arrow inward) — but never
+        // SHOW it for touch taps: there is no keyboard to drive or dismiss it
+        if (!(e.changedTouches || e.touches)) cur.on = true;
+        updateCursor();
+        api.emitMove({ type: "toggle", key: hitKey });
+      }
     }
     renderer.domElement.addEventListener("mousedown", down);
     self.addEventListener("mousemove", move);
@@ -484,6 +541,69 @@ const ACYCLIC = (function () {
     self.addEventListener("touchmove", move, { passive: true });
     self.addEventListener("touchend", up);
     renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
+
+    // keyboard: steer the cursor (see cursor block above). Arrows move in the
+    // SCREEN plane and W/S along screen depth — each press maps them onto
+    // whichever lattice axes currently face those directions, so the keys keep
+    // doing what they look like they do no matter how the cube is rotated.
+    renderer.domElement.tabIndex = 0;
+    renderer.domElement.style.outline = "none";
+    function axisFor(target, used) {
+      var bi = -1, bd = 0;
+      for (var i = 0; i < 3; i++) {
+        if (used[i]) continue;
+        var axv = new THREE.Vector3(i === 0 ? 1 : 0, i === 1 ? 1 : 0, i === 2 ? 1 : 0).applyQuaternion(world.quaternion);
+        var d = axv.dot(target);
+        if (bi < 0 || Math.abs(d) > Math.abs(bd)) { bi = i; bd = d; }
+      }
+      used[bi] = true;
+      return { axis: bi, sign: bd >= 0 ? 1 : -1 };
+    }
+    function axisMap() {
+      var used = [false, false, false];             // greedy, no reuse -> three distinct axes
+      return {
+        right: axisFor(new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), used),
+        up: axisFor(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), used),
+        fwd: axisFor(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion), used)
+      };
+    }
+    function stepCur(d, m) { cur.p[d.axis] += d.sign * m; clampCur(); }
+    function onKey(e) {
+      var tag = e.target && e.target.tagName;
+      if (tag === "BUTTON" || tag === "INPUT" || tag === "TEXTAREA") return;  // UI keeps its own keys
+      if (e.ctrlKey || e.metaKey || e.altKey) return;   // never hijack browser shortcuts (Ctrl+R, Cmd+Arrow, ...)
+      var k = e.key;
+      if (k === "Escape") { if (cur.on) { cur.on = false; updateCursor(); } return; }
+      // Tab only turns the cursor while it is shown — so Esc releases it and a
+      // further Tab moves focus to the buttons (no permanent focus trap).
+      if (k === "Tab" && (!cur.on || e.shiftKey)) return;
+      // arrows may auto-repeat (hold to traverse); placing/turning must not
+      var movement = k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowDown" ||
+                     k === "PageUp" || k === "PageDown" || "wWsS".indexOf(k) >= 0;
+      if (e.repeat && !movement) { e.preventDefault(); return; }
+      var nav = axisMap(), wasOn = cur.on, handled = true;
+      if (!wasOn) {
+        // first press only reveals the cursor (no move/toggle), so nothing jumps
+        handled = movement || k === " " || k === "Enter" || "rRxXyYzZ".indexOf(k) >= 0;
+      }
+      else if (k === "ArrowRight") stepCur(nav.right, 1);
+      else if (k === "ArrowLeft") stepCur(nav.right, -1);
+      else if (k === "ArrowUp") stepCur(nav.up, 1);
+      else if (k === "ArrowDown") stepCur(nav.up, -1);
+      else if (k === "PageUp" || k === "w" || k === "W") stepCur(nav.fwd, 1);     // deeper (away from you)
+      else if (k === "PageDown" || k === "s" || k === "S") stepCur(nav.fwd, -1);  // closer
+      else if (k === "Tab" || k === "r" || k === "R") { cur.ax = (cur.ax + 1) % 3; clampCur(); }
+      else if (k === "x" || k === "X") { cur.ax = 0; clampCur(); }
+      else if (k === "y" || k === "Y") { cur.ax = 1; clampCur(); }
+      else if (k === "z" || k === "Z") { cur.ax = 2; clampCur(); }
+      else if (k === " " || k === "Enter") api.emitMove({ type: "toggle", key: cursorKey() });
+      else handled = false;
+      if (!handled) return;
+      e.preventDefault();
+      cur.on = true;
+      updateCursor();
+    }
+    self.addEventListener("keydown", onKey);
 
     function update(stateNow) {
       var edges = (stateNow && stateNow.edges) || [];
@@ -547,6 +667,7 @@ const ACYCLIC = (function () {
         self.removeEventListener("mouseup", up);
         self.removeEventListener("touchmove", move);
         self.removeEventListener("touchend", up);
+        self.removeEventListener("keydown", onKey);
         renderer.domElement.removeEventListener("wheel", onWheel);
         if (ro) ro.disconnect();
         clearShadow();
@@ -566,7 +687,7 @@ const ACYCLIC = (function () {
   return {
     meta: {
       title: "Acyclic Shadows",
-      instructions: "Click lattice edges to lay one closed loop of bricks. You win when the loop's three shadows (on the back walls) are all trees — no cycle in any shadow. Drag to orbit; 'Show solution' reveals Rickard's minimal loop.",
+      instructions: "Click lattice edges to lay one closed loop of bricks. You win when the loop's three shadows (on the back walls) are all trees — no cycle in any shadow. Drag to orbit; 'Show solution' reveals Rickard's minimal loop. Keyboard (click the puzzle first): arrow keys move the highlighted edge, W/S push it deeper/closer, Tab turns it, Space places or removes a brick — the easy way to reach inner edges.",
       supportsUndo: true,
       rngSeedable: false
     },

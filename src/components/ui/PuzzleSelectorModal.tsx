@@ -31,9 +31,9 @@ function getDifficultyBadge(puzzleItem: PuzzleItem) {
   const metadata = (puzzleItem.puzzle as { metadata?: { difficulty?: string } }).metadata;
   const difficulty = metadata?.difficulty ?? 'medium';
   const colors: Record<string, string> = {
-    easy: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    hard: 'bg-red-500/20 text-red-400 border-red-500/30',
+    easy: 'bg-emerald-500/12 text-emerald-300/90 border-emerald-500/25',
+    medium: 'bg-yellow-500/12 text-yellow-300/90 border-yellow-500/25',
+    hard: 'bg-red-500/12 text-red-300/90 border-red-500/25',
   };
   return (
     <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded border ${colors[difficulty] ?? colors.medium}`}>
@@ -192,7 +192,7 @@ export function PuzzleSelectorModal({ isOpen, onClose }: PuzzleSelectorModalProp
               <Puzzle className="w-6 h-6 text-white" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold">Choose a Puzzle</DialogTitle>
+              <DialogTitle className="text-xl font-bold font-display">Choose a Puzzle</DialogTitle>
               <DialogDescription>{totalPuzzles} puzzles available</DialogDescription>
             </div>
           </div>

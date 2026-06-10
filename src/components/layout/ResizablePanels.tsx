@@ -138,8 +138,8 @@ export function ResizablePanels({
           className={`
             ${isHorizontal ? 'w-1.5 h-full rounded-full' : 'h-1.5 w-full rounded-full'}
             bg-border transition-all duration-150
-            group-hover:bg-primary group-hover:shadow-[0_0_6px_rgba(99,102,241,0.4)]
-            ${isDragging ? 'bg-primary shadow-[0_0_8px_rgba(99,102,241,0.5)]' : ''}
+            group-hover:bg-primary group-hover:shadow-[0_0_6px_color-mix(in_oklab,var(--primary)_40%,transparent)]
+            ${isDragging ? 'bg-primary shadow-[0_0_8px_color-mix(in_oklab,var(--primary)_50%,transparent)]' : ''}
           `}
         />
         {/* Handle indicator dots — visible at rest */}
