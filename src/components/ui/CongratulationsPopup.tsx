@@ -78,6 +78,10 @@ function MinifigHead({ color, style }: { color: string; style: React.CSSProperti
   );
 }
 
+/** Deterministic pseudo-random (same trick as PuzzleThumbnail) — pure during
+ *  render, so the confetti memo stays side-effect free. */
+function rand(seed: number) { return ((Math.sin(seed * 9301 + 49297) % 1) + 1) % 1; }
+
 export function CongratulationsPopup({
   isVisible,
   onClose,
@@ -93,23 +97,22 @@ export function CongratulationsPopup({
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // Pre-compute random confetti positions so they don't change on re-render
+  // Seeded per-index confetti layout: stable across re-renders and pure
+  // during render (no Math.random), with the same varied look every burst.
   const confettiPieces = useMemo(() => {
     // No confetti for reduced-motion users
     if (prefersReducedMotion) return [];
     return Array.from({ length: CONFETTI.particleCount + 10 }).map((_, i) => ({
-      left: Math.random() * 100,
-      delay: Math.random() * 1.8,
-      duration: 2.8 + Math.random() * 1.6, // varied fall speeds = denser-feeling rain
-      rotation: Math.random() * 360,
-      scale: 0.55 + Math.random() * 0.95,
-      drift: (Math.random() - 0.5) * 160,
+      left: rand(i * 7 + 1) * 100,
+      delay: rand(i * 13 + 2) * 1.8,
+      duration: 2.8 + rand(i * 17 + 3) * 1.6, // varied fall speeds = denser-feeling rain
+      rotation: rand(i * 19 + 4) * 360,
+      scale: 0.55 + rand(i * 23 + 5) * 0.95,
+      drift: (rand(i * 29 + 6) - 0.5) * 160,
       color: CONFETTI.colors[i % CONFETTI.colors.length],
       isMinifig: i % 8 === 0, // every 8th piece is a minifig head
     }));
-  },
-    [isVisible, prefersReducedMotion] // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  }, [prefersReducedMotion]);
 
   useEffect(() => {
     if (isVisible) {
