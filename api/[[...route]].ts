@@ -41,8 +41,14 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use('*', async (_c, next) => {
-  await connectDB();
+app.use('*', async (c, next) => {
+  // /chat is a pure proxy to the model API and never touches MongoDB. Skip the
+  // (potentially slow, cold-start) DB connect there so it can't consume the
+  // function's time budget — a cold Atlas connect can otherwise stall the request
+  // long enough to trip the function timeout before the model is even called.
+  if (!c.req.path.includes('/chat')) {
+    await connectDB();
+  }
   await next();
 });
 
@@ -828,6 +834,13 @@ app.post('/chat', async (c) => {
     parts: [{ text: m.content }],
   }));
 
+  // Abort the upstream model call before the platform hard-kills the function.
+  // Must stay strictly below the function maxDuration (vercel.json) so we can return
+  // clean JSON instead of letting Vercel emit a non-JSON gateway 504 page.
+  const timeoutMs = parseInt(process.env.CHAT_TIMEOUT_MS || '45000');
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const res = await fetch(url, {
@@ -843,6 +856,7 @@ app.post('/chat', async (c) => {
           temperature,
         },
       }),
+      signal: ac.signal,
     });
 
     if (!res.ok) {
@@ -869,10 +883,21 @@ app.post('/chat', async (c) => {
 
     return c.json({ success: true, message: content });
   } catch (error) {
+    // Our own AbortController fired — the model exceeded the budget. Return clean
+    // JSON 504 so the client shows a friendly message instead of crashing on a
+    // non-JSON platform error page.
+    if (error instanceof Error && error.name === 'AbortError') {
+      return c.json({
+        success: false,
+        error: 'The assistant took too long to respond. Please try again.',
+      }, 504);
+    }
     return c.json({
       success: false,
       error: error instanceof Error ? error.message : 'Chat service error',
     }, 500);
+  } finally {
+    clearTimeout(timer);
   }
 });
 

@@ -27,7 +27,10 @@ export async function connectDB() {
 
     cached.promise = mongoose.connect(uri, {
       maxPoolSize: 2,
-      serverSelectionTimeoutMS: 15000,
+      // Keep server selection well inside the function time budget so a failed/cold
+      // connect surfaces as a catchable error (→ JSON 500) instead of hanging until
+      // the platform hard-kills the function and returns a non-JSON gateway page.
+      serverSelectionTimeoutMS: 10000,
     });
   }
 
