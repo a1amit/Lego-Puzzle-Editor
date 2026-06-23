@@ -61,10 +61,24 @@ export async function sendChatMessage(
             body: JSON.stringify({ messages }),
         });
 
-        const data = await res.json();
+        // Read the body as text first. A gateway timeout (504) or other platform
+        // error returns a plain-text page (e.g. "An error occurred..."), and calling
+        // res.json() on that throws a confusing "Unexpected token 'A'..." SyntaxError.
+        // Parse defensively so non-JSON responses become a friendly message instead.
+        const raw = await res.text();
+        let data: { success?: boolean; message?: string; error?: string } = {};
+        try {
+            data = raw ? JSON.parse(raw) : {};
+        } catch {
+            // Non-JSON body (gateway/timeout page) — leave data empty and fall through.
+        }
 
         if (!res.ok) {
-            return { success: false, message: '', error: data.error || `API error: ${res.status}` };
+            const friendly =
+                res.status === 504 || res.status === 502 || res.status === 503
+                    ? 'The assistant took too long to respond. Please try again in a moment.'
+                    : data.error || `The assistant is temporarily unavailable (error ${res.status}).`;
+            return { success: false, message: '', error: friendly };
         }
 
         if (data.success && data.message) {
@@ -72,8 +86,8 @@ export async function sendChatMessage(
         }
 
         return { success: false, message: '', error: data.error || 'Empty response from chat service' };
-    } catch (error) {
-        return { success: false, message: '', error: error instanceof Error ? error.message : 'Chat service error' };
+    } catch {
+        return { success: false, message: '', error: 'Could not reach the chat service. Please try again.' };
     }
 }
 
