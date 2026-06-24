@@ -51,7 +51,7 @@ export const SCENE_3D = {
     point: { intensity: 0.18, position: [0, 6, 0] as const },
   },
 
-  fog: { color: '#0c111b', near: 30, far: 78 },
+  fog: { color: '#222a3a', near: 30, far: 78 },
 
   shadow: {
     mapSize: 2048 as number,
@@ -69,7 +69,11 @@ export const SCENE_3D = {
     far: 14,
   },
 
-  background: { color: '#0c111b', roughness: 0.95, metalness: 0.05 },
+  // Brighter medium-dark navy so the board/floor and (for plugin puzzles) the
+  // shadow walls read clearly — the previous '#0c111b' (oklch L≈0.18) was so
+  // dark the scene looked near-black. Drives the scene clear color, the floor
+  // grid plane, and (matched below) the fog. Kept on-theme "Night Baseplate".
+  background: { color: '#222a3a', roughness: 0.95, metalness: 0.05 },
 } as const;
 
 // ============================================
