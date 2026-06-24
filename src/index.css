@@ -397,11 +397,15 @@ html, body {
 /* A soft center spotlight over the stud-grid baseplate — the puzzle is the
    one bright object in the room. */
 .play-stage {
-  background-color: var(--surface-sunken);
+  /* Brighter "table" than the very dark --surface-sunken (oklch L≈0.09), which
+     left 2D boards and (transparent-canvas) plugin puzzles looking near-black.
+     Lifted to L≈0.24 with a stronger center spotlight so pieces/walls read,
+     while staying on-theme. Matches the 3D scene background brightness. */
+  background-color: oklch(0.24 0.024 250);
   background-image:
-    radial-gradient(circle at 1px 1px, oklch(1 0 0 / 0.022) 1.2px, transparent 1.3px),
-    radial-gradient(ellipse 70% 55% at 50% 42%, oklch(0.30 0.045 250 / 0.40), transparent 70%),
-    radial-gradient(ellipse at 50% 130%, oklch(0.05 0.01 250 / 0.9), transparent 55%);
+    radial-gradient(circle at 1px 1px, oklch(1 0 0 / 0.025) 1.2px, transparent 1.3px),
+    radial-gradient(ellipse 75% 60% at 50% 42%, oklch(0.42 0.05 250 / 0.45), transparent 72%),
+    radial-gradient(ellipse at 50% 130%, oklch(0.12 0.016 250 / 0.6), transparent 55%);
   background-size: 24px 24px, auto, auto;
 }
 

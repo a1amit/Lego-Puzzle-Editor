@@ -1067,7 +1067,7 @@ function PuzzleSceneInner() {
   return (
     <div
       className={`w-full h-full relative transition-opacity duration-300 ${showTouchControls ? 'pb-20' : ''} ${sceneReady ? 'opacity-100' : 'opacity-0'}`}
-      style={{ cursor: shouldHideCursor ? 'none' : 'auto', backgroundColor: '#0f1520', touchAction: 'none' }}
+      style={{ cursor: shouldHideCursor ? 'none' : 'auto', backgroundColor: '#222a3a', touchAction: 'none' }}
       onContextMenu={(e) => {
         if (hasInventorySelection) {
           e.preventDefault();
